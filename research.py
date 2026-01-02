@@ -1,6 +1,8 @@
 import os
 import sys
 import asyncio
+import argparse
+from typing import List
 from google import genai
 from rich.console import Console
 from rich.markdown import Markdown
@@ -10,13 +12,17 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 console = Console()
 
 
-async def run_research(query: str, model_id: str = "deep-research-pro-preview-12-2025"):
+async def run_research(query: str, model_id: str):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
         sys.exit(1)
 
-    client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
+    try:
+        client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
+    except Exception as e:
+        console.print(f"[red]Error initializing Gemini client:[/red] {str(e)}")
+        sys.exit(1)
 
     console.print(
         Panel(
@@ -38,7 +44,7 @@ async def run_research(query: str, model_id: str = "deep-research-pro-preview-12
             model=model_id, contents=query, config=config
         )
 
-        report_content = ""
+        report_parts: List[str] = []
         current_thought = ""
 
         with Progress(
@@ -49,11 +55,6 @@ async def run_research(query: str, model_id: str = "deep-research-pro-preview-12
             task = progress.add_task("Researching...", total=None)
 
             for event in stream:
-                # The event structure in v1alpha/Interactions can be:
-                # event.thought
-                # event.content.parts
-                # event.interaction (metadata)
-
                 # Update thought if available
                 thought = getattr(event, "thought", None)
                 if thought:
@@ -70,12 +71,11 @@ async def run_research(query: str, model_id: str = "deep-research-pro-preview-12
                     for part in parts:
                         text = getattr(part, "text", None)
                         if text:
-                            report_content += text
-                            # If we are streaming the final report, we might want to update the UI
-                            # But for deep research, thoughts are the main stream, report comes at the end.
+                            report_parts.append(text)
 
             progress.update(task, description="Research complete!", completed=True)
 
+        report_content = "".join(report_parts)
         if report_content:
             console.print("\n" + "=" * 40 + "\n")
             console.print(Markdown(report_content))
@@ -84,21 +84,27 @@ async def run_research(query: str, model_id: str = "deep-research-pro-preview-12
             console.print("[yellow]No report content received.[/yellow]")
 
     except Exception as e:
-        console.print(f"[red]Error during research:[/red] {str(e)}")
-        # If it's a 404 or model not found, explain
+        console.print(f"[red]Error during research interaction:[/red] {str(e)}")
         if "404" in str(e):
             console.print(
-                "[yellow]Note: The Interactions API and deep-research model might require specific whitelist access or v1alpha version.[/yellow]"
+                "[yellow]Note: Ensure the model ID is correct and you have access to the Interactions API.[/yellow]"
             )
 
 
 def main():
-    if len(sys.argv) < 2:
-        console.print('[yellow]Usage: research "your research query"[/yellow]')
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
+    parser.add_argument("query", help="The research query")
+    parser.add_argument(
+        "--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID"
+    )
 
-    query = sys.argv[1]
-    asyncio.run(run_research(query))
+    args = parser.parse_args()
+
+    try:
+        asyncio.run(run_research(args.query, args.model))
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Research cancelled by user.[/yellow]")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
