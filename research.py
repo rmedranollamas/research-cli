@@ -51,7 +51,7 @@ async def run_research(query: str, model_id: str):
             task = progress.add_task("Initializing...", total=None)
 
             for event in stream:
-                # Get interaction ID if available
+                # Get interaction ID
                 inter = getattr(event, "interaction", None)
                 if inter and not interaction_id:
                     interaction_id = getattr(inter, "id", None)
@@ -81,18 +81,20 @@ async def run_research(query: str, model_id: str):
 
         report_content = "".join(report_parts)
 
-        # Fallback: if stream finished but no content, poll the interaction
+        # Fallback: poll the interaction if needed
         if not report_content and interaction_id:
-            console.print("[yellow]Checking final interaction state...[/yellow]")
+            console.print(
+                f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
+            )
             while True:
                 final_inter = client.interactions.get(id=interaction_id)
-                # Check state: 'COMPLETED', 'FAILED', etc.
                 state = getattr(final_inter, "state", "UNKNOWN")
+                console.print(f"[dim]Current state: {state}[/dim]")
+
                 if state == "COMPLETED":
-                    # Extract response
+                    # Extract from response
                     response = getattr(final_inter, "response", None)
                     if response:
-                        # Extract text from response (similar to GenerateContentResponse)
                         if hasattr(response, "candidates"):
                             for cand in response.candidates:
                                 if cand.content and cand.content.parts:
@@ -101,13 +103,24 @@ async def run_research(query: str, model_id: str):
                                             report_parts.append(part.text)
                         elif hasattr(response, "text"):
                             report_parts.append(response.text)
+
+                    # Backup check: contents
+                    if not report_parts:
+                        contents = getattr(final_inter, "contents", [])
+                        for content_item in contents:
+                            if hasattr(content_item, "parts"):
+                                for part in content_item.parts:
+                                    if hasattr(part, "text") and part.text:
+                                        report_parts.append(part.text)
                     break
                 elif state in ["FAILED", "CANCELLED"]:
-                    console.print(f"[red]Research interaction {state.lower()}.[/red]")
+                    err = getattr(final_inter, "error", "Unknown error")
+                    console.print(
+                        f"[red]Research interaction {state.lower()}: {err}[/red]"
+                    )
                     break
-                else:
-                    # Still running? Wait a bit
-                    await asyncio.sleep(5)
+
+                await asyncio.sleep(10)
 
             report_content = "".join(report_parts)
 
