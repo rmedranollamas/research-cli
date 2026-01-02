@@ -1,13 +1,16 @@
 [project]
 name = "research-cli"
 version = "0.1.0"
-description = "Add your description here"
+description = "Stateless CLI for Gemini Deep Research"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "google-genai>=1.56.0",
     "rich>=14.2.0",
 ]
+
+[tool.uv]
+package = true
 
 [project.scripts]
 research = "research:main"
