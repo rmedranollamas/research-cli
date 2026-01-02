@@ -41,21 +41,34 @@ async def run_research(query: str, model_id: str):
         )
 
         report_parts: List[str] = []
+        interaction_id = None
 
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task("Researching...", total=None)
+            task = progress.add_task("Initializing...", total=None)
 
             for event in stream:
+                # Get interaction ID if available
+                inter = getattr(event, "interaction", None)
+                if inter and not interaction_id:
+                    interaction_id = getattr(inter, "id", None)
+                    if interaction_id:
+                        progress.update(
+                            task, description=f"Researching (ID: {interaction_id})..."
+                        )
+
+                # Handle thoughts
                 thought = getattr(event, "thought", None)
                 if thought:
                     progress.update(
                         task, description=f"[italic grey]{thought}[/italic grey]"
                     )
+                    console.print(f"[italic grey]> {thought}[/italic grey]")
 
+                # Handle content
                 content = getattr(event, "content", None)
                 if content:
                     parts = getattr(content, "parts", [])
@@ -64,9 +77,40 @@ async def run_research(query: str, model_id: str):
                         if text:
                             report_parts.append(text)
 
-            progress.update(task, description="Research complete!", completed=True)
+            progress.update(task, description="Stream finished.", completed=True)
 
         report_content = "".join(report_parts)
+
+        # Fallback: if stream finished but no content, poll the interaction
+        if not report_content and interaction_id:
+            console.print("[yellow]Checking final interaction state...[/yellow]")
+            while True:
+                final_inter = client.interactions.get(id=interaction_id)
+                # Check state: 'COMPLETED', 'FAILED', etc.
+                state = getattr(final_inter, "state", "UNKNOWN")
+                if state == "COMPLETED":
+                    # Extract response
+                    response = getattr(final_inter, "response", None)
+                    if response:
+                        # Extract text from response (similar to GenerateContentResponse)
+                        if hasattr(response, "candidates"):
+                            for cand in response.candidates:
+                                if cand.content and cand.content.parts:
+                                    for part in cand.content.parts:
+                                        if part.text:
+                                            report_parts.append(part.text)
+                        elif hasattr(response, "text"):
+                            report_parts.append(response.text)
+                    break
+                elif state in ["FAILED", "CANCELLED"]:
+                    console.print(f"[red]Research interaction {state.lower()}.[/red]")
+                    break
+                else:
+                    # Still running? Wait a bit
+                    await asyncio.sleep(5)
+
+            report_content = "".join(report_parts)
+
         if report_content:
             console.print("\n" + "=" * 40 + "\n")
             console.print(Markdown(report_content))
@@ -76,10 +120,6 @@ async def run_research(query: str, model_id: str):
 
     except Exception as e:
         console.print(f"[red]Error during research interaction:[/red] {str(e)}")
-        if "404" in str(e):
-            console.print(
-                "[yellow]Note: Ensure the model ID is correct and you have access to the Interactions API.[/yellow]"
-            )
 
 
 def main():
