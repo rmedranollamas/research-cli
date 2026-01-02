@@ -208,3 +208,4 @@ __marimo__/
 \n# Node.js\nnode_modules/\nnpm-debug.log*\nyarn-debug.log*\nyarn-error.log*\n.pnpm-debug.log*
 node_modules/
 improvements.md
+.python-version
