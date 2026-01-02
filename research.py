@@ -33,7 +33,7 @@ async def run_research(query: str, model_id: str):
 
     try:
         stream = client.interactions.create(
-            model=model_id,
+            agent=model_id,
             input=query,
             background=True,
             stream=True,
