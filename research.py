@@ -31,17 +31,16 @@ async def run_research(query: str, model_id: str):
         )
     )
 
-    config = {
-        "background": True,
-        "stream": True,
-        "agent_config": {"thinking_summaries": "auto"},
-    }
-
     try:
-        stream = client.interactions.create(model=model_id, input=query, config=config)
+        stream = client.interactions.create(
+            model=model_id,
+            input=query,
+            background=True,
+            stream=True,
+            agent_config={"thinking_summaries": "auto"},
+        )
 
         report_parts: List[str] = []
-        current_thought = ""
 
         with Progress(
             SpinnerColumn(),
@@ -51,16 +50,12 @@ async def run_research(query: str, model_id: str):
             task = progress.add_task("Researching...", total=None)
 
             for event in stream:
-                # Update thought if available
                 thought = getattr(event, "thought", None)
                 if thought:
-                    current_thought = thought
                     progress.update(
-                        task,
-                        description=f"[italic grey]{current_thought}[/italic grey]",
+                        task, description=f"[italic grey]{thought}[/italic grey]"
                     )
 
-                # Update content if available
                 content = getattr(event, "content", None)
                 if content:
                     parts = getattr(content, "parts", [])
