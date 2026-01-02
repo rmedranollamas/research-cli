@@ -86,18 +86,20 @@ async def run_research(query: str, model_id: str):
             console.print(
                 f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
             )
+            last_status = None
             while True:
                 final_inter = client.interactions.get(id=interaction_id)
 
-                # Check 'status' instead of 'state'
-                status = getattr(final_inter, "status", "UNKNOWN")
-                console.print(f"[dim]Current status: {status}[/dim]")
+                # Normalize status to uppercase for comparison
+                status = getattr(final_inter, "status", "UNKNOWN").upper()
+                if status != last_status:
+                    console.print(f"[dim]Current status: {status}[/dim]")
+                    last_status = status
 
                 if status == "COMPLETED":
                     # Extract from 'outputs'
                     outputs = getattr(final_inter, "outputs", [])
                     for output in outputs:
-                        # Depending on the output type, extract text
                         if hasattr(output, "text") and output.text:
                             report_parts.append(output.text)
 
