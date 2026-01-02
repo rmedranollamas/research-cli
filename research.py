@@ -31,7 +31,6 @@ async def run_research(query: str, model_id: str):
         )
     )
 
-    # Config for deep research
     config = {
         "background": True,
         "stream": True,
@@ -39,10 +38,7 @@ async def run_research(query: str, model_id: str):
     }
 
     try:
-        # The Interactions API
-        stream = client.interactions.create(
-            model=model_id, contents=query, config=config
-        )
+        stream = client.interactions.create(model=model_id, input=query, config=config)
 
         report_parts: List[str] = []
         current_thought = ""
