@@ -88,35 +88,36 @@ async def run_research(query: str, model_id: str):
             )
             while True:
                 final_inter = client.interactions.get(id=interaction_id)
-                state = getattr(final_inter, "state", "UNKNOWN")
-                console.print(f"[dim]Current state: {state}[/dim]")
 
-                if state == "COMPLETED":
-                    # Extract from response
-                    response = getattr(final_inter, "response", None)
-                    if response:
-                        if hasattr(response, "candidates"):
-                            for cand in response.candidates:
-                                if cand.content and cand.content.parts:
-                                    for part in cand.content.parts:
-                                        if part.text:
-                                            report_parts.append(part.text)
-                        elif hasattr(response, "text"):
-                            report_parts.append(response.text)
+                # Check 'status' instead of 'state'
+                status = getattr(final_inter, "status", "UNKNOWN")
+                console.print(f"[dim]Current status: {status}[/dim]")
 
-                    # Backup check: contents
+                if status == "COMPLETED":
+                    # Extract from 'outputs'
+                    outputs = getattr(final_inter, "outputs", [])
+                    for output in outputs:
+                        # Depending on the output type, extract text
+                        if hasattr(output, "text") and output.text:
+                            report_parts.append(output.text)
+
+                    # Also try backup 'response' if outputs was empty
                     if not report_parts:
-                        contents = getattr(final_inter, "contents", [])
-                        for content_item in contents:
-                            if hasattr(content_item, "parts"):
-                                for part in content_item.parts:
-                                    if hasattr(part, "text") and part.text:
-                                        report_parts.append(part.text)
+                        response = getattr(final_inter, "response", None)
+                        if response:
+                            if hasattr(response, "text"):
+                                report_parts.append(response.text)
+                            elif hasattr(response, "candidates"):
+                                for cand in response.candidates:
+                                    if cand.content and cand.content.parts:
+                                        for part in cand.content.parts:
+                                            if part.text:
+                                                report_parts.append(part.text)
                     break
-                elif state in ["FAILED", "CANCELLED"]:
+                elif status in ["FAILED", "CANCELLED"]:
                     err = getattr(final_inter, "error", "Unknown error")
                     console.print(
-                        f"[red]Research interaction {state.lower()}: {err}[/red]"
+                        f"[red]Research interaction {status.lower()}: {err}[/red]"
                     )
                     break
 
