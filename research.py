@@ -37,7 +37,7 @@ async def run_research(query: str, model_id: str):
             input=query,
             background=True,
             stream=True,
-            agent_config={"thinking_summaries": "auto"},
+            agent_config={"type": "deep-research", "thinking_summaries": "auto"},
         )
 
         report_parts: List[str] = []
