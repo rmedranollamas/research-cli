@@ -209,3 +209,4 @@ __marimo__/
 node_modules/
 improvements.md
 .python-version
+\n# PyInstaller\nbuild/\ndist/\n*.spec
