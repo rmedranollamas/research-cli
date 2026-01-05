@@ -12,5 +12,10 @@ dependencies = [
 [tool.uv]
 package = true
 
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.17.0",
+]
+
 [project.scripts]
 research = "research:main"
