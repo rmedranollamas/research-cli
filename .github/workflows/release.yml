@@ -33,10 +33,10 @@ jobs:
         run: |
           # Use different names for artifacts to avoid collisions
           EXE_NAME="research-${{ matrix.os }}"
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             EXE_NAME="${EXE_NAME}.exe"
           fi
-          uv run pyinstaller --onefile --name "$EXE_NAME" research.py
+          uv run python -m PyInstaller --onefile --name "$EXE_NAME" research.py
         
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
