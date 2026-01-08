@@ -2,6 +2,8 @@
 
 Stateless CLI for Gemini Deep Research via the v1alpha Interactions API.
 
+Refer to the [Instruction Manual](MANUAL.md) for detailed setup and usage guides.
+
 ## Installation
 
 Ensure you have `uv` installed, then sync the project:
