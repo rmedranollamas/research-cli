@@ -139,15 +139,45 @@ async def run_research(query: str, model_id: str):
 
 
 def main():
+
+
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
-    parser.add_argument("query", help="The research query")
-    parser.add_argument(
-        "--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID"
-    )
+
+
+    parser.add_argument("query", nargs="?", help="The research query")
+
+
+    parser.add_argument("--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID")
+
+
+    parser.add_argument("--version", action="version", version="research-cli 0.1.0", help="Show the version and exit")
+
+
+    
+
 
     args = parser.parse_args()
 
+
+    
+
+
+    if not args.query:
+
+
+        parser.print_help()
+
+
+        sys.exit(0)
+
+
+    
+
+
     try:
+
+
+
         asyncio.run(run_research(args.query, args.model))
     except KeyboardInterrupt:
         console.print("\n[yellow]Research cancelled by user.[/yellow]")
