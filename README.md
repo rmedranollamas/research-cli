@@ -14,11 +14,16 @@ uv sync
 
 ## Usage
 
-Set your `GEMINI_API_KEY` and run the research command:
+Set your `GEMINI_API_KEY` and run a research task:
 
 ```bash
 export GEMINI_API_KEY="your-api-key"
-uv run research "Your research query here"
+uv run research run "Your research query here"
+```
+
+You can also list past research:
+```bash
+uv run research list
 ```
 
 The CLI will stream the agent's reasoning (thoughts) and then display the final report in Markdown.

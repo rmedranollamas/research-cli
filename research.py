@@ -2,14 +2,77 @@ import os
 import sys
 import asyncio
 import argparse
-from typing import List
+import sqlite3
+from contextlib import contextmanager
+from typing import List, Optional
 from google import genai
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 console = Console()
+DB_PATH = os.path.expanduser("~/.research-cli/history.db")
+
+
+@contextmanager
+def get_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def init_db():
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS research_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                interaction_id TEXT UNIQUE,
+                query TEXT,
+                model TEXT,
+                status TEXT,
+                report TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+
+
+def save_task(query: str, model: str, interaction_id: Optional[str] = None):
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO research_tasks (query, model, interaction_id, status) VALUES (?, ?, ?, ?)",
+            (query, model, interaction_id, "PENDING"),
+        )
+        task_id = cursor.lastrowid
+        conn.commit()
+        return task_id
+
+
+def update_task(
+    task_id: int,
+    status: str,
+    report: Optional[str] = None,
+    interaction_id: Optional[str] = None,
+):
+    with get_db() as conn:
+        if interaction_id:
+            conn.execute(
+                "UPDATE research_tasks SET status = ?, report = ?, interaction_id = ? WHERE id = ?",
+                (status, report, interaction_id, task_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE research_tasks SET status = ?, report = ? WHERE id = ?",
+                (status, report, task_id),
+            )
+        conn.commit()
 
 
 async def run_research(query: str, model_id: str):
@@ -18,10 +81,13 @@ async def run_research(query: str, model_id: str):
         console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
         sys.exit(1)
 
+    task_id = save_task(query, model_id)
+
     try:
         client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
     except Exception as e:
         console.print(f"[red]Error initializing Gemini client:[/red] {str(e)}")
+        update_task(task_id, "ERROR", str(e))
         sys.exit(1)
 
     console.print(
@@ -51,16 +117,17 @@ async def run_research(query: str, model_id: str):
             task = progress.add_task("Initializing...", total=None)
 
             for event in stream:
-                # Get interaction ID
                 inter = getattr(event, "interaction", None)
                 if inter and not interaction_id:
                     interaction_id = getattr(inter, "id", None)
                     if interaction_id:
+                        update_task(
+                            task_id, "IN_PROGRESS", interaction_id=interaction_id
+                        )
                         progress.update(
                             task, description=f"Researching (ID: {interaction_id})..."
                         )
 
-                # Handle thoughts
                 thought = getattr(event, "thought", None)
                 if thought:
                     progress.update(
@@ -68,7 +135,6 @@ async def run_research(query: str, model_id: str):
                     )
                     console.print(f"[italic grey]> {thought}[/italic grey]")
 
-                # Handle content
                 content = getattr(event, "content", None)
                 if content:
                     parts = getattr(content, "parts", [])
@@ -81,7 +147,6 @@ async def run_research(query: str, model_id: str):
 
         report_content = "".join(report_parts)
 
-        # Fallback: poll the interaction if needed
         if not report_content and interaction_id:
             console.print(
                 f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
@@ -89,96 +154,135 @@ async def run_research(query: str, model_id: str):
             last_status = None
             while True:
                 final_inter = client.interactions.get(id=interaction_id)
-
-                # Normalize status to uppercase for comparison
                 status = getattr(final_inter, "status", "UNKNOWN").upper()
                 if status != last_status:
                     console.print(f"[dim]Current status: {status}[/dim]")
                     last_status = status
 
                 if status == "COMPLETED":
-                    # Extract from 'outputs'
                     outputs = getattr(final_inter, "outputs", [])
                     for output in outputs:
                         if hasattr(output, "text") and output.text:
                             report_parts.append(output.text)
-
-                    # Also try backup 'response' if outputs was empty
                     if not report_parts:
                         response = getattr(final_inter, "response", None)
-                        if response:
-                            if hasattr(response, "text"):
-                                report_parts.append(response.text)
-                            elif hasattr(response, "candidates"):
-                                for cand in response.candidates:
-                                    if cand.content and cand.content.parts:
-                                        for part in cand.content.parts:
-                                            if part.text:
-                                                report_parts.append(part.text)
+                        if response and hasattr(response, "text"):
+                            report_parts.append(response.text)
                     break
                 elif status in ["FAILED", "CANCELLED"]:
-                    err = getattr(final_inter, "error", "Unknown error")
-                    console.print(
-                        f"[red]Research interaction {status.lower()}: {err}[/red]"
-                    )
                     break
-
                 await asyncio.sleep(10)
 
             report_content = "".join(report_parts)
 
         if report_content:
+            update_task(task_id, "COMPLETED", report_content)
             console.print("\n" + "=" * 40 + "\n")
             console.print(Markdown(report_content))
             console.print("\n" + "=" * 40 + "\n")
         else:
+            update_task(task_id, "FAILED")
             console.print("[yellow]No report content received.[/yellow]")
 
     except Exception as e:
+        update_task(task_id, "ERROR", str(e))
         console.print(f"[red]Error during research interaction:[/red] {str(e)}")
 
 
+def list_tasks():
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT 20"
+        )
+        tasks = cursor.fetchall()
+
+    table = Table(title="Recent Research Tasks")
+    table.add_column("ID", style="cyan")
+    table.add_column("Query", style="white")
+    table.add_column("Status", style="green")
+    table.add_column("Created At", style="dim")
+
+    for task in tasks:
+        table.add_row(
+            str(task[0]),
+            task[1][:50] + ("..." if len(task[1]) > 50 else ""),
+            task[2],
+            task[3],
+        )
+
+    console.print(table)
+
+
+def show_task(task_id: int):
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT query, report, status FROM research_tasks WHERE id = ?", (task_id,)
+        )
+        task = cursor.fetchone()
+
+    if not task:
+        console.print(f"[red]Task {task_id} not found.[/red]")
+        return
+
+    query, report, status = task
+    console.print(
+        Panel(
+            f"[bold blue]Query:[/bold blue] {query}\n[bold blue]Status:[/bold blue] {status}",
+            title=f"Research Task {task_id}",
+        )
+    )
+    if report:
+        console.print("\n" + "=" * 40 + "\n")
+        console.print(Markdown(report))
+        console.print("\n" + "=" * 40 + "\n")
+    else:
+        console.print("[yellow]No report content available for this task.[/yellow]")
+
+
 def main():
-
-
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
+    parser.add_argument("--version", action="version", version="research-cli 0.1.0")
 
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
 
-    parser.add_argument("query", nargs="?", help="The research query")
+    # Run command
+    run_parser = subparsers.add_parser("run", help="Start a new research task")
+    run_parser.add_argument("query", nargs="?", help="The research query")
+    run_parser.add_argument(
+        "--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID"
+    )
 
+    # List command
+    subparsers.add_parser("list", help="List recent research tasks")
 
-    parser.add_argument("--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID")
-
-
-    parser.add_argument("--version", action="version", version="research-cli 0.1.0", help="Show the version and exit")
-
-
-    
-
+    # Show command
+    show_parser = subparsers.add_parser("show", help="Show details of a research task")
+    show_parser.add_argument("id", type=int, help="The task ID")
 
     args = parser.parse_args()
 
-
-    
-
-
-    if not args.query:
-
-
-        parser.print_help()
-
-
-        sys.exit(0)
-
-
-    
-
-
     try:
-
-
-
-        asyncio.run(run_research(args.query, args.model))
+        if args.command == "run":
+            if not args.query:
+                run_parser.print_help()
+                return
+            asyncio.run(run_research(args.query, args.model))
+        elif args.command == "list":
+            list_tasks()
+        elif args.command == "show":
+            show_task(args.id)
+        else:
+            # Default behavior for backwards compatibility if no subcommand is provided
+            if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
+                asyncio.run(
+                    run_research(sys.argv[1], "deep-research-pro-preview-12-2025")
+                )
+            else:
+                parser.print_help()
     except KeyboardInterrupt:
         console.print("\n[yellow]Research cancelled by user.[/yellow]")
         sys.exit(0)

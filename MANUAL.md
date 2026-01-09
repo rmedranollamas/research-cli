@@ -43,24 +43,29 @@ Rename the binary to `research` and move it to your PATH (e.g., `/usr/local/bin`
 
 ---
 
-## Configuration
-The CLI requires the `GEMINI_API_KEY` environment variable.
+## Basic Usage
+Research CLI uses subcommands for different actions.
 
+### Start a new research task
 ```bash
-export GEMINI_API_KEY="your_api_key_here"
+uv run research run "Your query here"
+```
+
+### List recent tasks
+```bash
+uv run research list
+```
+
+### Show a specific report
+```bash
+uv run research show <ID>
 ```
 
 ---
 
-## Basic Usage
-Run a simple query:
-```bash
-uv run research "When was Google founded and when did it go public?"
-```
-Or if using the binary:
-```bash
-./research "Your query here"
-```
+## Configuration
+- **API Key**: Requires `GEMINI_API_KEY` environment variable.
+- **Local History**: Tasks are stored in a SQLite database at `~/.research-cli/history.db`.
 
 ---
 
