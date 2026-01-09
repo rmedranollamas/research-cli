@@ -3,6 +3,7 @@ import sys
 import asyncio
 import argparse
 import sqlite3
+from contextlib import contextmanager
 from typing import List, Optional
 from google import genai
 from rich.console import Console
@@ -15,35 +16,43 @@ console = Console()
 DB_PATH = os.path.expanduser("~/.research-cli/history.db")
 
 
-def init_db():
+@contextmanager
+def get_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS research_tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            interaction_id TEXT UNIQUE,
-            query TEXT,
-            model TEXT,
-            status TEXT,
-            report TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def init_db():
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS research_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                interaction_id TEXT UNIQUE,
+                query TEXT,
+                model TEXT,
+                status TEXT,
+                report TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
 
 
 def save_task(query: str, model: str, interaction_id: Optional[str] = None):
-    conn = init_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO research_tasks (query, model, interaction_id, status) VALUES (?, ?, ?, ?)",
-        (query, model, interaction_id, "PENDING"),
-    )
-    task_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    return task_id
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO research_tasks (query, model, interaction_id, status) VALUES (?, ?, ?, ?)",
+            (query, model, interaction_id, "PENDING"),
+        )
+        task_id = cursor.lastrowid
+        conn.commit()
+        return task_id
 
 
 def update_task(
@@ -52,19 +61,18 @@ def update_task(
     report: Optional[str] = None,
     interaction_id: Optional[str] = None,
 ):
-    conn = init_db()
-    if interaction_id:
-        conn.execute(
-            "UPDATE research_tasks SET status = ?, report = ?, interaction_id = ? WHERE id = ?",
-            (status, report, interaction_id, task_id),
-        )
-    else:
-        conn.execute(
-            "UPDATE research_tasks SET status = ?, report = ? WHERE id = ?",
-            (status, report, task_id),
-        )
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        if interaction_id:
+            conn.execute(
+                "UPDATE research_tasks SET status = ?, report = ?, interaction_id = ? WHERE id = ?",
+                (status, report, interaction_id, task_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE research_tasks SET status = ?, report = ? WHERE id = ?",
+                (status, report, task_id),
+            )
+        conn.commit()
 
 
 async def run_research(query: str, model_id: str):
@@ -79,6 +87,7 @@ async def run_research(query: str, model_id: str):
         client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
     except Exception as e:
         console.print(f"[red]Error initializing Gemini client:[/red] {str(e)}")
+        update_task(task_id, "ERROR", str(e))
         sys.exit(1)
 
     console.print(
@@ -181,13 +190,13 @@ async def run_research(query: str, model_id: str):
 
 
 def list_tasks():
-    conn = init_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT 20"
-    )
-    tasks = cursor.fetchall()
-    conn.close()
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT 20"
+        )
+        tasks = cursor.fetchall()
 
     table = Table(title="Recent Research Tasks")
     table.add_column("ID", style="cyan")
@@ -207,13 +216,13 @@ def list_tasks():
 
 
 def show_task(task_id: int):
-    conn = init_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT query, report, status FROM research_tasks WHERE id = ?", (task_id,)
-    )
-    task = cursor.fetchone()
-    conn.close()
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT query, report, status FROM research_tasks WHERE id = ?", (task_id,)
+        )
+        task = cursor.fetchone()
 
     if not task:
         console.print(f"[red]Task {task_id} not found.[/red]")
@@ -242,7 +251,7 @@ def main():
 
     # Run command
     run_parser = subparsers.add_parser("run", help="Start a new research task")
-    run_parser.add_argument("query", help="The research query")
+    run_parser.add_argument("query", nargs="?", help="The research query")
     run_parser.add_argument(
         "--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID"
     )
@@ -256,20 +265,27 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "run":
-        asyncio.run(run_research(args.query, args.model))
-    elif args.command == "list":
-        list_tasks()
-    elif args.command == "show":
-        show_task(args.id)
-    else:
-        # Default behavior for backwards compatibility if no subcommand is provided
-        # Though with subparsers, it usually requires one unless we handle it
-        if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
-            # If the first arg is not a command but looks like a query
-            asyncio.run(run_research(sys.argv[1], "deep-research-pro-preview-12-2025"))
+    try:
+        if args.command == "run":
+            if not args.query:
+                run_parser.print_help()
+                return
+            asyncio.run(run_research(args.query, args.model))
+        elif args.command == "list":
+            list_tasks()
+        elif args.command == "show":
+            show_task(args.id)
         else:
-            parser.print_help()
+            # Default behavior for backwards compatibility if no subcommand is provided
+            if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
+                asyncio.run(
+                    run_research(sys.argv[1], "deep-research-pro-preview-12-2025")
+                )
+            else:
+                parser.print_help()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Research cancelled by user.[/yellow]")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
