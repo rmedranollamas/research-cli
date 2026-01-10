@@ -5,8 +5,13 @@ import argparse
 import sqlite3
 from contextlib import contextmanager
 from typing import List, Optional
+from dotenv import load_dotenv
 from google import genai
 from rich.console import Console
+
+load_dotenv()
+
+console = Console()
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
@@ -175,17 +180,23 @@ async def run_research(query: str, model_id: str):
 
             report_content = "".join(report_parts)
 
+    except Exception as e:
+        console.print(f"[red]Error during research:[/red] {str(e)}")
+        update_task(task_id, "ERROR", str(e))
+        return None
+
     if report_content:
         update_task(task_id, "COMPLETED", report_content)
         console.print("\n" + "=" * 40 + "\n")
         console.print(Markdown(report_content))
         console.print("\n" + "=" * 40 + "\n")
-        
+
         return report_content
     else:
         update_task(task_id, "FAILED")
         console.print("[yellow]No report content received.[/yellow]")
         return None
+
 
 async def run_research_cmd(args):
     report = await run_research(args.query, args.model)
@@ -193,6 +204,7 @@ async def run_research_cmd(args):
         with open(args.output, "w") as f:
             f.write(report)
         console.print(f"[green]Report saved to {args.output}[/green]")
+
 
 def show_task(task_id: int, output_file: Optional[str] = None):
     init_db()
@@ -218,13 +230,41 @@ def show_task(task_id: int, output_file: Optional[str] = None):
         console.print("\n" + "=" * 40 + "\n")
         console.print(Markdown(report))
         console.print("\n" + "=" * 40 + "\n")
-        
+
         if output_file:
             with open(output_file, "w") as f:
                 f.write(report)
             console.print(f"[green]Report saved to {output_file}[/green]")
     else:
         console.print("[yellow]No report content available for this task.[/yellow]")
+
+
+def list_tasks():
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT 20"
+        )
+        tasks = cursor.fetchall()
+
+    if not tasks:
+        console.print("[yellow]No research tasks found in history.[/yellow]")
+        return
+
+    table = Table(title="Recent Research Tasks")
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Query", style="white")
+    table.add_column("Status", style="green")
+    table.add_column("Created At", style="magenta")
+
+    for task_id, query, status, created_at in tasks:
+        # Truncate query for display
+        display_query = (query[:50] + "...") if len(query) > 50 else query
+        table.add_row(str(task_id), display_query, status, created_at)
+
+    console.print(table)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
@@ -246,7 +286,9 @@ def main():
     # Show command
     show_parser = subparsers.add_parser("show", help="Show details of a research task")
     show_parser.add_argument("id", type=int, help="The task ID")
-    show_parser.add_argument("--output", "-o", help="Save the report to a markdown file")
+    show_parser.add_argument(
+        "--output", "-o", help="Save the report to a markdown file"
+    )
 
     args = parser.parse_args()
 
