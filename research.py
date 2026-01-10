@@ -15,7 +15,7 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # Configuration Constants
-DB_PATH = os.path.expanduser("~/.research-cli/history.db")
+DB_PATH = os.getenv("RESEARCH_DB_PATH", os.path.expanduser("~/.research-cli/history.db"))
 DEFAULT_MODEL = "deep-research-pro-preview-12-2025"
 QUERY_TRUNCATION_LENGTH = 50
 RECENT_TASKS_LIMIT = 20
@@ -95,7 +95,12 @@ async def run_research(query: str, model_id: str):
     task_id = save_task(query, model_id)
 
     try:
-        client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
+        http_options = {"api_version": "v1alpha"}
+        base_url = os.getenv("GEMINI_API_BASE_URL")
+        if base_url:
+            http_options["base_url"] = base_url
+            
+        client = genai.Client(api_key=api_key, http_options=http_options)
     except Exception:
         console.print("[red]Error initializing Gemini client:[/red]")
         console.print_exception()
@@ -132,6 +137,9 @@ async def run_research(query: str, model_id: str):
                 inter = getattr(event, "interaction", None)
                 if inter and not interaction_id:
                     interaction_id = getattr(inter, "id", None)
+                    if not interaction_id and isinstance(inter, dict):
+                        interaction_id = inter.get("id")
+                        
                     if interaction_id:
                         update_task(
                             task_id, "IN_PROGRESS", interaction_id=interaction_id
@@ -150,8 +158,13 @@ async def run_research(query: str, model_id: str):
                 content = getattr(event, "content", None)
                 if content:
                     parts = getattr(content, "parts", [])
+                    if not parts and isinstance(content, dict):
+                         parts = content.get("parts", [])
+                    
                     for part in parts:
                         text = getattr(part, "text", None)
+                        if not text and isinstance(part, dict):
+                            text = part.get("text")
                         if text:
                             report_parts.append(text)
 
@@ -173,17 +186,38 @@ async def run_research(query: str, model_id: str):
 
                 if status == "COMPLETED":
                     outputs = getattr(final_inter, "outputs", [])
+                    if not outputs and isinstance(final_inter, dict):
+                        outputs = final_inter.get("outputs", [])
+                        
                     for output in outputs:
-                        if hasattr(output, "text") and output.text:
-                            report_parts.append(output.text)
+                        text = None
+                        if hasattr(output, "text"):
+                            text = output.text
+                        elif isinstance(output, dict):
+                            text = output.get("text")
+                            
+                        if text:
+                            report_parts.append(text)
+                            
                     if not report_parts:
                         response = getattr(final_inter, "response", None)
-                        if response and hasattr(response, "text"):
-                            report_parts.append(response.text)
+                        if not response and isinstance(final_inter, dict):
+                            response = final_inter.get("response")
+                            
+                        if response:
+                            text = None
+                            if hasattr(response, "text"):
+                                text = response.text
+                            elif isinstance(response, dict):
+                                text = response.get("text")
+                            if text:
+                                report_parts.append(text)
                     break
                 elif status in ["FAILED", "CANCELLED"]:
                     break
-                await asyncio.sleep(10)
+                
+                poll_interval = int(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
+                await asyncio.sleep(poll_interval)
 
             report_content = "".join(report_parts)
 

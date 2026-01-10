@@ -15,7 +15,12 @@ package = true
 
 [dependency-groups]
 dev = [
+    "fastapi>=0.128.0",
+    "httpx>=0.28.1",
     "pyinstaller>=6.17.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "uvicorn>=0.40.0",
 ]
 
 [project.scripts]

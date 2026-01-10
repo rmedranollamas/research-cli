@@ -6,6 +6,7 @@
 
 - **Setup**: `uv sync`
 - **Run**: `uv run research "query"`
+- **Test**: `PYTHONPATH=. uv run pytest tests/`
 - **Quality**: `ruff check . --fix`, `ruff format .`, `ty check`
 
 ## Tooling
