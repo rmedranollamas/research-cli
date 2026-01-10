@@ -175,47 +175,26 @@ async def run_research(query: str, model_id: str):
 
             report_content = "".join(report_parts)
 
-        if report_content:
-            update_task(task_id, "COMPLETED", report_content)
-            console.print("\n" + "=" * 40 + "\n")
-            console.print(Markdown(report_content))
-            console.print("\n" + "=" * 40 + "\n")
-        else:
-            update_task(task_id, "FAILED")
-            console.print("[yellow]No report content received.[/yellow]")
+    if report_content:
+        update_task(task_id, "COMPLETED", report_content)
+        console.print("\n" + "=" * 40 + "\n")
+        console.print(Markdown(report_content))
+        console.print("\n" + "=" * 40 + "\n")
+        
+        return report_content
+    else:
+        update_task(task_id, "FAILED")
+        console.print("[yellow]No report content received.[/yellow]")
+        return None
 
-    except Exception as e:
-        update_task(task_id, "ERROR", str(e))
-        console.print(f"[red]Error during research interaction:[/red] {str(e)}")
+async def run_research_cmd(args):
+    report = await run_research(args.query, args.model)
+    if report and args.output:
+        with open(args.output, "w") as f:
+            f.write(report)
+        console.print(f"[green]Report saved to {args.output}[/green]")
 
-
-def list_tasks():
-    init_db()
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT 20"
-        )
-        tasks = cursor.fetchall()
-
-    table = Table(title="Recent Research Tasks")
-    table.add_column("ID", style="cyan")
-    table.add_column("Query", style="white")
-    table.add_column("Status", style="green")
-    table.add_column("Created At", style="dim")
-
-    for task in tasks:
-        table.add_row(
-            str(task[0]),
-            task[1][:50] + ("..." if len(task[1]) > 50 else ""),
-            task[2],
-            task[3],
-        )
-
-    console.print(table)
-
-
-def show_task(task_id: int):
+def show_task(task_id: int, output_file: Optional[str] = None):
     init_db()
     with get_db() as conn:
         cursor = conn.cursor()
@@ -239,9 +218,13 @@ def show_task(task_id: int):
         console.print("\n" + "=" * 40 + "\n")
         console.print(Markdown(report))
         console.print("\n" + "=" * 40 + "\n")
+        
+        if output_file:
+            with open(output_file, "w") as f:
+                f.write(report)
+            console.print(f"[green]Report saved to {output_file}[/green]")
     else:
         console.print("[yellow]No report content available for this task.[/yellow]")
-
 
 def main():
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
@@ -255,6 +238,7 @@ def main():
     run_parser.add_argument(
         "--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID"
     )
+    run_parser.add_argument("--output", "-o", help="Save the report to a markdown file")
 
     # List command
     subparsers.add_parser("list", help="List recent research tasks")
@@ -262,6 +246,7 @@ def main():
     # Show command
     show_parser = subparsers.add_parser("show", help="Show details of a research task")
     show_parser.add_argument("id", type=int, help="The task ID")
+    show_parser.add_argument("--output", "-o", help="Save the report to a markdown file")
 
     args = parser.parse_args()
 
@@ -270,11 +255,11 @@ def main():
             if not args.query:
                 run_parser.print_help()
                 return
-            asyncio.run(run_research(args.query, args.model))
+            asyncio.run(run_research_cmd(args))
         elif args.command == "list":
             list_tasks()
         elif args.command == "show":
-            show_task(args.id)
+            show_task(args.id, args.output)
         else:
             # Default behavior for backwards compatibility if no subcommand is provided
             if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
