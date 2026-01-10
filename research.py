@@ -5,20 +5,26 @@ import argparse
 import sqlite3
 from contextlib import contextmanager
 from typing import List, Optional
+
 from dotenv import load_dotenv
 from google import genai
 from rich.console import Console
-
-load_dotenv()
-
-console = Console()
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-console = Console()
+# Configuration Constants
 DB_PATH = os.path.expanduser("~/.research-cli/history.db")
+DEFAULT_MODEL = "deep-research-pro-preview-12-2025"
+QUERY_TRUNCATION_LENGTH = 50
+RECENT_TASKS_LIMIT = 20
+
+# Load environment variables from .env if present
+load_dotenv()
+
+# Global Rich console
+console = Console()
 
 
 @contextmanager
@@ -90,9 +96,10 @@ async def run_research(query: str, model_id: str):
 
     try:
         client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
-    except Exception as e:
-        console.print(f"[red]Error initializing Gemini client:[/red] {str(e)}")
-        update_task(task_id, "ERROR", str(e))
+    except Exception:
+        console.print("[red]Error initializing Gemini client:[/red]")
+        console.print_exception()
+        update_task(task_id, "ERROR", "Client initialization failed")
         sys.exit(1)
 
     console.print(
@@ -180,9 +187,10 @@ async def run_research(query: str, model_id: str):
 
             report_content = "".join(report_parts)
 
-    except Exception as e:
-        console.print(f"[red]Error during research:[/red] {str(e)}")
-        update_task(task_id, "ERROR", str(e))
+    except Exception:
+        console.print("[red]Error during research:[/red]")
+        console.print_exception()
+        update_task(task_id, "ERROR", "Research execution failed")
         return None
 
     if report_content:
@@ -244,7 +252,7 @@ def list_tasks():
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT 20"
+            f"SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT {RECENT_TASKS_LIMIT}"
         )
         tasks = cursor.fetchall()
 
@@ -260,7 +268,11 @@ def list_tasks():
 
     for task_id, query, status, created_at in tasks:
         # Truncate query for display
-        display_query = (query[:50] + "...") if len(query) > 50 else query
+        display_query = (
+            (query[: QUERY_TRUNCATION_LENGTH - 3] + "...")
+            if len(query) > QUERY_TRUNCATION_LENGTH
+            else query
+        )
         table.add_row(str(task_id), display_query, status, created_at)
 
     console.print(table)
@@ -275,9 +287,7 @@ def main():
     # Run command
     run_parser = subparsers.add_parser("run", help="Start a new research task")
     run_parser.add_argument("query", nargs="?", help="The research query")
-    run_parser.add_argument(
-        "--model", default="deep-research-pro-preview-12-2025", help="Gemini model ID"
-    )
+    run_parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
     run_parser.add_argument("--output", "-o", help="Save the report to a markdown file")
 
     # List command
@@ -305,9 +315,7 @@ def main():
         else:
             # Default behavior for backwards compatibility if no subcommand is provided
             if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
-                asyncio.run(
-                    run_research(sys.argv[1], "deep-research-pro-preview-12-2025")
-                )
+                asyncio.run(run_research(sys.argv[1], DEFAULT_MODEL))
             else:
                 parser.print_help()
     except KeyboardInterrupt:
