@@ -32,6 +32,7 @@ echo "Downloading $BINARY_NAME version $LATEST_TAG from $DOWNLOAD_URL..."
 
 # Download binary
 TMP_FILE=$(mktemp)
+trap 'rm -f "$TMP_FILE"' EXIT
 curl -L -sf -o "$TMP_FILE" "$DOWNLOAD_URL"
 chmod +x "$TMP_FILE"
 
