@@ -32,7 +32,7 @@ echo "Downloading $BINARY_NAME version $LATEST_TAG from $DOWNLOAD_URL..."
 
 # Download binary
 TMP_FILE=$(mktemp)
-curl -L -s -o "$TMP_FILE" "$DOWNLOAD_URL"
+curl -L -sf -o "$TMP_FILE" "$DOWNLOAD_URL"
 chmod +x "$TMP_FILE"
 
 # Install binary
