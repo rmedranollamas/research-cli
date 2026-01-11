@@ -15,7 +15,9 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # Configuration Constants
-DB_PATH = os.getenv("RESEARCH_DB_PATH", os.path.expanduser("~/.research-cli/history.db"))
+DB_PATH = os.getenv(
+    "RESEARCH_DB_PATH", os.path.expanduser("~/.research-cli/history.db")
+)
 DEFAULT_MODEL = "deep-research-pro-preview-12-2025"
 QUERY_TRUNCATION_LENGTH = 50
 RECENT_TASKS_LIMIT = 20
@@ -25,6 +27,16 @@ load_dotenv()
 
 # Global Rich console
 console = Console()
+
+
+def get_val(obj, key: str, default=None):
+    """Safely gets a value from an object or dictionary."""
+    if obj is None:
+        return default
+    val = getattr(obj, key, None)
+    if val is None and isinstance(obj, dict):
+        return obj.get(key, default)
+    return val if val is not None else default
 
 
 @contextmanager
@@ -99,7 +111,7 @@ async def run_research(query: str, model_id: str):
         base_url = os.getenv("GEMINI_API_BASE_URL")
         if base_url:
             http_options["base_url"] = base_url
-            
+
         client = genai.Client(api_key=api_key, http_options=http_options)
     except Exception:
         console.print("[red]Error initializing Gemini client:[/red]")
@@ -134,12 +146,10 @@ async def run_research(query: str, model_id: str):
             task = progress.add_task("Initializing...", total=None)
 
             for event in stream:
-                inter = getattr(event, "interaction", None)
+                inter = get_val(event, "interaction")
                 if inter and not interaction_id:
-                    interaction_id = getattr(inter, "id", None)
-                    if not interaction_id and isinstance(inter, dict):
-                        interaction_id = inter.get("id")
-                        
+                    interaction_id = get_val(inter, "id")
+
                     if interaction_id:
                         update_task(
                             task_id, "IN_PROGRESS", interaction_id=interaction_id
@@ -148,23 +158,18 @@ async def run_research(query: str, model_id: str):
                             task, description=f"Researching (ID: {interaction_id})..."
                         )
 
-                thought = getattr(event, "thought", None)
+                thought = get_val(event, "thought")
                 if thought:
                     progress.update(
                         task, description=f"[italic grey]{thought}[/italic grey]"
                     )
                     console.print(f"[italic grey]> {thought}[/italic grey]")
 
-                content = getattr(event, "content", None)
+                content = get_val(event, "content")
                 if content:
-                    parts = getattr(content, "parts", [])
-                    if not parts and isinstance(content, dict):
-                         parts = content.get("parts", [])
-                    
+                    parts = get_val(content, "parts", [])
                     for part in parts:
-                        text = getattr(part, "text", None)
-                        if not text and isinstance(part, dict):
-                            text = part.get("text")
+                        text = get_val(part, "text")
                         if text:
                             report_parts.append(text)
 
@@ -179,43 +184,28 @@ async def run_research(query: str, model_id: str):
             last_status = None
             while True:
                 final_inter = client.interactions.get(id=interaction_id)
-                status = getattr(final_inter, "status", "UNKNOWN").upper()
+                status = get_val(final_inter, "status", "UNKNOWN").upper()
                 if status != last_status:
                     console.print(f"[dim]Current status: {status}[/dim]")
                     last_status = status
 
                 if status == "COMPLETED":
-                    outputs = getattr(final_inter, "outputs", [])
-                    if not outputs and isinstance(final_inter, dict):
-                        outputs = final_inter.get("outputs", [])
-                        
+                    outputs = get_val(final_inter, "outputs", [])
                     for output in outputs:
-                        text = None
-                        if hasattr(output, "text"):
-                            text = output.text
-                        elif isinstance(output, dict):
-                            text = output.get("text")
-                            
+                        text = get_val(output, "text")
                         if text:
                             report_parts.append(text)
-                            
+
                     if not report_parts:
-                        response = getattr(final_inter, "response", None)
-                        if not response and isinstance(final_inter, dict):
-                            response = final_inter.get("response")
-                            
+                        response = get_val(final_inter, "response")
                         if response:
-                            text = None
-                            if hasattr(response, "text"):
-                                text = response.text
-                            elif isinstance(response, dict):
-                                text = response.get("text")
+                            text = get_val(response, "text")
                             if text:
                                 report_parts.append(text)
                     break
                 elif status in ["FAILED", "CANCELLED"]:
                     break
-                
+
                 poll_interval = int(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
                 await asyncio.sleep(poll_interval)
 
