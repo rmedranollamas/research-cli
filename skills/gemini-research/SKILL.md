@@ -1,6 +1,6 @@
 ---
 name: gemini-research
-description: Perform deep, multi-step research using Gemini Deep Research. Ideal for complex queries requiring web search, reasoning, and synthesis of information.
+description: Perform deep, multi-step research on complex queries using the Gemini Deep Research agent.
 metadata:
   version: 0.1.0
   author: Ramón
