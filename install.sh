@@ -16,7 +16,15 @@ case "$OS_TYPE" in
   *)        echo "Error: Unsupported OS type: $OS_TYPE"; exit 1 ;;
 esac
 
-echo "Detected OS: $OS_TYPE. Fetching latest release for $ARTIFACT_OS..."
+# Detect Architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)      ARTIFACT_ARCH="amd64" ;;
+  arm64|aarch64) ARTIFACT_ARCH="arm64" ;;
+  *)           echo "Error: Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+echo "Detected OS: $OS_TYPE ($ARCH). Fetching latest release for $ARTIFACT_OS-$ARTIFACT_ARCH..."
 
 # Get latest release tag
 LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | python3 -c "import sys, json; data = json.load(sys.stdin); print(data.get('tag_name', ''))")
@@ -26,7 +34,7 @@ if [ -z "$LATEST_TAG" ]; then
   exit 1
 fi
 
-DOWNLOAD_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/$LATEST_TAG/research-$ARTIFACT_OS"
+DOWNLOAD_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/$LATEST_TAG/research-$ARTIFACT_OS-$ARTIFACT_ARCH"
 
 echo "Downloading $BINARY_NAME version $LATEST_TAG from $DOWNLOAD_URL..."
 
