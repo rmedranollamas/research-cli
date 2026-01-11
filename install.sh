@@ -37,7 +37,11 @@ curl -L -sf -o "$TMP_FILE" "$DOWNLOAD_URL"
 chmod +x "$TMP_FILE"
 
 # Install binary
-echo "Installing to $INSTALL_DIR/$BINARY_NAME (requires sudo)..."
-sudo mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
+if [ -w "$INSTALL_DIR" ]; then
+    mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
+else
+    echo "Installing to $INSTALL_DIR/$BINARY_NAME (requires sudo)..."
+    sudo mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
+fi
 
 echo "Installation complete. Run 'research --help' to verify."
