@@ -6,7 +6,7 @@ set -euo pipefail
 REPO_OWNER="rmedranollamas"
 REPO_NAME="research-cli"
 BINARY_NAME="research"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # Detect OS
 OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
