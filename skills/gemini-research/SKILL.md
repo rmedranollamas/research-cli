@@ -37,12 +37,9 @@ uv run research show <ID>
 ```
 
 ### Exporting Reports
-To save a research report directly to a file:
+To save a new research report directly to a file:
 ```bash
 uv run research run "QUERY" --output filename.md
-# OR for an existing task
-uv run research show <ID> --output filename.md
-```
 
 ## Advanced Configuration
 - **Model Selection**: Use `--model <MODEL_ID>` to override the default.
