@@ -8,11 +8,17 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
+    name: Build on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: macos-latest
+            arch: x64
+          - os: macos-latest
+            arch: arm64
     
     steps:
       - uses: actions/checkout@v6
@@ -29,10 +35,27 @@ jobs:
         run: uv sync --all-extras --dev
         
       - name: Build binary
+        id: build
         shell: bash
         run: |
-          # Use different names for artifacts to avoid collisions
-          EXE_NAME="research-${{ matrix.os }}"
+          case "${{ matrix.os }}" in
+            ubuntu-latest) OS_NAME="linux" ;;
+            macos-latest)  OS_NAME="darwin" ;;
+            windows-latest) OS_NAME="windows" ;;
+            *)              OS_NAME="unknown" ;;
+          esac
+
+          # Architecture normalization
+          case "${{ matrix.arch }}" in
+            x64) ARCH_NAME="amd64" ;;
+            arm64) ARCH_NAME="arm64" ;;
+            *) ARCH_NAME="unknown" ;;
+          esac
+
+          echo "os_name=${OS_NAME}" >> $GITHUB_OUTPUT
+          echo "arch_name=${ARCH_NAME}" >> $GITHUB_OUTPUT
+
+          EXE_NAME="research-${OS_NAME}-${ARCH_NAME}"
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             EXE_NAME="${EXE_NAME}.exe"
           fi
@@ -41,7 +64,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: research-${{ matrix.os }}
+          name: research-${{ steps.build.outputs.os_name }}-${{ steps.build.outputs.arch_name }}
           path: dist/research-*
 
   release:

@@ -1,0 +1,55 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Configuration
+REPO_OWNER="rmedranollamas"
+REPO_NAME="research-cli"
+BINARY_NAME="research"
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+
+# Detect OS
+OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
+case "$OS_TYPE" in
+  linux*)   ARTIFACT_OS="linux" ;;
+  darwin*)  ARTIFACT_OS="darwin" ;;
+  *)        echo "Error: Unsupported OS type: $OS_TYPE"; exit 1 ;;
+esac
+
+# Detect Architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)      ARTIFACT_ARCH="amd64" ;;
+  arm64|aarch64) ARTIFACT_ARCH="arm64" ;;
+  *)           echo "Error: Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+echo "Detected OS: $OS_TYPE ($ARCH). Fetching latest release for $ARTIFACT_OS-$ARTIFACT_ARCH..."
+
+# Get latest release tag
+LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | python3 -c "import sys, json; data = json.load(sys.stdin); print(data.get('tag_name', ''))")
+
+if [ -z "$LATEST_TAG" ]; then
+  echo "Error: Could not find latest release for $REPO_OWNER/$REPO_NAME."
+  exit 1
+fi
+
+DOWNLOAD_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/$LATEST_TAG/research-$ARTIFACT_OS-$ARTIFACT_ARCH"
+
+echo "Downloading $BINARY_NAME version $LATEST_TAG from $DOWNLOAD_URL..."
+
+# Download binary
+TMP_FILE=$(mktemp)
+trap 'rm -f "$TMP_FILE"' EXIT
+curl -L -sf -o "$TMP_FILE" "$DOWNLOAD_URL"
+chmod +x "$TMP_FILE"
+
+# Install binary
+if [ -w "$INSTALL_DIR" ]; then
+    mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
+else
+    echo "Installing to $INSTALL_DIR/$BINARY_NAME (requires sudo)..."
+    sudo mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
+fi
+
+echo "Installation complete. Run 'research --help' to verify."

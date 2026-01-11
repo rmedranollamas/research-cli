@@ -20,26 +20,28 @@ This skill enables the agent to utilize the `research` CLI tool for performing i
 ### Start Research
 To initiate a new research task, use the `run` subcommand.
 ```bash
-uv run research run "QUERY"
+research run "QUERY"
 ```
 *Tip: Provide a specific, detailed query for better results.*
 
 ### List Recent Tasks
 To see a history of research tasks and their unique IDs:
 ```bash
-uv run research list
+research list
 ```
 
 ### Show Task Details
 To retrieve the report of a specific task by its ID:
 ```bash
-uv run research show <ID>
+research show <ID>
 ```
 
 ### Exporting Reports
-To save a new research report directly to a file:
+To save a research report directly to a file:
 ```bash
-uv run research run "QUERY" --output filename.md
+research run "QUERY" --output filename.md
+# OR for an existing task
+research show <ID> --output filename.md
 
 ## Advanced Configuration
 - **Model Selection**: Use `--model <MODEL_ID>` to override the default.
