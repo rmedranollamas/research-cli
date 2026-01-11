@@ -19,7 +19,7 @@ esac
 echo "Detected OS: $OS_TYPE. Fetching latest release for $ARTIFACT_OS..."
 
 # Get latest release tag
-LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | sed -nE 's/.*"tag_name": "([^"]+)".*/\1/p')
 
 if [ -z "$LATEST_TAG" ]; then
   echo "Error: Could not find latest release for $REPO_OWNER/$REPO_NAME."
