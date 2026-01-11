@@ -19,7 +19,7 @@ esac
 echo "Detected OS: $OS_TYPE. Fetching latest release for $ARTIFACT_OS..."
 
 # Get latest release tag
-LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | sed -nE 's/.*"tag_name": "([^"]+)".*/\1/p')
+LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | python3 -c "import sys, json; data = json.load(sys.stdin); print(data.get('tag_name', ''))")
 
 if [ -z "$LATEST_TAG" ]; then
   echo "Error: Could not find latest release for $REPO_OWNER/$REPO_NAME."
