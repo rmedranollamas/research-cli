@@ -11,8 +11,8 @@ INSTALL_DIR="/usr/local/bin"
 # Detect OS
 OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
 case "$OS_TYPE" in
-  linux*)   ARTIFACT_OS="ubuntu-latest" ;;
-  darwin*)  ARTIFACT_OS="macos-latest" ;;
+  linux*)   ARTIFACT_OS="linux" ;;
+  darwin*)  ARTIFACT_OS="darwin" ;;
   *)        echo "Error: Unsupported OS type: $OS_TYPE"; exit 1 ;;
 esac
 
