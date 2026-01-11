@@ -28,6 +28,10 @@ uv run research list
 
 The CLI will stream the agent's reasoning (thoughts) and then display the final report in Markdown.
 
+## Agent Skill
+
+A [specification-compliant](https://agentskills.io/) agent skill is included in `skills/gemini-research/`. This allows AI agents to learn how to interact with this CLI autonomously.
+
 ## Development
 
 - **Linting**: `uv run ruff check . --fix`
