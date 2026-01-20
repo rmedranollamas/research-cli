@@ -14,16 +14,15 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+# Load environment variables from .env if present
+load_dotenv()
+
 # Configuration Constants
 DB_PATH = os.getenv(
     "RESEARCH_DB_PATH", os.path.expanduser("~/.research-cli/history.db")
 )
-DEFAULT_MODEL = "deep-research-pro-preview-12-2025"
+DEFAULT_MODEL = os.getenv("RESEARCH_MODEL", "deep-research")
 QUERY_TRUNCATION_LENGTH = 50
-RECENT_TASKS_LIMIT = 20
-
-# Load environment variables from .env if present
-load_dotenv()
 
 # Global Rich console
 console = Console()

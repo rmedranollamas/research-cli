@@ -1,0 +1,3 @@
+description = "Perform deep research on a topic using the gemini-research skill"
+
+prompt = "Research the following topic in depth using the `gemini-research` skill: {{args}}"
