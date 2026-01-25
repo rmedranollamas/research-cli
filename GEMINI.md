@@ -14,4 +14,3 @@
 - **Language**: Python 3 (`uv`)
 - **Agent**: `deep-research-pro-preview-12-2025`
 - **CLI**: `rich`, `argparse`
-- **Roadmap**: See `improvements.md`
