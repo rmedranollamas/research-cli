@@ -10,6 +10,9 @@ dependencies = [
     "rich>=14.2.0",
 ]
 
+[tool.setuptools]
+py-modules = ["research"]
+
 [tool.uv]
 package = true
 
