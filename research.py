@@ -24,6 +24,7 @@ DB_PATH = os.getenv(
 DEFAULT_MODEL = os.getenv("RESEARCH_MODEL", "deep-research")
 QUERY_TRUNCATION_LENGTH = 50
 
+RECENT_TASKS_LIMIT = 20
 # Global Rich console
 console = Console()
 
@@ -53,7 +54,7 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS research_tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                interaction_id TEXT UNIQUE,
+                interaction_id TEXT UNIQUE, parent_id TEXT,
                 query TEXT,
                 model TEXT,
                 status TEXT,
@@ -64,13 +65,13 @@ def init_db():
         conn.commit()
 
 
-def save_task(query: str, model: str, interaction_id: Optional[str] = None):
+def save_task(query: str, model: str, interaction_id: Optional[str] = None, parent_id: Optional[str] = None):
     init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO research_tasks (query, model, interaction_id, status) VALUES (?, ?, ?, ?)",
-            (query, model, interaction_id, "PENDING"),
+            "INSERT INTO research_tasks (query, model, interaction_id, status, parent_id) VALUES (?, ?, ?, ?, ?)",
+            (query, model, interaction_id, "PENDING", parent_id),
         )
         task_id = cursor.lastrowid
         conn.commit()
@@ -97,13 +98,13 @@ def update_task(
         conn.commit()
 
 
-async def run_research(query: str, model_id: str):
+async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
         sys.exit(1)
 
-    task_id = save_task(query, model_id)
+    task_id = save_task(query, model_id, parent_id=parent_id)
 
     try:
         http_options = {"api_version": "v1alpha"}
@@ -132,6 +133,7 @@ async def run_research(query: str, model_id: str):
             background=True,
             stream=True,
             agent_config={"type": "deep-research", "thinking_summaries": "auto"},
+            previous_interaction_id=parent_id,
         )
 
         report_parts: List[str] = []
@@ -230,7 +232,8 @@ async def run_research(query: str, model_id: str):
 
 
 async def run_research_cmd(args):
-    report = await run_research(args.query, args.model)
+    parent_id = args.parent
+    report = await run_research(args.query, args.model, parent_id=parent_id)
     if report and args.output:
         with open(args.output, "w") as f:
             f.write(report)
@@ -275,7 +278,7 @@ def list_tasks():
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            f"SELECT id, query, status, created_at FROM research_tasks ORDER BY created_at DESC LIMIT {RECENT_TASKS_LIMIT}"
+            f"SELECT id, query, status, created_at, interaction_id FROM research_tasks ORDER BY created_at DESC LIMIT {RECENT_TASKS_LIMIT}"
         )
         tasks = cursor.fetchall()
 
@@ -288,15 +291,16 @@ def list_tasks():
     table.add_column("Query", style="white")
     table.add_column("Status", style="green")
     table.add_column("Created At", style="magenta")
+    table.add_column("Interaction ID", style="dim")
 
-    for task_id, query, status, created_at in tasks:
+    for task_id, query, status, created_at, inter_id in tasks:
         # Truncate query for display
         display_query = (
             (query[: QUERY_TRUNCATION_LENGTH - 3] + "...")
             if len(query) > QUERY_TRUNCATION_LENGTH
             else query
         )
-        table.add_row(str(task_id), display_query, status, created_at)
+        table.add_row(str(task_id), display_query, status, created_at, inter_id or "-")
 
     console.print(table)
 
@@ -312,6 +316,7 @@ def main():
     run_parser.add_argument("query", nargs="?", help="The research query")
     run_parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
     run_parser.add_argument("--output", "-o", help="Save the report to a markdown file")
+    run_parser.add_argument("--parent", help="Continue from a previous interaction ID")
 
     # List command
     subparsers.add_parser("list", help="List recent research tasks")
