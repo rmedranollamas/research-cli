@@ -75,6 +75,9 @@ def get_val(obj, key: str, default=None):
     return val if val is not None else default
 
 
+_last_db_path: Optional[str] = None
+
+
 @contextmanager
 def get_db():
     """Provides a thread-safe database connection with lazy initialization."""
@@ -88,6 +91,9 @@ def get_db():
                 _last_db_path = DB_PATH
 
     conn = sqlite3.connect(DB_PATH)
+    if _last_db_path != DB_PATH:
+        _init_db(conn)
+        _last_db_path = DB_PATH
     try:
         yield conn
     finally:
