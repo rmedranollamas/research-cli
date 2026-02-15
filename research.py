@@ -25,6 +25,17 @@ DEFAULT_MODEL = os.getenv("RESEARCH_MODEL", "deep-research")
 QUERY_TRUNCATION_LENGTH = 50
 
 RECENT_TASKS_LIMIT = 20
+
+
+def truncate_query(query: str) -> str:
+    """Truncates a query for display if it exceeds QUERY_TRUNCATION_LENGTH."""
+    if query is None:
+        return ""
+    return (
+        (query[: QUERY_TRUNCATION_LENGTH - 3] + "...")
+        if len(query) > QUERY_TRUNCATION_LENGTH
+        else query
+    )
 # Global Rich console
 console = Console()
 
@@ -295,11 +306,7 @@ def list_tasks():
 
     for task_id, query, status, created_at, inter_id in tasks:
         # Truncate query for display
-        display_query = (
-            (query[: QUERY_TRUNCATION_LENGTH - 3] + "...")
-            if len(query) > QUERY_TRUNCATION_LENGTH
-            else query
-        )
+        display_query = truncate_query(query)
         table.add_row(str(task_id), display_query, status, created_at, inter_id or "-")
 
     console.print(table)
