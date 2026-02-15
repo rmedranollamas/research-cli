@@ -3,6 +3,7 @@ import sys
 import asyncio
 import argparse
 import sqlite3
+import threading
 from contextlib import contextmanager
 from typing import List, Optional
 
@@ -51,6 +52,10 @@ def truncate_query(query: str) -> str:
 # Global Rich console
 console = Console()
 
+# Database initialization state
+_db_lock = threading.Lock()
+_last_db_path: Optional[str] = None
+
 
 def get_val(obj, key: str, default=None):
     """Safely gets a value from an object or dictionary."""
@@ -64,7 +69,26 @@ def get_val(obj, key: str, default=None):
 
 @contextmanager
 def get_db():
-    db_dir = os.path.dirname(DB_PATH)
+    """Provides a thread-safe database connection with lazy initialization."""
+    global _last_db_path
+
+    # Lazy initialization with double-checked locking
+    if _last_db_path != DB_PATH:
+        with _db_lock:
+            if _last_db_path != DB_PATH:
+                _init_db(DB_PATH)
+                _last_db_path = DB_PATH
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _init_db(db_path: str):
+    """Internal helper to initialize the database filesystem and schema."""
+    db_dir = os.path.dirname(db_path)
     # Set restrictive umask (only user can read/write)
     old_umask = os.umask(0o077)
     try:
@@ -83,38 +107,40 @@ def get_db():
             except OSError:
                 pass
 
-        conn = sqlite3.connect(DB_PATH)
-        # Ensure database file has correct permissions
-        try:
-            os.chmod(DB_PATH, 0o600)
-        except OSError:
-            pass
+        with sqlite3.connect(db_path) as conn:
+            # Ensure database file has correct permissions
+            try:
+                os.chmod(db_path, 0o600)
+            except OSError:
+                pass
+            _init_db_schema(conn)
     finally:
         os.umask(old_umask)
 
-    try:
-        yield conn
-    finally:
-        conn.close()
+
+def _init_db_schema(conn: sqlite3.Connection):
+    """Internal helper to initialize the database schema."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS research_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            interaction_id TEXT UNIQUE, parent_id TEXT,
+            query TEXT,
+            model TEXT,
+            status TEXT,
+            report TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_research_tasks_created_at ON research_tasks (created_at)"
+    )
+    conn.commit()
 
 
 def init_db():
-    with get_db() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS research_tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                interaction_id TEXT UNIQUE, parent_id TEXT,
-                query TEXT,
-                model TEXT,
-                status TEXT,
-                report TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_research_tasks_created_at ON research_tasks (created_at)"
-        )
-        conn.commit()
+    """Explicitly initializes the database. Now handled lazily by get_db()."""
+    with get_db():
+        pass
 
 
 def save_task(
@@ -123,7 +149,6 @@ def save_task(
     interaction_id: Optional[str] = None,
     parent_id: Optional[str] = None,
 ):
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -443,7 +468,6 @@ async def run_think_cmd(args):
 
 
 def show_task(task_id: int, output_file: Optional[str] = None, force: bool = False):
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -481,7 +505,6 @@ def show_task(task_id: int, output_file: Optional[str] = None, force: bool = Fal
 
 
 def list_tasks():
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
