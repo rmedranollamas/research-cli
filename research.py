@@ -71,7 +71,24 @@ def get_val(obj, key: str, default=None):
 def get_db():
     """Provides a thread-safe database connection with lazy initialization."""
     global _last_db_path
-    db_dir = os.path.dirname(DB_PATH)
+
+    # Lazy initialization with double-checked locking
+    if _last_db_path != DB_PATH:
+        with _db_lock:
+            if _last_db_path != DB_PATH:
+                _init_db(DB_PATH)
+                _last_db_path = DB_PATH
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _init_db(db_path: str):
+    """Internal helper to initialize the database filesystem and schema."""
+    db_dir = os.path.dirname(db_path)
     # Set restrictive umask (only user can read/write)
     old_umask = os.umask(0o077)
     try:
@@ -90,26 +107,15 @@ def get_db():
             except OSError:
                 pass
 
-        conn = sqlite3.connect(DB_PATH)
-        # Ensure database file has correct permissions
-        try:
-            os.chmod(DB_PATH, 0o600)
-        except OSError:
-            pass
+        with sqlite3.connect(db_path) as conn:
+            # Ensure database file has correct permissions
+            try:
+                os.chmod(db_path, 0o600)
+            except OSError:
+                pass
+            _init_db_schema(conn)
     finally:
         os.umask(old_umask)
-
-    # Lazy initialization with double-checked locking
-    if _last_db_path != DB_PATH:
-        with _db_lock:
-            if _last_db_path != DB_PATH:
-                _init_db_schema(conn)
-                _last_db_path = DB_PATH
-
-    try:
-        yield conn
-    finally:
-        conn.close()
 
 
 def _init_db_schema(conn: sqlite3.Connection):
