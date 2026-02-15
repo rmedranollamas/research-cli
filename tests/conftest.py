@@ -7,6 +7,8 @@ import sys
 import time
 from unittest.mock import MagicMock
 
+import importlib
+
 # Mock missing dependencies to allow tests to run without internet
 mock_modules = [
     "google",
@@ -17,12 +19,16 @@ mock_modules = [
     "rich.markdown",
     "rich.panel",
     "rich.table",
-    "rich.progress"
+    "rich.progress",
 ]
 
 for mod in mock_modules:
     if mod not in sys.modules:
-        sys.modules[mod] = MagicMock()
+        try:
+            importlib.import_module(mod)
+        except ImportError:
+            sys.modules[mod] = MagicMock()
+
 
 # Improve mocks for Rich to allow CLI tests to pass
 class MockConsole:
@@ -30,37 +36,80 @@ class MockConsole:
         for arg in args:
             sys.stdout.write(str(arg) + "\n")
 
+    def print_exception(self, *args, **kwargs):
+        sys.stdout.write("Exception occurred\n")
+
+    @property
+    def get_time(self):
+        import time
+
+        return time.time
+
+
 class MockTable:
     def __init__(self, *args, **kwargs):
         self.title = kwargs.get("title", "")
         self.rows = []
+
     def add_column(self, *args, **kwargs):
         pass
+
     def add_row(self, *args):
         self.rows.append(args)
+
     def __str__(self):
         res = [self.title]
         for row in self.rows:
             res.append(" | ".join(map(str, row)))
         return "\n".join(res)
 
+
 class MockPanel:
     def __init__(self, content, *args, **kwargs):
         self.content = content
         self.title = kwargs.get("title", "")
+
     def __str__(self):
         return f"Panel: {self.title}\n{self.content}"
+
 
 class MockMarkdown:
     def __init__(self, content, *args, **kwargs):
         self.content = content
+
     def __str__(self):
         return f"Markdown:\n{self.content}"
+
+
+class MockProgress:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
+    def add_task(self, *args, **kwargs):
+        return 1
+
+    def update(self, *args, **kwargs):
+        pass
+
+
+class MockColumn:
+    def __init__(self, *args, **kwargs):
+        pass
+
 
 sys.modules["rich.console"].Console = MockConsole
 sys.modules["rich.table"].Table = MockTable
 sys.modules["rich.panel"].Panel = MockPanel
 sys.modules["rich.markdown"].Markdown = MockMarkdown
+sys.modules["rich.progress"].Progress = MockProgress
+sys.modules["rich.progress"].SpinnerColumn = MockColumn
+sys.modules["rich.progress"].TextColumn = MockColumn
 
 
 def wait_for_port(port, host="127.0.0.1", timeout=5.0):
