@@ -3,6 +3,7 @@ import sys
 import asyncio
 import argparse
 import sqlite3
+import threading
 from contextlib import contextmanager
 from typing import List, Optional
 
@@ -51,6 +52,10 @@ def truncate_query(query: str) -> str:
 # Global Rich console
 console = Console()
 
+# Database initialization state
+_db_lock = threading.Lock()
+_last_db_path: Optional[str] = None
+
 
 def get_val(obj, key: str, default=None):
     """Safely gets a value from an object or dictionary."""
@@ -64,6 +69,8 @@ def get_val(obj, key: str, default=None):
 
 @contextmanager
 def get_db():
+    """Provides a thread-safe database connection with lazy initialization."""
+    global _last_db_path
     db_dir = os.path.dirname(DB_PATH)
     # Set restrictive umask (only user can read/write)
     old_umask = os.umask(0o077)
@@ -92,29 +99,42 @@ def get_db():
     finally:
         os.umask(old_umask)
 
+    # Lazy initialization with double-checked locking
+    if _last_db_path != DB_PATH:
+        with _db_lock:
+            if _last_db_path != DB_PATH:
+                _init_db_schema(conn)
+                _last_db_path = DB_PATH
+
     try:
         yield conn
     finally:
         conn.close()
 
 
-def init_db():
-    with get_db() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS research_tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                interaction_id TEXT UNIQUE, parent_id TEXT,
-                query TEXT,
-                model TEXT,
-                status TEXT,
-                report TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_research_tasks_created_at ON research_tasks (created_at)"
+def _init_db_schema(conn: sqlite3.Connection):
+    """Internal helper to initialize the database schema."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS research_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            interaction_id TEXT UNIQUE, parent_id TEXT,
+            query TEXT,
+            model TEXT,
+            status TEXT,
+            report TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-        conn.commit()
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_research_tasks_created_at ON research_tasks (created_at)"
+    )
+    conn.commit()
+
+
+def init_db():
+    """Explicitly initializes the database. Now handled lazily by get_db()."""
+    with get_db():
+        pass
 
 
 def save_task(
@@ -123,7 +143,6 @@ def save_task(
     interaction_id: Optional[str] = None,
     parent_id: Optional[str] = None,
 ):
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -443,7 +462,6 @@ async def run_think_cmd(args):
 
 
 def show_task(task_id: int, output_file: Optional[str] = None, force: bool = False):
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -481,7 +499,6 @@ def show_task(task_id: int, output_file: Optional[str] = None, force: bool = Fal
 
 
 def list_tasks():
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(

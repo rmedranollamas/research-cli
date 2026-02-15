@@ -37,8 +37,11 @@ def test_db_permissions_existing(tmp_path):
     # Pre-create directory and file with loose permissions
     os.makedirs(db_dir, mode=0o777, exist_ok=True)
     os.chmod(db_dir, 0o777)
-    with open(test_db_path, "w") as f:
-        f.write("dummy")
+    # Use sqlite3 to create a valid empty database file
+    import sqlite3
+
+    conn = sqlite3.connect(str(test_db_path))
+    conn.close()
     os.chmod(test_db_path, 0o666)
 
     # Patch DB_PATH in research module
