@@ -17,12 +17,13 @@ mock_modules = [
     "rich.markdown",
     "rich.panel",
     "rich.table",
-    "rich.progress"
+    "rich.progress",
 ]
 
 for mod in mock_modules:
     if mod not in sys.modules:
         sys.modules[mod] = MagicMock()
+
 
 # Improve mocks for Rich to allow CLI tests to pass
 class MockConsole:
@@ -30,32 +31,41 @@ class MockConsole:
         for arg in args:
             sys.stdout.write(str(arg) + "\n")
 
+
 class MockTable:
     def __init__(self, *args, **kwargs):
         self.title = kwargs.get("title", "")
         self.rows = []
+
     def add_column(self, *args, **kwargs):
         pass
+
     def add_row(self, *args):
         self.rows.append(args)
+
     def __str__(self):
         res = [self.title]
         for row in self.rows:
             res.append(" | ".join(map(str, row)))
         return "\n".join(res)
 
+
 class MockPanel:
     def __init__(self, content, *args, **kwargs):
         self.content = content
         self.title = kwargs.get("title", "")
+
     def __str__(self):
         return f"Panel: {self.title}\n{self.content}"
+
 
 class MockMarkdown:
     def __init__(self, content, *args, **kwargs):
         self.content = content
+
     def __str__(self):
         return f"Markdown:\n{self.content}"
+
 
 sys.modules["rich.console"].Console = MockConsole
 sys.modules["rich.table"].Table = MockTable

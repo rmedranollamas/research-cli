@@ -15,9 +15,11 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+
 # Custom exception for research errors
 class ResearchError(Exception):
     """Custom exception for research-related errors."""
+
     pass
 
 
@@ -44,6 +46,8 @@ def truncate_query(query: str) -> str:
         if len(query) > QUERY_TRUNCATION_LENGTH
         else query
     )
+
+
 # Global Rich console
 console = Console()
 
@@ -333,6 +337,11 @@ async def run_research_cmd(args):
     parent_id = args.parent
     report = await run_research(args.query, args.model, parent_id=parent_id)
     if report and args.output:
+        if os.path.exists(args.output) and not args.force:
+            console.print(
+                f"[red]Error: Output file {args.output} already exists. Use --force to overwrite.[/red]"
+            )
+            return
         with open(args.output, "w") as f:
             f.write(report)
         console.print(f"[green]Report saved to {args.output}[/green]")
@@ -423,12 +432,17 @@ async def run_think_cmd(args):
         args.query, args.model, api_version=args.api_version, timeout=args.timeout
     )
     if report and args.output:
+        if os.path.exists(args.output) and not args.force:
+            console.print(
+                f"[red]Error: Output file {args.output} already exists. Use --force to overwrite.[/red]"
+            )
+            return
         with open(args.output, "w") as f:
             f.write(report)
         console.print(f"[green]Saved to {args.output}[/green]")
 
 
-def show_task(task_id: int, output_file: Optional[str] = None):
+def show_task(task_id: int, output_file: Optional[str] = None, force: bool = False):
     init_db()
     with get_db() as conn:
         cursor = conn.cursor()
@@ -454,6 +468,11 @@ def show_task(task_id: int, output_file: Optional[str] = None):
         console.print("\n" + "=" * 40 + "\n")
 
         if output_file:
+            if os.path.exists(output_file) and not force:
+                console.print(
+                    f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
+                )
+                return
             with open(output_file, "w") as f:
                 f.write(report)
             console.print(f"[green]Report saved to {output_file}[/green]")
@@ -516,6 +535,12 @@ def main():
     run_parser.add_argument("query", nargs="?", help="The research query")
     run_parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
     run_parser.add_argument("--output", "-o", help="Save the report to a markdown file")
+    run_parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Overwrite the output file if it exists",
+    )
     run_parser.add_argument("--parent", help="Continue from a previous interaction ID")
 
     # Think command
@@ -530,6 +555,12 @@ def main():
     )
     think_parser.add_argument(
         "--output", "-o", help="Save the response to a markdown file"
+    )
+    think_parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Overwrite the output file if it exists",
     )
     think_parser.add_argument(
         "--api-version", default="v1alpha", help="API version (default: v1alpha)"
@@ -550,6 +581,12 @@ def main():
     show_parser.add_argument(
         "--output", "-o", help="Save the report to a markdown file"
     )
+    show_parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Overwrite the output file if it exists",
+    )
 
     args = parser.parse_args()
 
@@ -567,7 +604,7 @@ def main():
         elif args.command == "list":
             list_tasks()
         elif args.command == "show":
-            show_task(args.id, args.output)
+            show_task(args.id, args.output, args.force)
         else:
             # Default behavior for backwards compatibility or direct script calls
             if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
