@@ -28,3 +28,4 @@ dev = [
 
 [project.scripts]
 research = "research:main"
+think = "research:main"

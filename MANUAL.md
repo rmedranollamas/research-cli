@@ -66,6 +66,12 @@ Research CLI uses subcommands for different actions.
 uv run research run "Your query here"
 ```
 
+### Start a new thinking task
+
+```bash
+uv run research think "Your query here"
+```
+
 ### List recent tasks
 
 ```bash
@@ -91,10 +97,11 @@ ______________________________________________________________________
 
 ### Specifying a Model
 
-You can override the default Deep Research model using the `--model` flag:
+You can override the default models using the `--model` flag:
 
 ```bash
-uv run research "Latest advancements in fusion energy" --model "deep-research-pro-preview-12-2025"
+uv run research run "Latest advancements in fusion energy" --model "deep-research-pro-preview-12-2025"
+uv run research think "How many r's in strawberry?" --model "gemini-2.0-flash-thinking-exp"
 ```
 
 ### Keyboard Interrupts

@@ -12,5 +12,7 @@
 ## Tooling
 
 - **Language**: Python 3 (`uv`)
-- **Agent**: `deep-research-pro-preview-12-2025`
+- **Agents**:
+    - Deep Research: `deep-research-pro-preview-12-2025` (v1alpha Interactions API)
+    - Deep Think: `gemini-2.0-flash-thinking-exp` (v1beta Generate Content API)
 - **CLI**: `rich`, `argparse`

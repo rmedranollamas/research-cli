@@ -11,8 +11,13 @@
     },
     {
       "name": "Research Model",
-      "description": "The Gemini model ID to use for deep research (default: deep-research)",
+      "description": "The Gemini model ID to use for deep research (default: deep-research-pro-preview-12-2025)",
       "envVar": "RESEARCH_MODEL"
+    },
+    {
+      "name": "Think Model",
+      "description": "The Gemini model ID to use for deep think (default: gemini-2.0-flash-thinking-exp)",
+      "envVar": "THINK_MODEL"
     }
   ]
 }

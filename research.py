@@ -8,11 +8,13 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.live import Live
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -21,7 +23,8 @@ load_dotenv()
 DB_PATH = os.getenv(
     "RESEARCH_DB_PATH", os.path.expanduser("~/.research-cli/history.db")
 )
-DEFAULT_MODEL = os.getenv("RESEARCH_MODEL", "deep-research")
+DEFAULT_MODEL = os.getenv("RESEARCH_MODEL", "deep-research-pro-preview-12-2025")
+DEFAULT_THINK_MODEL = os.getenv("THINK_MODEL", "gemini-2.0-flash-thinking-exp")
 QUERY_TRUNCATION_LENGTH = 50
 
 RECENT_TASKS_LIMIT = 20
@@ -240,6 +243,102 @@ async def run_research_cmd(args):
         console.print(f"[green]Report saved to {args.output}[/green]")
 
 
+async def run_think(
+    query: str, model_id: str, api_version: str = "v1beta", timeout: int = 1800
+):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
+        sys.exit(1)
+
+    task_id = save_task(query, model_id)
+
+    try:
+        http_options = {"api_version": api_version, "timeout": timeout}
+        base_url = os.getenv("GEMINI_API_BASE_URL")
+        if base_url:
+            http_options["base_url"] = base_url
+
+        client = genai.Client(api_key=api_key, http_options=http_options)
+    except Exception:
+        console.print("[red]Error initializing Gemini client:[/red]")
+        console.print_exception()
+        update_task(task_id, "ERROR", "Client initialization failed")
+        sys.exit(1)
+
+    console.print(
+        Panel(
+            f"[bold blue]Query:[/bold blue] {query}\n[bold blue]Model:[/bold blue] {model_id}\n[bold blue]API Version:[/bold blue] {api_version}",
+            title="Gemini Deep Think Starting",
+        )
+    )
+
+    try:
+        # Flash Thinking model handles thoughts via GenerateContentConfig
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(include_thoughts=True),
+        )
+
+        stream = client.models.generate_content_stream(
+            model=model_id,
+            contents=query,
+            config=config,
+        )
+
+        report_parts: List[str] = []
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True,
+        ) as progress:
+            progress.add_task("Deep Think processing...", total=None)
+            console.print("[italic grey]Thinking...[/italic grey]")
+            for chunk in stream:
+                for part in chunk.candidates[0].content.parts:
+                    if part.thought:
+                        console.print(
+                            f"[italic grey]{part.text}[/italic grey]",
+                            end="",
+                            highlight=False,
+                        )
+                    elif part.text:
+                        report_parts.append(part.text)
+
+            console.print("\n[green]Finished thinking.[/green]")
+
+        report_content = "".join(report_parts)
+
+    except Exception:
+        console.print("[red]Error during thinking:[/red]")
+        console.print_exception()
+        update_task(task_id, "ERROR", "Execution failed")
+        return None
+
+    if report_content:
+        update_task(task_id, "COMPLETED", report_content)
+        console.print("\n" + "=" * 40 + "\n")
+        console.print(Markdown(report_content))
+        console.print("\n" + "=" * 40 + "\n")
+
+        return report_content
+    else:
+        update_task(task_id, "FAILED")
+        console.print("[yellow]No content received.[/yellow]")
+        return None
+
+
+async def run_think_cmd(args):
+    report = await run_think(
+        args.query, args.model, api_version=args.api_version, timeout=args.timeout
+    )
+    if report and args.output:
+        with open(args.output, "w") as f:
+            f.write(report)
+        console.print(f"[green]Saved to {args.output}[/green]")
+
+
 def show_task(task_id: int, output_file: Optional[str] = None):
     init_db()
     with get_db() as conn:
@@ -306,6 +405,22 @@ def list_tasks():
 
 
 def main():
+    # Check if called as 'think' script
+    script_name = os.path.basename(sys.argv[0])
+
+    # If called via 'think' entry point, we want to default to the 'think' subcommand
+    if script_name == "think":
+        if len(sys.argv) > 1 and sys.argv[1] not in [
+            "run",
+            "think",
+            "list",
+            "show",
+            "-h",
+            "--help",
+            "--version",
+        ]:
+            sys.argv.insert(1, "think")
+
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
     parser.add_argument("--version", action="version", version="research-cli 0.1.0")
 
@@ -317,6 +432,27 @@ def main():
     run_parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
     run_parser.add_argument("--output", "-o", help="Save the report to a markdown file")
     run_parser.add_argument("--parent", help="Continue from a previous interaction ID")
+
+    # Think command
+    think_parser = subparsers.add_parser(
+        "think", help="Start a new thinking task", description="Start a new thinking task"
+    )
+    think_parser.add_argument("query", nargs="?", help="The thinking query")
+    think_parser.add_argument(
+        "--model", default=DEFAULT_THINK_MODEL, help="Gemini thinking model ID"
+    )
+    think_parser.add_argument(
+        "--output", "-o", help="Save the response to a markdown file"
+    )
+    think_parser.add_argument(
+        "--api-version", default="v1beta", help="API version (default: v1beta)"
+    )
+    think_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=1800,
+        help="Timeout in seconds for the thinking task (default: 1800)",
+    )
 
     # List command
     subparsers.add_parser("list", help="List recent research tasks")
@@ -336,14 +472,22 @@ def main():
                 run_parser.print_help()
                 return
             asyncio.run(run_research_cmd(args))
+        elif args.command == "think":
+            if not args.query:
+                think_parser.print_help()
+                return
+            asyncio.run(run_think_cmd(args))
         elif args.command == "list":
             list_tasks()
         elif args.command == "show":
             show_task(args.id, args.output)
         else:
-            # Default behavior for backwards compatibility if no subcommand is provided
+            # Default behavior for backwards compatibility or direct script calls
             if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
-                asyncio.run(run_research(sys.argv[1], DEFAULT_MODEL))
+                if script_name == "think":
+                    asyncio.run(run_think(sys.argv[1], DEFAULT_THINK_MODEL))
+                else:
+                    asyncio.run(run_research(sys.argv[1], DEFAULT_MODEL))
             else:
                 parser.print_help()
     except KeyboardInterrupt:

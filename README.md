@@ -29,7 +29,15 @@ export GEMINI_API_KEY="your-api-key"
 uv run research run "Your research query here"
 ```
 
-You can also list past research:
+### Deep Think
+
+Use the `think` command for fast thinking models:
+
+```bash
+uv run research think "Your complex question here"
+```
+
+You can also list past tasks:
 
 ```bash
 uv run research list
