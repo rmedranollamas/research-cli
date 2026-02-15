@@ -6,6 +6,7 @@
 #
 # Command to use to install research:
 # curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh
+# less install.sh  # Review the script's contents
 # chmod +x install.sh
 # ./install.sh
 
