@@ -58,7 +58,7 @@ def get_val(obj, key: str, default=None):
         return default
     val = getattr(obj, key, None)
     if val is None and isinstance(obj, dict):
-        return obj.get(key, default)
+        val = obj.get(key, default)
     return val if val is not None else default
 
 
