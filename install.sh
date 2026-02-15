@@ -5,9 +5,21 @@
 # Downloads and installs the research binary into /usr/local/bin
 #
 # Command to use to install research:
-# curl -s https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh | sudo bash
+# curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh
+# chmod +x install.sh
+# ./install.sh
 
 set -euo pipefail
+
+# Security check: prevent piping to bash
+if [[ ! -f "$0" ]]; then
+  echo "Error: For security reasons, this script should not be piped directly to bash."
+  echo "Please download the script and run it locally:"
+  echo "  curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh"
+  echo "  chmod +x install.sh"
+  echo "  ./install.sh"
+  exit 1
+fi
 
 # Configuration
 readonly PACKAGE="research"
