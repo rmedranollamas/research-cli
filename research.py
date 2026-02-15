@@ -14,7 +14,6 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.live import Live
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -68,7 +67,12 @@ def init_db():
         conn.commit()
 
 
-def save_task(query: str, model: str, interaction_id: Optional[str] = None, parent_id: Optional[str] = None):
+def save_task(
+    query: str,
+    model: str,
+    interaction_id: Optional[str] = None,
+    parent_id: Optional[str] = None,
+):
     init_db()
     with get_db() as conn:
         cursor = conn.cursor()
@@ -79,6 +83,11 @@ def save_task(query: str, model: str, interaction_id: Optional[str] = None, pare
         task_id = cursor.lastrowid
         conn.commit()
         return task_id
+
+
+async def async_save_task(*args, **kwargs):
+    """Asynchronous wrapper for save_task."""
+    return await asyncio.to_thread(save_task, *args, **kwargs)
 
 
 def update_task(
@@ -101,13 +110,18 @@ def update_task(
         conn.commit()
 
 
+async def async_update_task(*args, **kwargs):
+    """Asynchronous wrapper for update_task."""
+    return await asyncio.to_thread(update_task, *args, **kwargs)
+
+
 async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
         sys.exit(1)
 
-    task_id = save_task(query, model_id, parent_id=parent_id)
+    task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
     try:
         http_options = {"api_version": "v1alpha"}
@@ -119,7 +133,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
     except Exception:
         console.print("[red]Error initializing Gemini client:[/red]")
         console.print_exception()
-        update_task(task_id, "ERROR", "Client initialization failed")
+        await async_update_task(task_id, "ERROR", "Client initialization failed")
         sys.exit(1)
 
     console.print(
@@ -155,7 +169,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
                     interaction_id = get_val(inter, "id")
 
                     if interaction_id:
-                        update_task(
+                        await async_update_task(
                             task_id, "IN_PROGRESS", interaction_id=interaction_id
                         )
                         progress.update(
@@ -218,18 +232,18 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
     except Exception:
         console.print("[red]Error during research:[/red]")
         console.print_exception()
-        update_task(task_id, "ERROR", "Research execution failed")
+        await async_update_task(task_id, "ERROR", "Research execution failed")
         return None
 
     if report_content:
-        update_task(task_id, "COMPLETED", report_content)
+        await async_update_task(task_id, "COMPLETED", report_content)
         console.print("\n" + "=" * 40 + "\n")
         console.print(Markdown(report_content))
         console.print("\n" + "=" * 40 + "\n")
 
         return report_content
     else:
-        update_task(task_id, "FAILED")
+        await async_update_task(task_id, "FAILED")
         console.print("[yellow]No report content received.[/yellow]")
         return None
 
@@ -251,7 +265,7 @@ async def run_think(
         console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
         sys.exit(1)
 
-    task_id = save_task(query, model_id)
+    task_id = await async_save_task(query, model_id)
 
     try:
         http_options = {"api_version": api_version, "timeout": timeout}
@@ -263,7 +277,7 @@ async def run_think(
     except Exception:
         console.print("[red]Error initializing Gemini client:[/red]")
         console.print_exception()
-        update_task(task_id, "ERROR", "Client initialization failed")
+        await async_update_task(task_id, "ERROR", "Client initialization failed")
         sys.exit(1)
 
     console.print(
@@ -313,18 +327,18 @@ async def run_think(
     except Exception:
         console.print("[red]Error during thinking:[/red]")
         console.print_exception()
-        update_task(task_id, "ERROR", "Execution failed")
+        await async_update_task(task_id, "ERROR", "Execution failed")
         return None
 
     if report_content:
-        update_task(task_id, "COMPLETED", report_content)
+        await async_update_task(task_id, "COMPLETED", report_content)
         console.print("\n" + "=" * 40 + "\n")
         console.print(Markdown(report_content))
         console.print("\n" + "=" * 40 + "\n")
 
         return report_content
     else:
-        update_task(task_id, "FAILED")
+        await async_update_task(task_id, "FAILED")
         console.print("[yellow]No content received.[/yellow]")
         return None
 
@@ -435,7 +449,9 @@ def main():
 
     # Think command
     think_parser = subparsers.add_parser(
-        "think", help="Start a new thinking task", description="Start a new thinking task"
+        "think",
+        help="Start a new thinking task",
+        description="Start a new thinking task",
     )
     think_parser.add_argument("query", nargs="?", help="The thinking query")
     think_parser.add_argument(
