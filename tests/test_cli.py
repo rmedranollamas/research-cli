@@ -46,3 +46,15 @@ def test_cli_show_success(temp_db, capsys):
     captured = capsys.readouterr()
     assert "Research Task " in captured.out
     assert "Rocket Science" in captured.out
+
+
+def test_cli_show_no_report(temp_db, capsys):
+    """Test 'show' command with a task that has no report."""
+    task_id = save_task("test query without report", "model-x")
+
+    with patch.object(sys, "argv", ["research", "show", str(task_id)]):
+        main()
+
+    captured = capsys.readouterr()
+    assert "Research Task " in captured.out
+    assert "No report content available for this task." in captured.out
