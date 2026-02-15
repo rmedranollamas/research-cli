@@ -54,8 +54,34 @@ def get_val(obj, key: str, default=None):
 
 @contextmanager
 def get_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    db_dir = os.path.dirname(DB_PATH)
+    # Set restrictive umask (only user can read/write)
+    old_umask = os.umask(0o077)
+    try:
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir, mode=0o700, exist_ok=True)
+        else:
+            # Ensure existing directory has correct permissions if it's likely our own app dir
+            # Avoid chmod'ing system or shared directories like /tmp
+            try:
+                st = os.stat(db_dir)
+                # Only chmod if we own it and it's not a system directory
+                # os.getuid is available on Unix
+                is_owner = hasattr(os, "getuid") and st.st_uid == os.getuid()
+                if is_owner and db_dir not in ["/tmp", "/var/tmp", "/"]:
+                    os.chmod(db_dir, 0o700)
+            except OSError:
+                pass
+
+        conn = sqlite3.connect(DB_PATH)
+        # Ensure database file has correct permissions
+        try:
+            os.chmod(DB_PATH, 0o600)
+        except OSError:
+            pass
+    finally:
+        os.umask(old_umask)
+
     try:
         yield conn
     finally:
