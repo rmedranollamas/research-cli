@@ -25,7 +25,7 @@ def test_cli_think_no_query(capsys):
 
 @patch("research.save_task", return_value=1)
 @patch("research.update_task")
-@patch("google.genai.Client")
+@patch("research.genai.Client")
 def test_cli_think_success(mock_client_class, mock_update, mock_save, temp_db, capsys):
     """Test 'think' command success."""
     mock_client = MagicMock()
