@@ -200,7 +200,12 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
 
         # Wait for any background database updates to finish
         if background_tasks:
-            await asyncio.gather(*background_tasks, return_exceptions=True)
+            results = await asyncio.gather(*background_tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    console.print(
+                        f"[yellow]Warning: A background database update failed: {result}[/yellow]"
+                    )
 
         report_content = "".join(report_parts)
 
