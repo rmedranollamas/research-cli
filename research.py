@@ -15,6 +15,12 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+# Custom exception for research errors
+class ResearchError(Exception):
+    """Custom exception for research-related errors."""
+    pass
+
+
 # Load environment variables from .env if present
 load_dotenv()
 
@@ -159,7 +165,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
-        sys.exit(1)
+        raise ResearchError("GEMINI_API_KEY environment variable not set.")
 
     task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
@@ -174,7 +180,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
         console.print("[red]Error initializing Gemini client:[/red]")
         console.print_exception()
         await async_update_task(task_id, "ERROR", "Client initialization failed")
-        sys.exit(1)
+        raise ResearchError("Client initialization failed")
 
     console.print(
         Panel(
@@ -317,7 +323,7 @@ async def run_think(
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
-        sys.exit(1)
+        raise ResearchError("GEMINI_API_KEY environment variable not set.")
 
     task_id = await async_save_task(query, model_id)
 
@@ -332,7 +338,7 @@ async def run_think(
         console.print("[red]Error initializing Gemini client:[/red]")
         console.print_exception()
         await async_update_task(task_id, "ERROR", "Client initialization failed")
-        sys.exit(1)
+        raise ResearchError("Client initialization failed")
 
     console.print(
         Panel(
@@ -556,6 +562,9 @@ def main():
                     asyncio.run(run_research(sys.argv[1], DEFAULT_MODEL))
             else:
                 parser.print_help()
+    except ResearchError:
+        # Error messages are already printed by the functions
+        sys.exit(1)
     except KeyboardInterrupt:
         console.print("\n[yellow]Research cancelled by user.[/yellow]")
         sys.exit(0)
