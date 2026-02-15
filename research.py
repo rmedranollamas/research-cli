@@ -27,6 +27,7 @@ load_dotenv()
 DB_PATH = os.getenv(
     "RESEARCH_DB_PATH", os.path.expanduser("~/.research-cli/history.db")
 )
+DB_DIR = os.path.dirname(DB_PATH)
 DEFAULT_MODEL = os.getenv("RESEARCH_MODEL", "deep-research-pro-preview-12-2025")
 DEFAULT_THINK_MODEL = os.getenv("THINK_MODEL", "gemini-2.0-flash-thinking-exp")
 QUERY_TRUNCATION_LENGTH = 50
