@@ -5,8 +5,15 @@ def test_init_db(temp_db):
     """Test that the database is initialized with the correct schema."""
     with get_db() as conn:
         cursor = conn.cursor()
+        # Check table creation
         cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='research_tasks'"
+        )
+        assert cursor.fetchone() is not None
+
+        # Check index creation
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_research_tasks_created_at'"
         )
         assert cursor.fetchone() is not None
 
