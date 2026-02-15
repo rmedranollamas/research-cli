@@ -44,9 +44,10 @@ def test_cli_think_success(mock_client_class, mock_update, mock_save, temp_db, c
          patch.object(sys, 'argv', ['research', 'think', 'what is the meaning of life', '--timeout', '60']):
         main()
 
-    # Verify client was initialized with correct timeout
+    # Verify client was initialized with correct timeout and api_version
     args, kwargs = mock_client_class.call_args
     assert kwargs['http_options']['timeout'] == 60
+    assert kwargs['http_options']['api_version'] == 'v1alpha'
 
     captured = capsys.readouterr()
     assert "Gemini Deep Think Starting" in captured.out

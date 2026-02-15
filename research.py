@@ -244,7 +244,7 @@ async def run_research_cmd(args):
 
 
 async def run_think(
-    query: str, model_id: str, api_version: str = "v1beta", timeout: int = 1800
+    query: str, model_id: str, api_version: str = "v1alpha", timeout: int = 1800
 ):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -445,7 +445,7 @@ def main():
         "--output", "-o", help="Save the response to a markdown file"
     )
     think_parser.add_argument(
-        "--api-version", default="v1beta", help="API version (default: v1beta)"
+        "--api-version", default="v1alpha", help="API version (default: v1alpha)"
     )
     think_parser.add_argument(
         "--timeout",
