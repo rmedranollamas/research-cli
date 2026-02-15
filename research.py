@@ -5,9 +5,12 @@ import argparse
 import sqlite3
 import threading
 from contextlib import contextmanager
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    from google import genai
 
 
 # Custom exception for research errors
@@ -209,7 +212,7 @@ def get_gemini_client(
     api_key: Optional[str] = None,
     api_version: str = "v1alpha",
     timeout: Optional[int] = None,
-):
+) -> "genai.Client":
     """Helper to initialize the Gemini client with common configuration."""
     from google import genai
 
