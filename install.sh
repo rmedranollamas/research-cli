@@ -87,6 +87,35 @@ if [[ $http_code != 200 ]]; then
 fi
 echo "done"
 
+# Verify integrity
+echo -n "Verifying integrity ... "
+CHECKSUM_URL="https://github.com/$REPO_OWNER/$REPO_NAME/releases/download/$LATEST_TAG/checksums.txt"
+# Extract the expected checksum for the specific artifact
+EXPECTED_CHECKSUM=$(curl -L -s "$CHECKSUM_URL" | grep "research-$ARTIFACT_OS-$ARTIFACT_ARCH" | awk '{print $1}')
+
+if [ -z "$EXPECTED_CHECKSUM" ]; then
+  echo "failed"
+  echo "Error: Could not find checksum for research-$ARTIFACT_OS-$ARTIFACT_ARCH in $CHECKSUM_URL"
+  exit 1
+fi
+
+# Calculate actual checksum using python3 (already verified to be present)
+# Uses buffered reading to handle large files efficiently
+ACTUAL_CHECKSUM=$(python3 -c "import hashlib; import sys; h = hashlib.sha256();
+with open(sys.argv[1], 'rb') as f:
+    for chunk in iter(lambda: f.read(4096), b''):
+        h.update(chunk)
+print(h.hexdigest())" "$TMP_FILE")
+
+if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+  echo "failed"
+  echo "Error: Checksum mismatch!"
+  echo "  Expected: $EXPECTED_CHECKSUM"
+  echo "  Actual:   $ACTUAL_CHECKSUM"
+  exit 1
+fi
+echo "done"
+
 echo -n "Installing $PACKAGE into $installDir ... "
 chmod +x "$TMP_FILE"
 
