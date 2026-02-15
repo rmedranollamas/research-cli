@@ -1,7 +1,6 @@
 import os
-import sqlite3
-import pytest
-from research import get_db, DB_PATH
+from research import get_db
+
 
 def test_db_permissions(tmp_path):
     # Use a temporary database path
@@ -9,11 +8,12 @@ def test_db_permissions(tmp_path):
 
     # Patch DB_PATH in research module
     import research
+
     original_db_path = research.DB_PATH
     research.DB_PATH = str(test_db_path)
 
     try:
-        with get_db() as conn:
+        with get_db():
             pass
 
         # Check directory permissions
@@ -27,6 +27,7 @@ def test_db_permissions(tmp_path):
 
     finally:
         research.DB_PATH = original_db_path
+
 
 def test_db_permissions_existing(tmp_path):
     # Use a temporary database path
@@ -42,20 +43,25 @@ def test_db_permissions_existing(tmp_path):
 
     # Patch DB_PATH in research module
     import research
+
     original_db_path = research.DB_PATH
     research.DB_PATH = str(test_db_path)
 
     try:
-        with get_db() as conn:
+        with get_db():
             pass
 
         # Check directory permissions
         dir_mode = os.stat(db_dir).st_mode & 0o777
-        assert dir_mode == 0o700, f"Expected directory mode 0700 for existing dir, got {oct(dir_mode)}"
+        assert dir_mode == 0o700, (
+            f"Expected directory mode 0700 for existing dir, got {oct(dir_mode)}"
+        )
 
         # Check file permissions
         file_mode = os.stat(str(test_db_path)).st_mode & 0o777
-        assert file_mode == 0o600, f"Expected file mode 0600 for existing file, got {oct(file_mode)}"
+        assert file_mode == 0o600, (
+            f"Expected file mode 0600 for existing file, got {oct(file_mode)}"
+        )
 
     finally:
         research.DB_PATH = original_db_path
