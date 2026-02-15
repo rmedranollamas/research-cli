@@ -52,33 +52,46 @@ def get_val(obj, key: str, default=None):
     return val if val is not None else default
 
 
+_last_db_path: Optional[str] = None
+
+
 @contextmanager
 def get_db():
+    global _last_db_path
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
+    if _last_db_path != DB_PATH:
+        _init_db(conn)
+        _last_db_path = DB_PATH
     try:
         yield conn
     finally:
         conn.close()
 
 
-def init_db():
-    with get_db() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS research_tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                interaction_id TEXT UNIQUE, parent_id TEXT,
-                query TEXT,
-                model TEXT,
-                status TEXT,
-                report TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_research_tasks_created_at ON research_tasks (created_at)"
+def _init_db(conn: sqlite3.Connection):
+    """Initializes the database schema."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS research_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            interaction_id TEXT UNIQUE, parent_id TEXT,
+            query TEXT,
+            model TEXT,
+            status TEXT,
+            report TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-        conn.commit()
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_research_tasks_created_at ON research_tasks (created_at)"
+    )
+    conn.commit()
+
+
+def init_db():
+    """Manually initialize the database. Now handled automatically by get_db."""
+    with get_db():
+        pass
 
 
 def save_task(
@@ -87,7 +100,6 @@ def save_task(
     interaction_id: Optional[str] = None,
     parent_id: Optional[str] = None,
 ):
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -382,7 +394,6 @@ async def run_think_cmd(args):
 
 
 def show_task(task_id: int, output_file: Optional[str] = None):
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -415,7 +426,6 @@ def show_task(task_id: int, output_file: Optional[str] = None):
 
 
 def list_tasks():
-    init_db()
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
