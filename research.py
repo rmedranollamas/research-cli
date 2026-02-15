@@ -155,6 +155,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
 
         report_parts: List[str] = []
         interaction_id = None
+        background_tasks = set()
 
         with Progress(
             SpinnerColumn(),
@@ -169,9 +170,13 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
                     interaction_id = get_val(inter, "id")
 
                     if interaction_id:
-                        await async_update_task(
-                            task_id, "IN_PROGRESS", interaction_id=interaction_id
+                        update_job = asyncio.create_task(
+                            async_update_task(
+                                task_id, "IN_PROGRESS", interaction_id=interaction_id
+                            )
                         )
+                        background_tasks.add(update_job)
+                        update_job.add_done_callback(background_tasks.discard)
                         progress.update(
                             task, description=f"Researching (ID: {interaction_id})..."
                         )
@@ -192,6 +197,15 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
                             report_parts.append(text)
 
             progress.update(task, description="Stream finished.", completed=True)
+
+        # Wait for any background database updates to finish
+        if background_tasks:
+            results = await asyncio.gather(*background_tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    console.print(
+                        f"[yellow]Warning: A background database update failed: {result}[/yellow]"
+                    )
 
         report_content = "".join(report_parts)
 
