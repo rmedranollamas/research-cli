@@ -7,7 +7,7 @@
 ### Agents & APIs
 
 - **Deep Research**: Uses the `deep-research-pro-preview-12-2025` model via the **Gemini v1alpha Interactions API**. This allows for long-running research tasks with multi-step reasoning and tool use.
-- **Deep Thinking**: Uses the `gemini-2.0-flash-thinking-exp` model via the **Gemini v1beta Generate Content API**. This supports internal reasoning (thoughts) that are streamed to the terminal.
+- **Deep Thinking**: Uses the `gemini-2.0-flash-thinking-exp` model via the **Gemini v1alpha Generate Content API** (default). This supports internal reasoning (thoughts) that are streamed to the terminal.
 
 ### Performance Optimizations
 
