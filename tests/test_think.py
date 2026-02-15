@@ -25,11 +25,11 @@ def test_cli_think_no_query(capsys):
 
 @patch("research.save_task", return_value=1)
 @patch("research.update_task")
-@patch("research.genai.Client")
-def test_cli_think_success(mock_client_class, mock_update, mock_save, temp_db, capsys):
+@patch("research.get_gemini_client")
+def test_cli_think_success(mock_get_client, mock_update, mock_save, temp_db, capsys):
     """Test 'think' command success."""
     mock_client = MagicMock()
-    mock_client_class.return_value = mock_client
+    mock_get_client.return_value = mock_client
 
     # Mock stream response
     chunk1 = MagicMock()
@@ -55,9 +55,9 @@ def test_cli_think_success(mock_client_class, mock_update, mock_save, temp_db, c
         main()
 
     # Verify client was initialized with correct timeout and api_version
-    args, kwargs = mock_client_class.call_args
-    assert kwargs["http_options"]["timeout"] == 60
-    assert kwargs["http_options"]["api_version"] == "v1alpha"
+    args, kwargs = mock_get_client.call_args
+    assert kwargs["timeout"] == 60
+    assert kwargs["api_version"] == "v1alpha"
 
     captured = capsys.readouterr()
     assert "Gemini Deep Think Starting" in captured.out
