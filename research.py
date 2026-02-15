@@ -161,6 +161,23 @@ async def async_update_task(*args, **kwargs):
     return await asyncio.to_thread(update_task, *args, **kwargs)
 
 
+def get_gemini_client(
+    api_key: str,
+    api_version: str = "v1alpha",
+    timeout: Optional[int] = None,
+) -> genai.Client:
+    """Helper to initialize the Gemini client with common configuration."""
+    http_options = {"api_version": api_version}
+    if timeout is not None:
+        http_options["timeout"] = timeout
+
+    base_url = os.getenv("GEMINI_API_BASE_URL")
+    if base_url:
+        http_options["base_url"] = base_url
+
+    return genai.Client(api_key=api_key, http_options=http_options)
+
+
 async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -170,12 +187,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
     task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
     try:
-        http_options = {"api_version": "v1alpha"}
-        base_url = os.getenv("GEMINI_API_BASE_URL")
-        if base_url:
-            http_options["base_url"] = base_url
-
-        client = genai.Client(api_key=api_key, http_options=http_options)
+        client = get_gemini_client(api_key=api_key)
     except Exception:
         console.print("[red]Error initializing Gemini client:[/red]")
         console.print_exception()
@@ -328,12 +340,9 @@ async def run_think(
     task_id = await async_save_task(query, model_id)
 
     try:
-        http_options = {"api_version": api_version, "timeout": timeout}
-        base_url = os.getenv("GEMINI_API_BASE_URL")
-        if base_url:
-            http_options["base_url"] = base_url
-
-        client = genai.Client(api_key=api_key, http_options=http_options)
+        client = get_gemini_client(
+            api_key=api_key, api_version=api_version, timeout=timeout
+        )
     except Exception:
         console.print("[red]Error initializing Gemini client:[/red]")
         console.print_exception()
