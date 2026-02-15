@@ -161,12 +161,24 @@ async def async_update_task(*args, **kwargs):
     return await asyncio.to_thread(update_task, *args, **kwargs)
 
 
+def get_api_key() -> str:
+    """Gets the Gemini API key from environment variables or raises ResearchError."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
+        raise ResearchError("GEMINI_API_KEY environment variable not set.")
+    return api_key
+
+
 def get_gemini_client(
-    api_key: str,
+    api_key: Optional[str] = None,
     api_version: str = "v1alpha",
     timeout: Optional[int] = None,
 ) -> genai.Client:
     """Helper to initialize the Gemini client with common configuration."""
+    if api_key is None:
+        api_key = get_api_key()
+
     http_options = {"api_version": api_version}
     if timeout is not None:
         http_options["timeout"] = timeout
@@ -179,10 +191,7 @@ def get_gemini_client(
 
 
 async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
-        raise ResearchError("GEMINI_API_KEY environment variable not set.")
+    api_key = get_api_key()
 
     task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
@@ -332,10 +341,7 @@ async def run_research_cmd(args):
 async def run_think(
     query: str, model_id: str, api_version: str = "v1alpha", timeout: int = 1800
 ):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
-        raise ResearchError("GEMINI_API_KEY environment variable not set.")
+    api_key = get_api_key()
 
     task_id = await async_save_task(query, model_id)
 
