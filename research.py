@@ -8,13 +8,6 @@ from contextlib import contextmanager
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-from rich.console import Console
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 
 # Custom exception for research errors
@@ -49,8 +42,19 @@ def truncate_query(query: str) -> str:
     )
 
 
-# Global Rich console
-console = Console()
+# Global Rich console placeholder
+_console = None
+
+
+def get_console():
+    """Returns a globally shared Rich console, initializing it on first use."""
+    global _console
+    if _console is None:
+        from rich.console import Console
+
+        _console = Console()
+    return _console
+
 
 # Database initialization state
 _db_lock = threading.Lock()
@@ -194,7 +198,9 @@ def get_api_key() -> str:
     """Gets the Gemini API key from environment variables or raises ResearchError."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        console.print("[red]Error: GEMINI_API_KEY environment variable not set.[/red]")
+        get_console().print(
+            "[red]Error: GEMINI_API_KEY environment variable not set.[/red]"
+        )
         raise ResearchError("GEMINI_API_KEY environment variable not set.")
     return api_key
 
@@ -203,8 +209,10 @@ def get_gemini_client(
     api_key: Optional[str] = None,
     api_version: str = "v1alpha",
     timeout: Optional[int] = None,
-) -> genai.Client:
+):
     """Helper to initialize the Gemini client with common configuration."""
+    from google import genai
+
     if api_key is None:
         api_key = get_api_key()
 
@@ -220,7 +228,12 @@ def get_gemini_client(
 
 
 async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
+    from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.markdown import Markdown
+
     api_key = get_api_key()
+    console = get_console()
 
     task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
@@ -359,6 +372,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
 
 
 async def run_research_cmd(args):
+    console = get_console()
     parent_id = args.parent
     report = await run_research(args.query, args.model, parent_id=parent_id)
     if report and args.output:
@@ -375,7 +389,13 @@ async def run_research_cmd(args):
 async def run_think(
     query: str, model_id: str, api_version: str = "v1alpha", timeout: int = 1800
 ):
+    from google.genai import types
+    from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.markdown import Markdown
+
     api_key = get_api_key()
+    console = get_console()
 
     task_id = await async_save_task(query, model_id)
 
@@ -453,6 +473,7 @@ async def run_think(
 
 
 async def run_think_cmd(args):
+    console = get_console()
     report = await run_think(
         args.query, args.model, api_version=args.api_version, timeout=args.timeout
     )
@@ -468,6 +489,11 @@ async def run_think_cmd(args):
 
 
 def show_task(task_id: int, output_file: Optional[str] = None, force: bool = False):
+    from rich.panel import Panel
+    from rich.markdown import Markdown
+
+    console = get_console()
+
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -505,6 +531,10 @@ def show_task(task_id: int, output_file: Optional[str] = None, force: bool = Fal
 
 
 def list_tasks():
+    from rich.table import Table
+
+    console = get_console()
+
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -641,7 +671,7 @@ def main():
         # Error messages are already printed by the functions
         sys.exit(1)
     except KeyboardInterrupt:
-        console.print("\n[yellow]Research cancelled by user.[/yellow]")
+        get_console().print("\n[yellow]Research cancelled by user.[/yellow]")
         sys.exit(0)
 
 
