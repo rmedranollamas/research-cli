@@ -31,6 +31,8 @@ The easiest way to install the `research` CLI is using our installation script:
 
 ```bash
 curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh
+# Review the script's contents
+less install.sh
 chmod +x install.sh
 ./install.sh
 ```
