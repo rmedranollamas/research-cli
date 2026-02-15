@@ -1,4 +1,3 @@
-import pytest
 from research import save_task, update_task, get_db
 
 
