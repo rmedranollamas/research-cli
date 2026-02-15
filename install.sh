@@ -15,8 +15,9 @@ set -euo pipefail
 # Security check: prevent piping to bash
 if [[ ! -f "$0" ]]; then
   echo "Error: For security reasons, this script should not be piped directly to bash."
-  echo "Please download the script and run it locally:"
+  echo "Please download the script, inspect its contents, and run it locally:"
   echo "  curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh"
+  echo "  # Review the script before execution"
   echo "  chmod +x install.sh"
   echo "  ./install.sh"
   exit 1
