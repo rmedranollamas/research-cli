@@ -267,7 +267,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
     )
 
     try:
-        stream = client.interactions.create(
+        stream = await client.aio.interactions.create(
             agent=model_id,
             input=query,
             background=True,
@@ -287,7 +287,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
         ) as progress:
             task = progress.add_task("Initializing...", total=None)
 
-            for event in stream:
+            async for event in stream:
                 inter = get_val(event, "interaction")
                 if inter and not interaction_id:
                     interaction_id = get_val(inter, "id")
@@ -346,7 +346,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
             max_interval = max(1.0, max_interval)
             current_interval = 1.0
             while True:
-                final_inter = client.interactions.get(id=interaction_id)
+                final_inter = await client.aio.interactions.get(id=interaction_id)
                 status = get_val(final_inter, "status", "UNKNOWN").upper()
                 if status != last_status:
                     console.print(f"[dim]Current status: {status}[/dim]")
@@ -444,7 +444,7 @@ async def run_think(
             thinking_config=types.ThinkingConfig(include_thoughts=True),
         )
 
-        stream = client.models.generate_content_stream(
+        stream = await client.aio.models.generate_content_stream(
             model=model_id,
             contents=query,
             config=config,
@@ -460,7 +460,7 @@ async def run_think(
         ) as progress:
             progress.add_task("Deep Think processing...", total=None)
             console.print("[italic grey]Thinking...[/italic grey]")
-            for chunk in stream:
+            async for chunk in stream:
                 for part in chunk.candidates[0].content.parts:
                     if part.thought:
                         console.print(

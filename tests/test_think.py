@@ -1,6 +1,6 @@
 import pytest
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 from research import main
 
 
@@ -42,7 +42,13 @@ def test_cli_think_success(mock_get_client, mock_update, mock_save, temp_db, cap
         MagicMock(thought=False, text="The answer is 42")
     ]
 
-    mock_client.models.generate_content_stream.return_value = [chunk1, chunk2]
+    async def async_iter():
+        yield chunk1
+        yield chunk2
+
+    mock_client.aio.models.generate_content_stream = AsyncMock(
+        return_value=async_iter()
+    )
 
     with (
         patch.dict("os.environ", {"GEMINI_API_KEY": "fake-key"}),
