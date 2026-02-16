@@ -333,6 +333,8 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
                 f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
             )
             last_status = None
+            max_interval = float(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
+            current_interval = min(1.0, max_interval)
             while True:
                 final_inter = client.interactions.get(id=interaction_id)
                 status = get_val(final_inter, "status", "UNKNOWN").upper()
@@ -357,8 +359,8 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
                 elif status in ["FAILED", "CANCELLED"]:
                     break
 
-                poll_interval = int(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
-                await asyncio.sleep(poll_interval)
+                await asyncio.sleep(current_interval)
+                current_interval = min(current_interval * 1.5, max_interval)
 
             report_content = "".join(report_parts)
 
