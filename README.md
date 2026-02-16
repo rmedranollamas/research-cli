@@ -73,7 +73,7 @@ The CLI can be configured via environment variables:
 - `RESEARCH_MODEL`: Gemini model for research (default: `deep-research-pro-preview-12-2025`).
 - `THINK_MODEL`: Gemini model for thinking (default: `gemini-2.0-flash-thinking-exp`).
 - `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
-- `RESEARCH_POLL_INTERVAL`: Interval in seconds for polling interaction status (default: `10`).
+- `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`). The CLI uses exponential backoff starting from 1 second.
 - `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
 
 ## Agent Skill
