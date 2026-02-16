@@ -13,6 +13,7 @@
 
 - **Lazy Loading**: Heavy dependencies such as `google-genai` and `rich` are lazily imported only when needed. This reduces CLI startup latency by approximately 90% for non-execution commands like `--help`, `version`, or `list`.
 - **Asynchronous I/O**: The CLI uses `asyncio` for streaming events. Database updates during research streams are offloaded to background tasks to prevent blocking the event processing loop.
+- **Optimized Polling**: When the stream ends before completion, the CLI uses an exponential backoff strategy for polling (starting at 1s, increasing by 1.5x up to the configured `RESEARCH_POLL_INTERVAL`). This improves responsiveness for fast-completing tasks.
 
 ### Database Architecture
 

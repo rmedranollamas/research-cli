@@ -333,8 +333,14 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
                 f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
             )
             last_status = None
-            max_interval = float(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
-            current_interval = min(1.0, max_interval)
+            try:
+                max_interval = float(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
+            except ValueError:
+                max_interval = 10.0
+
+            # Ensure max_interval is at least 1 second to avoid tight loops
+            max_interval = max(1.0, max_interval)
+            current_interval = 1.0
             while True:
                 final_inter = client.interactions.get(id=interaction_id)
                 status = get_val(final_inter, "status", "UNKNOWN").upper()

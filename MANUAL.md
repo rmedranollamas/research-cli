@@ -120,7 +120,7 @@ The CLI follows a stateless, polling-based architecture:
 
 1. **Submission**: Sends the query to the Gemini Interactions API.
 1. **Streaming**: Connects to an SSE (Server-Sent Events) stream to receive "thoughts" (the agent's internal reasoning).
-1. **Polling Fallback**: If the stream disconnects before the report is ready, the CLI enters a polling loop, checking the interaction status every 10 seconds until it reaches a `COMPLETED` state.
+1. **Polling Fallback**: If the stream disconnects before the report is ready, the CLI enters an optimized polling loop with exponential backoff. It starts with a 1-second interval and increases it until the maximum (default 10 seconds) is reached, polling until it reaches a `COMPLETED` state.
 1. **Extraction**: Once completed, the CLI extracts the final report from the interaction's output and renders it as Markdown.
 
 ______________________________________________________________________
