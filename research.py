@@ -273,6 +273,32 @@ async def _initialize_client(task_id: int, **kwargs) -> "genai.Client":
         raise ResearchError("Client initialization failed")
 
 
+def _print_report(report: str):
+    """Standardized helper to print a report in Markdown format."""
+    from rich.markdown import Markdown
+
+    console = get_console()
+    console.print("\n" + "=" * 40 + "\n")
+    console.print(Markdown(report))
+    console.print("\n" + "=" * 40 + "\n")
+
+
+def _save_report_to_file(
+    report: str, output_file: str, force: bool, success_prefix: str = "Report saved to"
+):
+    """Standardized helper to save a report to a file with existence check."""
+    console = get_console()
+    if os.path.exists(output_file) and not force:
+        console.print(
+            f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
+        )
+        return False
+    with open(output_file, "w") as f:
+        f.write(report)
+    console.print(f"[green]{success_prefix} {output_file}[/green]")
+    return True
+
+
 async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -412,10 +438,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
 
     if report_content:
         await async_update_task(task_id, "COMPLETED", report_content)
-        console.print("\n" + "=" * 40 + "\n")
-        console.print(Markdown(report_content))
-        console.print("\n" + "=" * 40 + "\n")
-
+        _print_report(report_content)
         return report_content
     else:
         await async_update_task(task_id, "FAILED")
@@ -424,18 +447,10 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
 
 
 async def run_research_cmd(args):
-    console = get_console()
     parent_id = args.parent
     report = await run_research(args.query, args.model, parent_id=parent_id)
     if report and args.output:
-        if os.path.exists(args.output) and not args.force:
-            console.print(
-                f"[red]Error: Output file {args.output} already exists. Use --force to overwrite.[/red]"
-            )
-            return
-        with open(args.output, "w") as f:
-            f.write(report)
-        console.print(f"[green]Report saved to {args.output}[/green]")
+        _save_report_to_file(report, args.output, args.force)
 
 
 async def run_think(
@@ -505,10 +520,7 @@ async def run_think(
 
     if report_content:
         await async_update_task(task_id, "COMPLETED", report_content)
-        console.print("\n" + "=" * 40 + "\n")
-        console.print(Markdown(report_content))
-        console.print("\n" + "=" * 40 + "\n")
-
+        _print_report(report_content)
         return report_content
     else:
         await async_update_task(task_id, "FAILED")
@@ -517,24 +529,15 @@ async def run_think(
 
 
 async def run_think_cmd(args):
-    console = get_console()
     report = await run_think(
         args.query, args.model, api_version=args.api_version, timeout=args.timeout
     )
     if report and args.output:
-        if os.path.exists(args.output) and not args.force:
-            console.print(
-                f"[red]Error: Output file {args.output} already exists. Use --force to overwrite.[/red]"
-            )
-            return
-        with open(args.output, "w") as f:
-            f.write(report)
-        console.print(f"[green]Saved to {args.output}[/green]")
+        _save_report_to_file(report, args.output, args.force, success_prefix="Saved to")
 
 
 def show_task(task_id: int, output_file: Optional[str] = None, force: bool = False):
     from rich.panel import Panel
-    from rich.markdown import Markdown
 
     console = get_console()
 
@@ -557,19 +560,10 @@ def show_task(task_id: int, output_file: Optional[str] = None, force: bool = Fal
         )
     )
     if report:
-        console.print("\n" + "=" * 40 + "\n")
-        console.print(Markdown(report))
-        console.print("\n" + "=" * 40 + "\n")
+        _print_report(report)
 
         if output_file:
-            if os.path.exists(output_file) and not force:
-                console.print(
-                    f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
-                )
-                return
-            with open(output_file, "w") as f:
-                f.write(report)
-            console.print(f"[green]Report saved to {output_file}[/green]")
+            _save_report_to_file(report, output_file, force)
     else:
         console.print("[yellow]No report content available for this task.[/yellow]")
 
