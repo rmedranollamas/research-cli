@@ -37,7 +37,10 @@ class MockConsole:
             sys.stdout.write(str(arg) + "\n")
 
     def print_exception(self, *args, **kwargs):
+        import traceback
+
         sys.stdout.write("Exception occurred\n")
+        traceback.print_exc(file=sys.stdout)
 
     @property
     def get_time(self):
