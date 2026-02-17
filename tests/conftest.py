@@ -172,11 +172,13 @@ def temp_db(monkeypatch):
 
     monkeypatch.setenv("RESEARCH_DB_PATH", db_path)
 
-    import research
+    import research_cli
+    import research_cli.config
 
     # Ensure the module uses the new path from env var
-    research.DB_PATH = db_path
-    research.init_db()
+    research_cli.DB_PATH = db_path
+    research_cli.config.DB_PATH = db_path
+    research_cli.init_db()
 
     yield db_path
 

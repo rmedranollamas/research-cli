@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
-from research import run_research, get_db
+from research_cli import run_research, get_db
 
 
 @pytest.mark.asyncio
@@ -11,8 +11,8 @@ async def test_run_research_stream_failure(temp_db, capsys):
 
     # Mock dependencies
     with (
-        patch("research.get_api_key", return_value="fake-key"),
-        patch("research.get_gemini_client") as mock_get_client,
+        patch("research_cli.get_api_key", return_value="fake-key"),
+        patch("research_cli.researcher.ResearchAgent.get_client") as mock_get_client,
     ):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -57,8 +57,8 @@ async def test_run_research_stream_failure_after_interaction(temp_db, capsys):
 
     # Mock dependencies
     with (
-        patch("research.get_api_key", return_value="fake-key"),
-        patch("research.get_gemini_client") as mock_get_client,
+        patch("research_cli.get_api_key", return_value="fake-key"),
+        patch("research_cli.researcher.ResearchAgent.get_client") as mock_get_client,
     ):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client

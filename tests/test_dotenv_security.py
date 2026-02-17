@@ -1,6 +1,5 @@
 import os
 import importlib
-import research
 from unittest.mock import patch
 
 
@@ -21,7 +20,9 @@ def test_dotenv_current_dir_not_loaded(tmp_path):
             del os.environ["MALICIOUS_VAR"]
 
         # Reload the research module to trigger load_dotenv
-        importlib.reload(research)
+        import research_cli.config
+
+        importlib.reload(research_cli.config)
 
         # Verify if it's currently loaded
         assert os.getenv("MALICIOUS_VAR") is None
@@ -45,7 +46,9 @@ def test_dotenv_config_dir_loaded(tmp_path):
             del os.environ["SECURE_VAR"]
 
         # Reload the research module
-        importlib.reload(research)
+        import research_cli.config
+
+        importlib.reload(research_cli.config)
 
         # Verify it IS loaded
         assert os.getenv("SECURE_VAR") == "true"

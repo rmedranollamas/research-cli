@@ -1,7 +1,7 @@
 import pytest
 import sys
 from unittest.mock import MagicMock, patch, AsyncMock
-from research import main
+from research_cli import main
 
 
 def test_cli_think_help(capsys):
@@ -23,9 +23,9 @@ def test_cli_think_no_query(capsys):
     assert "usage: research think" in captured.out
 
 
-@patch("research.save_task", return_value=1)
-@patch("research.update_task")
-@patch("research.get_gemini_client")
+@patch("research_cli.db.save_task", return_value=1)
+@patch("research_cli.db.update_task")
+@patch("research_cli.researcher.ResearchAgent.get_client")
 def test_cli_think_success(mock_get_client, mock_update, mock_save, temp_db, capsys):
     """Test 'think' command success."""
     mock_client = MagicMock()
@@ -75,7 +75,7 @@ def test_cli_think_success(mock_get_client, mock_update, mock_save, temp_db, cap
     mock_update.assert_any_call(1, "COMPLETED", "The answer is 42")
 
 
-@patch("research.run_think")
+@patch("research_cli.researcher.ResearchAgent.run_think")
 def test_cli_think_direct_entry(mock_run_think):
     """Test direct script entry for 'think'."""
     with patch.object(sys, "argv", ["think", "hello"]):

@@ -2,14 +2,16 @@ import os
 import sys
 import tempfile
 from unittest.mock import patch, AsyncMock
-from research import main, save_task, update_task
+from research_cli import main, save_task, update_task
 
 
 def test_run_research_output(temp_db):
     """Test that 'research run' correctly saves output to a file."""
     mock_report = "# Research Report\nThis is a test report."
 
-    with patch("research.run_research", new_callable=AsyncMock) as mock_run:
+    with patch(
+        "research_cli.researcher.ResearchAgent.run_research", new_callable=AsyncMock
+    ) as mock_run:
         mock_run.return_value = mock_report
 
         with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as tmp:
@@ -37,7 +39,9 @@ def test_run_research_no_overwrite(temp_db):
     mock_report = "# New Report"
     existing_content = "original content"
 
-    with patch("research.run_research", new_callable=AsyncMock) as mock_run:
+    with patch(
+        "research_cli.researcher.ResearchAgent.run_research", new_callable=AsyncMock
+    ) as mock_run:
         mock_run.return_value = mock_report
 
         with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as tmp:
@@ -63,7 +67,9 @@ def test_run_think_output(temp_db):
     """Test that 'research think' correctly saves output to a file."""
     mock_report = "# Thinking Report\nThis is a test response."
 
-    with patch("research.run_think", new_callable=AsyncMock) as mock_run:
+    with patch(
+        "research_cli.researcher.ResearchAgent.run_think", new_callable=AsyncMock
+    ) as mock_run:
         mock_run.return_value = mock_report
 
         with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as tmp:

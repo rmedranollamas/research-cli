@@ -1,7 +1,13 @@
 import pytest
 import threading
 from unittest.mock import patch, AsyncMock
-from research import async_save_task, async_update_task, save_task, update_task, get_db
+from research_cli import (
+    async_save_task,
+    async_update_task,
+    save_task,
+    update_task,
+    get_db,
+)
 
 
 @pytest.mark.asyncio
@@ -27,7 +33,7 @@ async def test_async_save_task(temp_db):
 @pytest.mark.asyncio
 async def test_async_save_task_calls_save_task():
     """Verify async_save_task calls the synchronous save_task."""
-    with patch("research.save_task") as mock_save:
+    with patch("research_cli.db.save_task") as mock_save:
         mock_save.return_value = 123
         result = await async_save_task("q", "m", interaction_id="i", parent_id=None)
         assert result == 123
@@ -37,7 +43,9 @@ async def test_async_save_task_calls_save_task():
 @pytest.mark.asyncio
 async def test_async_save_task_uses_to_thread():
     """Verify async_save_task specifically uses asyncio.to_thread."""
-    with patch("research.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+    with patch(
+        "research_cli.db.asyncio.to_thread", new_callable=AsyncMock
+    ) as mock_to_thread:
         mock_to_thread.return_value = 999
         result = await async_save_task("query", "model", interaction_id="int_1")
         assert result == 999
@@ -57,7 +65,7 @@ async def test_async_save_task_runs_in_different_thread():
         thread_used = threading.get_ident()
         return 42
 
-    with patch("research.save_task", side_effect=side_effect):
+    with patch("research_cli.db.save_task", side_effect=side_effect):
         await async_save_task("q", "m")
 
     assert thread_used is not None
@@ -67,7 +75,7 @@ async def test_async_save_task_runs_in_different_thread():
 @pytest.mark.asyncio
 async def test_async_save_task_exception_propagation():
     """Verify exceptions in save_task are propagated by async_save_task."""
-    with patch("research.save_task", side_effect=ValueError("Test Error")):
+    with patch("research_cli.db.save_task", side_effect=ValueError("Test Error")):
         with pytest.raises(ValueError, match="Test Error"):
             await async_save_task("q", "m")
 
@@ -105,7 +113,7 @@ async def test_async_update_task(temp_db):
 @pytest.mark.asyncio
 async def test_async_update_task_calls_update_task():
     """Verify async_update_task calls the synchronous update_task."""
-    with patch("research.update_task") as mock_update:
+    with patch("research_cli.db.update_task") as mock_update:
         await async_update_task(456, "ERROR", report="failed", interaction_id="int_123")
         mock_update.assert_called_once_with(
             456, "ERROR", report="failed", interaction_id="int_123"
@@ -115,7 +123,9 @@ async def test_async_update_task_calls_update_task():
 @pytest.mark.asyncio
 async def test_async_update_task_uses_to_thread():
     """Verify async_update_task specifically uses asyncio.to_thread."""
-    with patch("research.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+    with patch(
+        "research_cli.db.asyncio.to_thread", new_callable=AsyncMock
+    ) as mock_to_thread:
         await async_update_task(789, "COMPLETED")
         mock_to_thread.assert_called_once_with(update_task, 789, "COMPLETED")
 
@@ -130,7 +140,7 @@ async def test_async_update_task_runs_in_different_thread():
         nonlocal thread_used
         thread_used = threading.get_ident()
 
-    with patch("research.update_task", side_effect=side_effect):
+    with patch("research_cli.db.update_task", side_effect=side_effect):
         await async_update_task(123, "IN_PROGRESS")
 
     assert thread_used is not None
@@ -140,6 +150,8 @@ async def test_async_update_task_runs_in_different_thread():
 @pytest.mark.asyncio
 async def test_async_update_task_exception_propagation():
     """Verify exceptions in update_task are propagated by async_update_task."""
-    with patch("research.update_task", side_effect=RuntimeError("Update Failed")):
+    with patch(
+        "research_cli.db.update_task", side_effect=RuntimeError("Update Failed")
+    ):
         with pytest.raises(RuntimeError, match="Update Failed"):
             await async_update_task(123, "ERROR")

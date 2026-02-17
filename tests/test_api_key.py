@@ -3,7 +3,7 @@ import os
 import sys
 import sqlite3
 from unittest.mock import patch
-from research import (
+from research_cli import (
     get_api_key,
     run_think,
     run_research,

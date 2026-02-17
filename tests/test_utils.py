@@ -1,4 +1,4 @@
-from research import get_val
+from research_cli import get_val
 
 
 def test_get_val_obj_none():

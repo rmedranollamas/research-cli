@@ -1,5 +1,5 @@
 import os
-from research import get_db
+from research_cli import get_db
 
 
 def test_db_permissions(tmp_path):
@@ -7,10 +7,10 @@ def test_db_permissions(tmp_path):
     test_db_path = tmp_path / "subdir" / "test.db"
 
     # Patch DB_PATH in research module
-    import research
+    import research_cli
 
-    original_db_path = research.DB_PATH
-    research.DB_PATH = str(test_db_path)
+    original_db_path = research_cli.config.DB_PATH
+    research_cli.config.DB_PATH = str(test_db_path)
 
     try:
         with get_db():
@@ -26,7 +26,7 @@ def test_db_permissions(tmp_path):
         assert file_mode == 0o600, f"Expected file mode 0600, got {oct(file_mode)}"
 
     finally:
-        research.DB_PATH = original_db_path
+        research_cli.config.DB_PATH = original_db_path
 
 
 def test_db_permissions_existing(tmp_path):
@@ -45,10 +45,10 @@ def test_db_permissions_existing(tmp_path):
     os.chmod(test_db_path, 0o666)
 
     # Patch DB_PATH in research module
-    import research
+    import research_cli
 
-    original_db_path = research.DB_PATH
-    research.DB_PATH = str(test_db_path)
+    original_db_path = research_cli.config.DB_PATH
+    research_cli.config.DB_PATH = str(test_db_path)
 
     try:
         with get_db():
@@ -67,4 +67,4 @@ def test_db_permissions_existing(tmp_path):
         )
 
     finally:
-        research.DB_PATH = original_db_path
+        research_cli.config.DB_PATH = original_db_path

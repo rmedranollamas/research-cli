@@ -1,6 +1,6 @@
 import pytest
 import os
-from research import run_research, get_db
+from research_cli import run_research, get_db
 
 
 @pytest.mark.asyncio

@@ -1,14 +1,14 @@
 import pytest
 import sys
 from unittest.mock import patch
-from research import run_think, run_research, ResearchError, get_db, main
+from research_cli import run_think, run_research, ResearchError, get_db, main
 
 
 @pytest.mark.asyncio
 async def test_run_think_client_init_error(temp_db, capsys):
     """Test run_think when get_gemini_client fails."""
     with (
-        patch("research.get_api_key", return_value="fake-key"),
+        patch("research_cli.get_api_key", return_value="fake-key"),
         patch("google.genai.Client", side_effect=Exception("Init failed")),
     ):
         with pytest.raises(ResearchError, match="Client initialization failed"):
@@ -35,7 +35,7 @@ async def test_run_think_client_init_error(temp_db, capsys):
 async def test_run_research_client_init_error(temp_db, capsys):
     """Test run_research when get_gemini_client fails."""
     with (
-        patch("research.get_api_key", return_value="fake-key"),
+        patch("research_cli.get_api_key", return_value="fake-key"),
         patch("google.genai.Client", side_effect=Exception("Init failed")),
     ):
         with pytest.raises(ResearchError, match="Client initialization failed"):
@@ -61,7 +61,7 @@ async def test_run_research_client_init_error(temp_db, capsys):
 def test_cli_run_client_init_error(temp_db, capsys):
     """Test CLI 'run' command when client initialization fails."""
     with (
-        patch("research.get_api_key", return_value="fake-key"),
+        patch("research_cli.get_api_key", return_value="fake-key"),
         patch("google.genai.Client", side_effect=Exception("Init failed")),
         patch.object(sys, "argv", ["research", "run", "test query"]),
     ):
@@ -88,7 +88,7 @@ def test_cli_run_client_init_error(temp_db, capsys):
 def test_cli_think_client_init_error(temp_db, capsys):
     """Test CLI 'think' command when client initialization fails."""
     with (
-        patch("research.get_api_key", return_value="fake-key"),
+        patch("research_cli.get_api_key", return_value="fake-key"),
         patch("google.genai.Client", side_effect=Exception("Init failed")),
         patch.object(sys, "argv", ["research", "think", "test query"]),
     ):

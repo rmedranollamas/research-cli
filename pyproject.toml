@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["research"]
+packages = ["research_cli"]
 
 [tool.uv]
 package = true
@@ -27,5 +27,5 @@ dev = [
 ]
 
 [project.scripts]
-research = "research:main"
-think = "research:main"
+research = "research_cli:main"
+think = "research_cli:main"
