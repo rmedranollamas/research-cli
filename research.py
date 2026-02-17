@@ -266,6 +266,10 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
         )
     )
 
+    report_parts: List[str] = []
+    interaction_id = None
+    background_tasks = set()
+
     try:
         stream = await client.aio.interactions.create(
             agent=model_id,
@@ -275,10 +279,6 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
             agent_config={"type": "deep-research", "thinking_summaries": "auto"},
             previous_interaction_id=parent_id,
         )
-
-        report_parts: List[str] = []
-        interaction_id = None
-        background_tasks = set()
 
         with Progress(
             SpinnerColumn(),
@@ -377,7 +377,12 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
     except Exception:
         console.print("[red]Error during research:[/red]")
         console.print_exception()
-        await async_update_task(task_id, "ERROR", "Research execution failed")
+        # Wait for any background database updates to finish to ensure consistency
+        if background_tasks:
+            await asyncio.gather(*background_tasks, return_exceptions=True)
+        await async_update_task(
+            task_id, "ERROR", "Research execution failed", interaction_id=interaction_id
+        )
         return None
 
     if report_content:
