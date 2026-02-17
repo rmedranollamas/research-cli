@@ -470,31 +470,36 @@ async def run_research_cmd(args):
         _save_report_to_file(report, args.output, args.force)
 
 
-async def _process_think_stream(stream, report_parts: List[str]):
+async def _process_think_stream(
+    stream,
+    task_id: int,
+    progress,
+    task,
+    report_parts: List[str],
+    background_tasks: set,
+):
     """Processes the thinking content stream and collects report content."""
     console = get_console()
-    from rich.progress import Progress, SpinnerColumn, TextColumn
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True,
-    ) as progress:
-        progress.add_task("Deep Think processing...", total=None)
-        console.print("[italic grey]Thinking...[/italic grey]")
-        async for chunk in stream:
-            for part in chunk.candidates[0].content.parts:
-                if part.thought:
-                    console.print(
-                        f"[italic grey]{part.text}[/italic grey]",
-                        end="",
-                        highlight=False,
-                    )
-                elif part.text:
-                    report_parts.append(part.text)
+    # Update task status to IN_PROGRESS in background
+    update_job = asyncio.create_task(async_update_task(task_id, "IN_PROGRESS"))
+    background_tasks.add(update_job)
+    update_job.add_done_callback(background_tasks.discard)
 
-        console.print("\n[green]Finished thinking.[/green]")
+    progress.update(task, description="Thinking...")
+    console.print("[italic grey]Thinking...[/italic grey]")
+    async for chunk in stream:
+        for part in chunk.candidates[0].content.parts:
+            if part.thought:
+                console.print(
+                    f"[italic grey]{part.text}[/italic grey]",
+                    end="",
+                    highlight=False,
+                )
+            elif part.text:
+                report_parts.append(part.text)
+
+    console.print("\n[green]Finished thinking.[/green]")
 
 
 async def run_think(
@@ -502,6 +507,7 @@ async def run_think(
 ):
     from google.genai import types
     from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
 
     api_key = get_api_key()
     console = get_console()
@@ -519,6 +525,9 @@ async def run_think(
         )
     )
 
+    report_parts: List[str] = []
+    background_tasks = set()
+
     try:
         # Flash Thinking model handles thoughts via GenerateContentConfig
         config = types.GenerateContentConfig(
@@ -531,12 +540,36 @@ async def run_think(
             config=config,
         )
 
-        report_parts: List[str] = []
-        await _process_think_stream(stream, report_parts)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Initializing...", total=None)
+            await _process_think_stream(
+                stream, task_id, progress, task, report_parts, background_tasks
+            )
+            progress.update(task, description="Finished thinking.", completed=True)
+
+        # Wait for any background database updates to finish
+        if background_tasks:
+            results = await asyncio.gather(*background_tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    console.print(
+                        f"[yellow]Warning: A background database update failed: {result}[/yellow]"
+                    )
+
         report_content = "".join(report_parts)
 
     except Exception:
-        await _handle_task_error(task_id, "Error during thinking", "Execution failed")
+        await _handle_task_error(
+            task_id,
+            "Error during thinking",
+            "Execution failed",
+            background_tasks=background_tasks,
+        )
         return None
 
     if report_content:
