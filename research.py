@@ -241,6 +241,38 @@ def get_gemini_client(
     return genai.Client(api_key=api_key, http_options=http_options)
 
 
+async def _handle_task_error(
+    task_id: int,
+    error_msg_prefix: str,
+    db_error_msg: str,
+    interaction_id: Optional[str] = None,
+    background_tasks: Optional[set] = None,
+):
+    """Centralized helper to handle task execution errors."""
+    console = get_console()
+    console.print(f"[red]{error_msg_prefix}:[/red]")
+    console.print_exception()
+    if background_tasks:
+        await asyncio.gather(*background_tasks, return_exceptions=True)
+
+    kwargs = {}
+    if interaction_id:
+        kwargs["interaction_id"] = interaction_id
+
+    await async_update_task(task_id, "ERROR", db_error_msg, **kwargs)
+
+
+async def _initialize_client(task_id: int, **kwargs) -> "genai.Client":
+    """Helper to initialize the Gemini client with error handling."""
+    try:
+        return get_gemini_client(**kwargs)
+    except Exception:
+        await _handle_task_error(
+            task_id, "Error initializing Gemini client", "Client initialization failed"
+        )
+        raise ResearchError("Client initialization failed")
+
+
 async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -251,13 +283,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
 
     task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
-    try:
-        client = get_gemini_client(api_key=api_key)
-    except Exception:
-        console.print("[red]Error initializing Gemini client:[/red]")
-        console.print_exception()
-        await async_update_task(task_id, "ERROR", "Client initialization failed")
-        raise ResearchError("Client initialization failed")
+    client = await _initialize_client(task_id, api_key=api_key)
 
     console.print(
         Panel(
@@ -375,13 +401,12 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
             report_content = "".join(report_parts)
 
     except Exception:
-        console.print("[red]Error during research:[/red]")
-        console.print_exception()
-        # Wait for any background database updates to finish to ensure consistency
-        if background_tasks:
-            await asyncio.gather(*background_tasks, return_exceptions=True)
-        await async_update_task(
-            task_id, "ERROR", "Research execution failed", interaction_id=interaction_id
+        await _handle_task_error(
+            task_id,
+            "Error during research",
+            "Research execution failed",
+            interaction_id=interaction_id,
+            background_tasks=background_tasks,
         )
         return None
 
@@ -426,15 +451,9 @@ async def run_think(
 
     task_id = await async_save_task(query, model_id)
 
-    try:
-        client = get_gemini_client(
-            api_key=api_key, api_version=api_version, timeout=timeout
-        )
-    except Exception:
-        console.print("[red]Error initializing Gemini client:[/red]")
-        console.print_exception()
-        await async_update_task(task_id, "ERROR", "Client initialization failed")
-        raise ResearchError("Client initialization failed")
+    client = await _initialize_client(
+        task_id, api_key=api_key, api_version=api_version, timeout=timeout
+    )
 
     console.print(
         Panel(
@@ -481,9 +500,7 @@ async def run_think(
         report_content = "".join(report_parts)
 
     except Exception:
-        console.print("[red]Error during thinking:[/red]")
-        console.print_exception()
-        await async_update_task(task_id, "ERROR", "Execution failed")
+        await _handle_task_error(task_id, "Error during thinking", "Execution failed")
         return None
 
     if report_content:
