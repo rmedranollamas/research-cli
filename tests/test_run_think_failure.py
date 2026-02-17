@@ -35,4 +35,4 @@ async def test_run_think_stream_failure(capsys):
 
         captured = capsys.readouterr()
         assert "Error during thinking:" in captured.out
-        assert "Exception occurred" in captured.out
+        assert "Stream failure" in captured.out
