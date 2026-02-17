@@ -1,9 +1,8 @@
 import pytest
-import sqlite3
-import os
 import sys
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 from research import run_think, run_research, ResearchError, get_db, main
+
 
 @pytest.mark.asyncio
 async def test_run_think_client_init_error(temp_db, capsys):
@@ -23,11 +22,14 @@ async def test_run_think_client_init_error(temp_db, capsys):
     # Verify DB state
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT status, report FROM research_tasks WHERE query = 'query'")
+        cursor.execute(
+            "SELECT status, report FROM research_tasks WHERE query = 'query'"
+        )
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "ERROR"
         assert row[1] == "Client initialization failed"
+
 
 @pytest.mark.asyncio
 async def test_run_research_client_init_error(temp_db, capsys):
@@ -47,11 +49,14 @@ async def test_run_research_client_init_error(temp_db, capsys):
     # Verify DB state
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT status, report FROM research_tasks WHERE query = 'query'")
+        cursor.execute(
+            "SELECT status, report FROM research_tasks WHERE query = 'query'"
+        )
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "ERROR"
         assert row[1] == "Client initialization failed"
+
 
 def test_cli_run_client_init_error(temp_db, capsys):
     """Test CLI 'run' command when client initialization fails."""
@@ -71,11 +76,14 @@ def test_cli_run_client_init_error(temp_db, capsys):
     # Verify DB state
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT status, report FROM research_tasks WHERE query = 'test query'")
+        cursor.execute(
+            "SELECT status, report FROM research_tasks WHERE query = 'test query'"
+        )
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "ERROR"
         assert row[1] == "Client initialization failed"
+
 
 def test_cli_think_client_init_error(temp_db, capsys):
     """Test CLI 'think' command when client initialization fails."""
@@ -95,7 +103,9 @@ def test_cli_think_client_init_error(temp_db, capsys):
     # Verify DB state
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT status, report FROM research_tasks WHERE query = 'test query'")
+        cursor.execute(
+            "SELECT status, report FROM research_tasks WHERE query = 'test query'"
+        )
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "ERROR"
