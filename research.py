@@ -299,10 +299,95 @@ def _save_report_to_file(
     return True
 
 
+async def _process_research_stream(
+    stream,
+    task_id: int,
+    progress,
+    task,
+    report_parts: List[str],
+    background_tasks: set,
+) -> Optional[str]:
+    """Processes the research event stream and returns the interaction_id."""
+    interaction_id = None
+    console = get_console()
+    async for event in stream:
+        inter = get_val(event, "interaction")
+        if inter and not interaction_id:
+            interaction_id = get_val(inter, "id")
+
+            if interaction_id:
+                update_job = asyncio.create_task(
+                    async_update_task(
+                        task_id, "IN_PROGRESS", interaction_id=interaction_id
+                    )
+                )
+                background_tasks.add(update_job)
+                update_job.add_done_callback(background_tasks.discard)
+                progress.update(
+                    task, description=f"Researching (ID: {interaction_id})..."
+                )
+
+        thought = get_val(event, "thought")
+        if thought:
+            progress.update(task, description=f"[italic grey]{thought}[/italic grey]")
+            console.print(f"[italic grey]> {thought}[/italic grey]")
+
+        content = get_val(event, "content")
+        if content:
+            parts = get_val(content, "parts", [])
+            for part in parts:
+                text = get_val(part, "text")
+                if text:
+                    report_parts.append(text)
+    return interaction_id
+
+
+async def _poll_interaction(client, interaction_id: str, report_parts: List[str]):
+    """Polls the interaction until it completes or fails, collecting report content."""
+    console = get_console()
+    console.print(
+        f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
+    )
+    last_status = None
+    try:
+        max_interval = float(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
+    except ValueError:
+        max_interval = 10.0
+
+    # Ensure max_interval is at least 1 second to avoid tight loops
+    max_interval = max(1.0, max_interval)
+    current_interval = 1.0
+    while True:
+        final_inter = await client.aio.interactions.get(id=interaction_id)
+        status = get_val(final_inter, "status", "UNKNOWN").upper()
+        if status != last_status:
+            console.print(f"[dim]Current status: {status}[/dim]")
+            last_status = status
+
+        if status == "COMPLETED":
+            outputs = get_val(final_inter, "outputs", [])
+            for output in outputs:
+                text = get_val(output, "text")
+                if text:
+                    report_parts.append(text)
+
+            if not report_parts:
+                response = get_val(final_inter, "response")
+                if response:
+                    text = get_val(response, "text")
+                    if text:
+                        report_parts.append(text)
+            break
+        elif status in ["FAILED", "CANCELLED"]:
+            break
+
+        await asyncio.sleep(current_interval)
+        current_interval = min(current_interval * 1.5, max_interval)
+
+
 async def run_research(query: str, model_id: str, parent_id: Optional[str] = None):
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich.markdown import Markdown
 
     api_key = get_api_key()
     console = get_console()
@@ -338,39 +423,9 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
             console=console,
         ) as progress:
             task = progress.add_task("Initializing...", total=None)
-
-            async for event in stream:
-                inter = get_val(event, "interaction")
-                if inter and not interaction_id:
-                    interaction_id = get_val(inter, "id")
-
-                    if interaction_id:
-                        update_job = asyncio.create_task(
-                            async_update_task(
-                                task_id, "IN_PROGRESS", interaction_id=interaction_id
-                            )
-                        )
-                        background_tasks.add(update_job)
-                        update_job.add_done_callback(background_tasks.discard)
-                        progress.update(
-                            task, description=f"Researching (ID: {interaction_id})..."
-                        )
-
-                thought = get_val(event, "thought")
-                if thought:
-                    progress.update(
-                        task, description=f"[italic grey]{thought}[/italic grey]"
-                    )
-                    console.print(f"[italic grey]> {thought}[/italic grey]")
-
-                content = get_val(event, "content")
-                if content:
-                    parts = get_val(content, "parts", [])
-                    for part in parts:
-                        text = get_val(part, "text")
-                        if text:
-                            report_parts.append(text)
-
+            interaction_id = await _process_research_stream(
+                stream, task_id, progress, task, report_parts, background_tasks
+            )
             progress.update(task, description="Stream finished.", completed=True)
 
         # Wait for any background database updates to finish
@@ -385,45 +440,7 @@ async def run_research(query: str, model_id: str, parent_id: Optional[str] = Non
         report_content = "".join(report_parts)
 
         if not report_content and interaction_id:
-            console.print(
-                f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
-            )
-            last_status = None
-            try:
-                max_interval = float(os.getenv("RESEARCH_POLL_INTERVAL", "10"))
-            except ValueError:
-                max_interval = 10.0
-
-            # Ensure max_interval is at least 1 second to avoid tight loops
-            max_interval = max(1.0, max_interval)
-            current_interval = 1.0
-            while True:
-                final_inter = await client.aio.interactions.get(id=interaction_id)
-                status = get_val(final_inter, "status", "UNKNOWN").upper()
-                if status != last_status:
-                    console.print(f"[dim]Current status: {status}[/dim]")
-                    last_status = status
-
-                if status == "COMPLETED":
-                    outputs = get_val(final_inter, "outputs", [])
-                    for output in outputs:
-                        text = get_val(output, "text")
-                        if text:
-                            report_parts.append(text)
-
-                    if not report_parts:
-                        response = get_val(final_inter, "response")
-                        if response:
-                            text = get_val(response, "text")
-                            if text:
-                                report_parts.append(text)
-                    break
-                elif status in ["FAILED", "CANCELLED"]:
-                    break
-
-                await asyncio.sleep(current_interval)
-                current_interval = min(current_interval * 1.5, max_interval)
-
+            await _poll_interaction(client, interaction_id, report_parts)
             report_content = "".join(report_parts)
 
     except Exception:
@@ -453,13 +470,38 @@ async def run_research_cmd(args):
         _save_report_to_file(report, args.output, args.force)
 
 
+async def _process_think_stream(stream, report_parts: List[str]):
+    """Processes the thinking content stream and collects report content."""
+    console = get_console()
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=True,
+    ) as progress:
+        progress.add_task("Deep Think processing...", total=None)
+        console.print("[italic grey]Thinking...[/italic grey]")
+        async for chunk in stream:
+            for part in chunk.candidates[0].content.parts:
+                if part.thought:
+                    console.print(
+                        f"[italic grey]{part.text}[/italic grey]",
+                        end="",
+                        highlight=False,
+                    )
+                elif part.text:
+                    report_parts.append(part.text)
+
+        console.print("\n[green]Finished thinking.[/green]")
+
+
 async def run_think(
     query: str, model_id: str, api_version: str = "v1alpha", timeout: int = 1800
 ):
     from google.genai import types
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich.markdown import Markdown
 
     api_key = get_api_key()
     console = get_console()
@@ -490,28 +532,7 @@ async def run_think(
         )
 
         report_parts: List[str] = []
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-            transient=True,
-        ) as progress:
-            progress.add_task("Deep Think processing...", total=None)
-            console.print("[italic grey]Thinking...[/italic grey]")
-            async for chunk in stream:
-                for part in chunk.candidates[0].content.parts:
-                    if part.thought:
-                        console.print(
-                            f"[italic grey]{part.text}[/italic grey]",
-                            end="",
-                            highlight=False,
-                        )
-                    elif part.text:
-                        report_parts.append(part.text)
-
-            console.print("\n[green]Finished thinking.[/green]")
-
+        await _process_think_stream(stream, report_parts)
         report_content = "".join(report_parts)
 
     except Exception:
