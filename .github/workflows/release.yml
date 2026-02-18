@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     name: Build on ${{ matrix.os }} (${{ matrix.arch }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner || matrix.os }}
     strategy:
       matrix:
         include:
@@ -19,6 +19,9 @@ jobs:
             arch: x64
           - os: macos-latest
             arch: arm64
+          - os: ubuntu-latest
+            arch: arm64
+            runner: ubuntu-latest-arm64
     
     steps:
       - uses: actions/checkout@v6
