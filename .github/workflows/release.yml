@@ -25,15 +25,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-            - name: Set up QEMU
-              if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
-              uses: docker/setup-qemu-action@v3
-      
-            - name: Set up binfmt
-              if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
-              run: |
-                docker run --rm --privileged tonistiigi/binfmt:latest --install all
-                - name: Install uv
+      - name: Set up QEMU
+        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up binfmt
+        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
+        run: |
+          docker run --rm --privileged tonistiigi/binfmt:latest --install all
+
+      - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -49,17 +50,17 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.os }}" in
-            ubuntu-latest) OS_NAME="linux" ;;
-            macos-latest)  OS_NAME="darwin" ;;
-            windows-latest) OS_NAME="windows" ;;
-            *)              OS_NAME="unknown" ;;
+            ubuntu-latest) OS_NAME="linux" ;; 
+            macos-latest)  OS_NAME="darwin" ;; 
+            windows-latest) OS_NAME="windows" ;; 
+            *)              OS_NAME="unknown" ;; 
           esac
 
           # Architecture normalization
           case "${{ matrix.arch }}" in
-            x64) ARCH_NAME="amd64" ;;
-            arm64) ARCH_NAME="arm64" ;;
-            *) ARCH_NAME="unknown" ;;
+            x64) ARCH_NAME="amd64" ;; 
+            arm64) ARCH_NAME="arm64" ;; 
+            *) ARCH_NAME="unknown" ;; 
           esac
 
           echo "os_name=${OS_NAME}" >> $GITHUB_OUTPUT
@@ -80,7 +81,7 @@ jobs:
               /bin/bash -c "
                 apt-get update && apt-get install -y curl build-essential
                 curl -LsSf https://astral.sh/uv/install.sh | sh
-                source \$HOME/.cargo/env
+                source $HOME/.cargo/env
                 uv sync --all-extras --dev
                 uv run python -m PyInstaller --onefile --name $EXE_NAME run.py
               "
