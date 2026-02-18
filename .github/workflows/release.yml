@@ -25,15 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up QEMU
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up binfmt
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
-        run: |
-          docker run --rm --privileged tonistiigi/binfmt:latest --install all
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -72,15 +63,14 @@ jobs:
           fi
 
           if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-            # Run the build inside an arm64 container
-            docker run --rm --privileged \
+            # Run the build inside an arm64 container with minimal setup
+            docker run --rm \
               -v $(pwd):/work \
               -w /work \
               --platform linux/arm64 \
               python:3.11-slim \
               /bin/bash -c "
-                apt-get update && apt-get install -y curl build-essential git libffi-dev libssl-dev python3-pip
-                pip install uv
+                pip install uv pyinstaller
                 uv sync --all-extras --dev
                 uv run python -m PyInstaller --onefile --name $EXE_NAME run.py
               "
