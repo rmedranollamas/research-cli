@@ -59,7 +59,7 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             EXE_NAME="${EXE_NAME}.exe"
           fi
-          uv run python -m PyInstaller --onefile --name "$EXE_NAME" research.py
+          uv run python -m PyInstaller --onefile --name "$EXE_NAME" run.py
         
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
