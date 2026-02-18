@@ -24,8 +24,16 @@ jobs:
     
     steps:
       - uses: actions/checkout@v6
+
+            - name: Set up QEMU
+              if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
+              uses: docker/setup-qemu-action@v3
       
-      - name: Install uv
+            - name: Set up binfmt
+              if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
+              run: |
+                docker run --rm --privileged tonistiigi/binfmt:latest --install all
+                - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -61,7 +69,24 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             EXE_NAME="${EXE_NAME}.exe"
           fi
-          uv run python -m PyInstaller --onefile --name "$EXE_NAME" run.py
+
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
+            # Run the build inside an arm64 container
+            docker run --rm --privileged \
+              -v $(pwd):/work \
+              -w /work \
+              --platform linux/arm64 \
+              python:3.11-slim \
+              /bin/bash -c "
+                apt-get update && apt-get install -y curl build-essential
+                curl -LsSf https://astral.sh/uv/install.sh | sh
+                source \$HOME/.cargo/env
+                uv sync --all-extras --dev
+                uv run python -m PyInstaller --onefile --name $EXE_NAME run.py
+              "
+          else
+            uv run python -m PyInstaller --onefile --name "$EXE_NAME" run.py
+          fi
         
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
