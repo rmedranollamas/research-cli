@@ -80,8 +80,9 @@ jobs:
               python:3.11-slim \
               /bin/bash -c "
                 apt-get update && apt-get install -y curl build-essential git libffi-dev libssl-dev
-                curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --prefix /usr/local
-                export PATH="/usr/local/bin:$PATH"
+                export UV_HOME="/usr/local"
+                curl -LsSf https://astral.sh/uv/install.sh | sh
+                export PATH="$UV_HOME/bin:$PATH"
                 uv sync --all-extras --dev
                 uv run python -m PyInstaller --onefile --name $EXE_NAME run.py
               "
