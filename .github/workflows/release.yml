@@ -79,10 +79,8 @@ jobs:
               --platform linux/arm64 \
               python:3.11-slim \
               /bin/bash -c "
-                apt-get update && apt-get install -y curl build-essential git libffi-dev libssl-dev
-                export UV_HOME="/usr/local"
-                curl -LsSf https://astral.sh/uv/install.sh | sh
-                export PATH="$UV_HOME/bin:$PATH"
+                apt-get update && apt-get install -y curl build-essential git libffi-dev libssl-dev python3-pip
+                pip install uv
                 uv sync --all-extras --dev
                 uv run python -m PyInstaller --onefile --name $EXE_NAME run.py
               "
