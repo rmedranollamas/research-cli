@@ -62,23 +62,7 @@ jobs:
             EXE_NAME="${EXE_NAME}.exe"
           fi
 
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-            # Run the build inside an arm64 container
-            docker run --rm --privileged \
-              -v $(pwd):/work \
-              -w /work \
-              --platform linux/arm64 \
-              python:3.11-slim \
-              /bin/bash -c "
-                apt-get update && apt-get install -y curl build-essential git libffi-dev libssl-dev
-                curl -LsSf https://astral.sh/uv/install.sh | sh
-                export PATH="/root/.cargo/bin:$PATH"
-                uv sync --all-extras --dev
-                uv run python -m PyInstaller --onefile --name $EXE_NAME run.py
-              "
-          else
-            uv run python -m PyInstaller --onefile --name "$EXE_NAME" run.py
-          fi
+          uv run python -m PyInstaller --onefile --name "$EXE_NAME" run.py
         
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
