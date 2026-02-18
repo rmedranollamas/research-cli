@@ -67,3 +67,25 @@ jobs:
         with:
           name: research-${{ steps.build.outputs.os_name }}-${{ steps.build.outputs.arch_name }}
           path: dist/research-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+          
+      - name: Generate Checksums
+        run: |
+          cd artifacts
+          sha256sum research-* > checksums.txt
+
+      - name: Create Release
+        uses: gh release create ${{ github.ref_name }} --generate-notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
