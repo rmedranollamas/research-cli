@@ -79,7 +79,7 @@ jobs:
               --platform linux/arm64 \
               python:3.11-slim \
               /bin/bash -c "
-                apt-get update && apt-get install -y curl build-essential
+                apt-get update && apt-get install -y curl build-essential git libffi-dev libssl-dev
                 curl -LsSf https://astral.sh/uv/install.sh | sh
                 export PATH="/root/.cargo/bin:$PATH"
                 uv sync --all-extras --dev
