@@ -81,7 +81,7 @@ jobs:
               /bin/bash -c "
                 apt-get update && apt-get install -y curl build-essential
                 curl -LsSf https://astral.sh/uv/install.sh | sh
-                source $HOME/.cargo/env
+                source /root/.cargo/env
                 uv sync --all-extras --dev
                 uv run python -m PyInstaller --onefile --name $EXE_NAME run.py
               "

@@ -1,6 +1,6 @@
 [project]
 name = "research-cli"
-version = "0.1.6"
+version = "0.1.7"
 description = "Stateless CLI for Gemini Deep Research"
 readme = "README.md"
 requires-python = ">=3.11"
