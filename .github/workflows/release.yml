@@ -71,6 +71,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     steps:
@@ -86,6 +87,10 @@ jobs:
           sha256sum research-* > checksums.txt
 
       - name: Create Release
-        uses: gh release create ${{ github.ref_name }} --generate-notes
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/research-*
+            artifacts/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
