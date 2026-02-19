@@ -72,30 +72,3 @@ jobs:
         with:
           name: research-${{ steps.build.outputs.os_name }}-${{ steps.build.outputs.arch_name }}
           path: dist/research-*
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    permissions:
-      contents: write
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v7
-        with:
-          path: artifacts
-          merge-multiple: true
-          
-      - name: Generate Checksums
-        run: |
-          cd artifacts
-          sha256sum research-* > checksums.txt
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            artifacts/research-*
-            artifacts/checksums.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
