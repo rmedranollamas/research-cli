@@ -67,15 +67,35 @@ jobs:
 
           uv run python -m PyInstaller --onefile --name "$EXE_NAME" --hidden-import=rich._unicode_data.unicode17-0-0 run.py
         
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: research-${{ steps.build.outputs.os_name }}-${{ steps.build.outputs.arch_name }}
+          path: dist/research-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+          
+      - name: Generate Checksums
+        run: |
+          cd artifacts
+          sha256sum research-* > checksums.txt
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: "Automated release of ${{ github.ref_name }} for ${{ steps.build.outputs.os_name }}-${{ steps.build.outputs.arch_name }}"
-          draft: false
-          prerelease: false
-          files: dist/research-*
+          files: |
+            artifacts/research-*
+            artifacts/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
