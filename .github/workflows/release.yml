@@ -42,6 +42,8 @@ jobs:
       - name: Build binary
         id: build
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           case "${{ matrix.os }}" in
             ubuntu-latest) OS_NAME="linux" ;; 
@@ -66,9 +68,11 @@ jobs:
           fi
 
           uv run python -m PyInstaller --onefile --name "$EXE_NAME" --hidden-import=rich._unicode_data.unicode17-0-0 run.py
-        
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: research-${{ steps.build.outputs.os_name }}-${{ steps.build.outputs.arch_name }}
-          path: dist/research-*
+          
+          # Create and upload release artifact directly from here
+          gh release create ${{ github.ref_name }}-${OS_NAME}-${ARCH_NAME} \
+            --title "Release ${{ github.ref_name }} for ${OS_NAME}-${ARCH_NAME}" \
+            --notes "Automated build for ${OS_NAME}-${ARCH_NAME}" \
+            --repo ${{ github.repository }} \
+            dist/"$EXE_NAME" \
+            --target ${{ github.sha }}
