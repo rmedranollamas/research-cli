@@ -15,6 +15,8 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
           - os: macos-latest
             arch: x64
           - os: macos-latest
@@ -39,7 +41,7 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.os }}" in
-            ubuntu-latest) OS_NAME="linux" ;; 
+            ubuntu*)       OS_NAME="linux" ;; 
             macos-latest)  OS_NAME="darwin" ;; 
             *)              OS_NAME="unknown" ;; 
           esac
@@ -84,12 +86,11 @@ jobs:
           path: binaries
           merge-multiple: true
 
-      - name: Create Draft Release
+      - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create ${{ github.ref_name }} \
             --title "Release ${{ github.ref_name }}" \
             --generate-notes \
-            --draft \
             binaries/*
