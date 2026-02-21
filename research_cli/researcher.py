@@ -62,7 +62,19 @@ class ResearchAgent:
         max_interval = max(1.0, max_interval)
         current_interval = 1.0
         while True:
-            final_inter = await client.aio.interactions.get(id=interaction_id)
+            try:
+                final_inter = await client.aio.interactions.get(id=interaction_id)
+            except Exception as e:
+                # Handle transient server errors (500, 503) during polling
+                if "500" in str(e) or "503" in str(e):
+                    self.console.print(
+                        f"[dim]Transient API error ({e}), retrying in {current_interval}s...[/dim]"
+                    )
+                    await asyncio.sleep(current_interval)
+                    current_interval = min(current_interval * 1.5, max_interval)
+                    continue
+                raise e
+
             status = get_val(final_inter, "status", "UNKNOWN").upper()
             if status != last_status:
                 self.console.print(f"[dim]Current status: {status}[/dim]")
