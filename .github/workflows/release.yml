@@ -10,8 +10,6 @@ jobs:
   build:
     name: Build on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner || matrix.os }}
-    permissions:
-      contents: write
     strategy:
       matrix:
         include:
@@ -42,37 +40,58 @@ jobs:
       - name: Build binary
         id: build
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           case "${{ matrix.os }}" in
             ubuntu-latest) OS_NAME="linux" ;; 
             macos-latest)  OS_NAME="darwin" ;; 
-            windows-latest) OS_NAME="windows" ;; 
             *)              OS_NAME="unknown" ;; 
           esac
 
-          # Architecture normalization
           case "${{ matrix.arch }}" in
             x64) ARCH_NAME="amd64" ;; 
             arm64) ARCH_NAME="arm64" ;; 
             *) ARCH_NAME="unknown" ;; 
           esac
 
-          echo "os_name=${OS_NAME}" >> $GITHUB_OUTPUT
-          echo "arch_name=${ARCH_NAME}" >> $GITHUB_OUTPUT
-
           EXE_NAME="research-${OS_NAME}-${ARCH_NAME}"
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            EXE_NAME="${EXE_NAME}.exe"
-          fi
-
-          uv run python -m PyInstaller --onefile --name "$EXE_NAME" --hidden-import=rich._unicode_data.unicode17-0-0 run.py
           
-          # Create and upload release artifact directly from here
-          gh release create ${{ github.ref_name }}-${OS_NAME}-${ARCH_NAME} \
-            --title "Release ${{ github.ref_name }} for ${OS_NAME}-${ARCH_NAME}" \
-            --notes "Automated build for ${OS_NAME}-${ARCH_NAME}" \
-            --repo ${{ github.repository }} \
-            dist/"$EXE_NAME" \
-            --target ${{ github.sha }}
+          # Use --collect-all research_cli to ensure all submodules are bundled
+          uv run python -m PyInstaller --onefile --name "$EXE_NAME" \
+            --hidden-import=rich._unicode_data.unicode17-0-0 \
+            --collect-all research_cli \
+            run.py
+
+          echo "exe_path=dist/$EXE_NAME" >> $GITHUB_OUTPUT
+          echo "exe_name=$EXE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.build.outputs.exe_name }}
+          path: ${{ steps.build.outputs.exe_path }}
+          if-no-files-found: error
+
+  release:
+    name: Create Unified Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: binaries
+          merge-multiple: true
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "Release ${{ github.ref_name }}" \
+            --generate-notes \
+            binaries/*

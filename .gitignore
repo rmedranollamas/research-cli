@@ -210,3 +210,10 @@ node_modules/
 improvements.md
 .python-version
 \n# PyInstaller\nbuild/\ndist/\n*.spec
+
+# Research CLI Binary Artifacts
+research-darwin-amd64
+research-darwin-arm64
+research-linux-amd64
+research-linux-arm64
+artifacts/
