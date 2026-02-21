@@ -1,13 +1,12 @@
 # Gemini Configuration & Technical Details
 
-`research-cli`: A specialized, stateless CLI for Gemini Deep Research and Deep Thinking.
+`research-cli`: A specialized, stateless CLI for Gemini Deep Research.
 
 ## Architecture
 
 ### Agents & APIs
 
 - **Deep Research**: Uses the `deep-research-pro-preview-12-2025` model via the **Gemini v1alpha Interactions API**. This allows for long-running research tasks with multi-step reasoning and tool use.
-- **Deep Thinking**: Uses the `gemini-2.0-flash-thinking-exp` model via the **Gemini v1alpha Generate Content API** (default). This supports internal reasoning (thoughts) that are streamed to the terminal.
 
 ### Performance Optimizations
 
@@ -19,19 +18,18 @@
 
 - **SQLite Backend**: Task history and reports are stored in a local SQLite database (default: `~/.research-cli/history.db`).
 - **Schema**:
-    - The `research_tasks` table stores query details, model information, interaction IDs, and final reports.
-    - An index `idx_research_tasks_created_at` is used to optimize the performance of listing recent tasks.
+  - The `research_tasks` table stores query details, model information, interaction IDs, and final reports.
+  - An index `idx_research_tasks_created_at` is used to optimize the performance of listing recent tasks.
 - **Lazy Initialization**: The database and its schema are initialized lazily upon the first write operation, using thread-safe locking mechanisms.
 - **Security**:
-    - The database directory is created with `0700` permissions.
-    - The database file is created with `0600` permissions.
-    - The CLI performs permission checks and safe `chmod` operations to ensure that history data remains accessible only to the user.
+  - The database directory is created with `0700` permissions.
+  - The database file is created with `0600` permissions.
+  - The CLI performs permission checks and safe `chmod` operations to ensure that history data remains accessible only to the user.
 
 ## Building and Running
 
 - **Setup**: `uv sync`
 - **Run Research**: `uv run research run "query"`
-- **Run Thinking**: `uv run research think "query"`
 - **Test**: `PYTHONPATH=. uv run pytest tests/`
 - **Quality**: `uv run ruff check . --fix` and `uv run ruff format .`
 
@@ -39,11 +37,12 @@
 
 - **Language**: Python 3.11+ (managed via `uv`)
 - **CLI Framework**: `argparse` with `rich` for terminal formatting and progress visualization.
-- **SDK**: `google-genai` (Interaction and Generate Content APIs).
+- **SDK**: `google-genai` (Interactions API).
 
 ## Installer & Security
 
 The `install.sh` script includes several security features:
+
 - **Piping Protection**: Blocks direct piping to a shell to encourage script review.
 - **Integrity Verification**: Downloads a `checksums.txt` file from the official GitHub release and verifies the binary's SHA256 hash before installation.
 - **Buffered Calculation**: Uses buffered reading in Python to calculate checksums efficiently for any file size.

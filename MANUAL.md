@@ -51,10 +51,12 @@ chmod +x install.sh
 
 ### Using Standalone Binaries
 
-Download the latest binary for your OS from the [GitHub Releases](https://github.com/rmedranollamas/research-cli/releases) page.
+Download the latest binary for your OS and architecture from the [GitHub Releases](https://github.com/rmedranollamas/research-cli/releases) page.
 
-- **Linux**: `research-ubuntu-latest`
-- **macOS**: `research-macos-latest`
+- **Linux x64**: `research-linux-amd64`
+- **Linux arm64**: `research-linux-arm64`
+- **macOS x64**: `research-darwin-amd64`
+- **macOS arm64**: `research-darwin-arm64`
 
 Rename the binary to `research` and move it to your PATH (e.g., `/usr/local/bin`).
 
@@ -68,12 +70,6 @@ Research CLI uses subcommands for different actions.
 
 ```bash
 uv run research run "Your query here"
-```
-
-### Start a new thinking task
-
-```bash
-uv run research think "Your query here"
 ```
 
 ### List recent tasks
@@ -92,7 +88,7 @@ ______________________________________________________________________
 
 ## Configuration
 
-- **API Key**: Requires `GEMINI_API_KEY` environment variable.
+- **API Key**: Requires `RESEARCH_GEMINI_API_KEY` environment variable.
 - **Local History**: Tasks are stored in a SQLite database at `~/.research-cli/history.db`.
 
 ______________________________________________________________________
@@ -101,11 +97,10 @@ ______________________________________________________________________
 
 ### Specifying a Model
 
-You can override the default models using the `--model` flag:
+You can override the default research model using the `--model` flag:
 
 ```bash
 uv run research run "Latest advancements in fusion energy" --model "deep-research-pro-preview-12-2025"
-uv run research think "How many r's in strawberry?" --model "gemini-2.0-flash-thinking-exp"
 ```
 
 ### Keyboard Interrupts
@@ -138,7 +133,7 @@ ______________________________________________________________________
 To generate a standalone executable for your current platform:
 
 ```bash
-uv run pyinstaller --onefile --name research research.py
+uv run pyinstaller --onefile --name research run.py
 ```
 
 The resulting binary will be in the `dist/` directory.
@@ -147,7 +142,7 @@ ______________________________________________________________________
 
 ## Troubleshooting
 
-### "Error: GEMINI_API_KEY environment variable not set."
+### "Error: RESEARCH_GEMINI_API_KEY environment variable not set."
 
 Ensure you have exported the key in your current terminal session.
 

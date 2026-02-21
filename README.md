@@ -1,6 +1,6 @@
 # Research CLI
 
-Stateless CLI for Gemini Deep Research and Deep Thinking.
+Stateless CLI for Gemini Deep Research.
 
 Refer to the [Instruction Manual](MANUAL.md) for detailed setup and usage guides.
 
@@ -28,30 +28,16 @@ uv sync
 
 ## Usage
 
-Set your `GEMINI_API_KEY` and run a research task:
+Set your `RESEARCH_GEMINI_API_KEY` and run a research task:
 
 ```bash
-export GEMINI_API_KEY="your-api-key"
+export RESEARCH_GEMINI_API_KEY="your-api-key"
 uv run research run "Your research query here"
-```
-
-### Deep Thinking
-
-You can use the `think` command for models that support internal reasoning:
-
-```bash
-uv run research think "Your complex question here"
-```
-
-If installed via the script or running via `uv run`, you can also use the `think` alias directly:
-
-```bash
-uv run think "Your complex question here"
 ```
 
 ### Managing Tasks
 
-List past research and thinking tasks:
+List past research tasks:
 
 ```bash
 uv run research list
@@ -69,9 +55,8 @@ The CLI will stream the agent's reasoning (thoughts) in real-time and then displ
 
 The CLI can be configured via environment variables:
 
-- `GEMINI_API_KEY`: (Required) Your Google Gemini API key.
+- `RESEARCH_GEMINI_API_KEY`: (Required) Your Google Gemini API key.
 - `RESEARCH_MODEL`: Gemini model for research (default: `deep-research-pro-preview-12-2025`).
-- `THINK_MODEL`: Gemini model for thinking (default: `gemini-2.0-flash-thinking-exp`).
 - `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
 - `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`). The CLI uses exponential backoff starting from 1 second.
 - `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
