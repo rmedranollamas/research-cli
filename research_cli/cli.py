@@ -8,7 +8,7 @@ from .utils import get_console, truncate_query, save_report_to_file, print_repor
 from .researcher import ResearchAgent
 
 # Try to get version from pyproject.toml or package metadata
-VERSION = "0.1.43"
+VERSION = "0.1.44"
 
 
 def create_parser():

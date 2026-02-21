@@ -62,6 +62,8 @@ jobs:
 
           echo "exe_path=dist/$EXE_NAME" >> $GITHUB_OUTPUT
           echo "exe_name=$EXE_NAME" >> $GITHUB_OUTPUT
+          echo "os_name=${OS_NAME}" >> $GITHUB_OUTPUT
+          echo "arch_name=${ARCH_NAME}" >> $GITHUB_OUTPUT
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -86,6 +88,54 @@ jobs:
           path: binaries
           merge-multiple: true
 
+      - name: Package Extension Archives
+        run: |
+          mkdir -p release
+          
+          # Platforms/Archs we build
+          # linux amd64
+          # linux arm64
+          # darwin amd64
+          # darwin arm64
+          
+          declare -A ARCH_MAP
+          ARCH_MAP["amd64"]="x64"
+          ARCH_MAP["arm64"]="arm64"
+          
+          for OS in linux darwin; do
+            for ARCH in amd64 arm64; do
+              EXT_ARCH=${ARCH_MAP[$ARCH]}
+              PKG_NAME="${OS}.${EXT_ARCH}.research-cli.tar.gz"
+              
+              echo "Packaging $PKG_NAME..."
+              
+              # Create a temporary directory for packaging
+              TEMP_DIR="tmp_${OS}_${ARCH}"
+              mkdir -p "$TEMP_DIR"
+              
+              # Copy common files
+              cp gemini-extension.json "$TEMP_DIR/"
+              cp -r commands "$TEMP_DIR/"
+              cp -r skills "$TEMP_DIR/"
+              
+              # Copy the binary and rename to 'research'
+              cp "binaries/research-${OS}-${ARCH}" "$TEMP_DIR/research"
+              chmod +x "$TEMP_DIR/research"
+              
+              # Create the archive
+              tar -czf "release/$PKG_NAME" -C "$TEMP_DIR" .
+              
+              # Cleanup
+              rm -rf "$TEMP_DIR"
+            done
+          done
+          
+          # Create a generic fallback (using linux-amd64 as baseline for source files)
+          # But for the generic fallback, we might not want to include a binary, 
+          # or just include the source. However, Gemini CLI expects a runnable extension.
+          # Let's provide a source-only one too as research-cli.tar.gz
+          tar -czf "release/research-cli.tar.gz" gemini-extension.json commands skills README.md MANUAL.md LICENSE
+
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,4 +143,5 @@ jobs:
           gh release create ${{ github.ref_name }} \
             --title "Release ${{ github.ref_name }}" \
             --generate-notes \
-            binaries/*
+            binaries/* \
+            release/*

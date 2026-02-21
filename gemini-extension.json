@@ -1,23 +1,18 @@
 {
   "name": "research-cli",
-  "version": "0.1.0",
+  "version": "0.1.44",
   "description": "Deep Research extension using Gemini v1alpha Interactions API",
   "settings": [
     {
       "name": "Gemini API Key",
       "description": "API Key with v1alpha/Interactions access",
-      "envVar": "GEMINI_API_KEY",
+      "envVar": "RESEARCH_GEMINI_API_KEY",
       "sensitive": true
     },
     {
       "name": "Research Model",
       "description": "The Gemini model ID to use for deep research (default: deep-research-pro-preview-12-2025)",
       "envVar": "RESEARCH_MODEL"
-    },
-    {
-      "name": "Think Model",
-      "description": "The Gemini model ID to use for deep think (default: gemini-2.0-flash-thinking-exp)",
-      "envVar": "THINK_MODEL"
     }
   ]
 }
