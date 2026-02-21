@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Dict, Any
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import get_console, get_val, print_report
@@ -15,21 +15,21 @@ class ResearchAgent:
 
     def get_client(
         self,
-        api_version: str = "v1alpha",
+        api_version: str = 'v1alpha',
         timeout: Optional[int] = None,
     ) -> genai.Client:
-        http_options = {"api_version": api_version}
+        http_options = {'api_version': api_version}
         if timeout is not None:
-            http_options["timeout"] = timeout
+            http_options['timeout'] = timeout
         if self.base_url:
-            http_options["base_url"] = self.base_url
+            http_options['base_url'] = self.base_url
 
         try:
             return genai.Client(api_key=self.api_key, http_options=http_options)
         except Exception:
             # Note: This doesn't update the task because it doesn't know the task_id
             # The caller should handle task update
-            raise ResearchError("Client initialization failed")
+            raise ResearchError('Client initialization failed')
 
     async def _handle_error(
         self,
@@ -39,22 +39,22 @@ class ResearchAgent:
         inter_id: Optional[str] = None,
         bg_tasks: Optional[Set] = None,
     ):
-        self.console.print(f"[red]{prefix}:[/red]")
+        self.console.print(f'[red]{prefix}:[/red]')
         self.console.print_exception()
         if bg_tasks:
             await asyncio.gather(*bg_tasks, return_exceptions=True)
-        await async_update_task(task_id, "ERROR", db_msg, interaction_id=inter_id)
+        await async_update_task(task_id, 'ERROR', db_msg, interaction_id=inter_id)
 
     async def _poll_interaction(
         self, client: genai.Client, interaction_id: str, report_parts: List[str]
     ):
         self.console.print(
-            f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
+            f'[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]'
         )
         last_status = None
         try:
             max_interval = float(
-                os.getenv("RESEARCH_POLL_INTERVAL", str(POLL_INTERVAL_DEFAULT))
+                os.getenv('RESEARCH_POLL_INTERVAL', str(POLL_INTERVAL_DEFAULT))
             )
         except ValueError:
             max_interval = POLL_INTERVAL_DEFAULT
@@ -63,31 +63,31 @@ class ResearchAgent:
         current_interval = 1.0
         while True:
             final_inter = await client.aio.interactions.get(id=interaction_id)
-            status = get_val(final_inter, "status", "UNKNOWN").upper()
+            status = get_val(final_inter, 'status', 'UNKNOWN').upper()
             if status != last_status:
-                self.console.print(f"[dim]Current status: {status}[/dim]")
+                self.console.print(f'[dim]Current status: {status}[/dim]')
                 last_status = status
 
-            if status == "COMPLETED":
-                outputs = get_val(final_inter, "outputs", [])
+            if status == 'COMPLETED':
+                outputs = get_val(final_inter, 'outputs', [])
                 for output in outputs:
-                    text = get_val(output, "text")
+                    text = get_val(output, 'text')
                     if text:
                         report_parts.append(text)
 
                 if not report_parts:
-                    response = get_val(final_inter, "response")
+                    response = get_val(final_inter, 'response')
                     if response:
-                        text = get_val(response, "text")
+                        text = get_val(response, 'text')
                         if text:
                             report_parts.append(text)
                 break
-            elif status in ["FAILED", "CANCELLED"]:
+            elif status in ['FAILED', 'CANCELLED']:
                 break
 
             await asyncio.sleep(current_interval)
             current_interval = min(current_interval * 1.5, max_interval)
-        return "".join(report_parts)
+        return ''.join(report_parts)
 
     async def run_research(
         self, query: str, model_id: str, parent_id: Optional[str] = None
@@ -102,15 +102,16 @@ class ResearchAgent:
         except Exception:
             await self._handle_error(
                 task_id,
-                "Error initializing Gemini client",
-                "Client initialization failed",
+                'Error initializing Gemini client',
+                'Client initialization failed',
             )
-            raise ResearchError("Client initialization failed")
+            raise ResearchError('Client initialization failed')
 
         self.console.print(
             Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n[bold blue]Model:[/bold blue] {model_id}",
-                title="Deep Research Starting",
+                f'[bold blue]Query:[/bold blue] {query}
+[bold blue]Model:[/bold blue] {model_id}',
+                title='Deep Research Starting',
             )
         )
 
@@ -124,25 +125,25 @@ class ResearchAgent:
                 input=query,
                 background=True,
                 stream=True,
-                agent_config={"type": "deep-research", "thinking_summaries": "auto"},
+                agent_config={'type': 'deep-research', 'thinking_summaries': 'auto'},
                 previous_interaction_id=parent_id,
             )
 
             with Progress(
                 SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
+                TextColumn('[progress.description]{task.description}'),
                 console=self.console,
             ) as progress:
-                task = progress.add_task("Initializing...", total=None)
+                task = progress.add_task('Initializing...', total=None)
                 async for event in stream:
-                    inter = get_val(event, "interaction")
+                    inter = get_val(event, 'interaction')
                     if inter and not interaction_id:
-                        interaction_id = get_val(inter, "id")
+                        interaction_id = get_val(inter, 'id')
                         if interaction_id:
                             job = asyncio.create_task(
                                 async_update_task(
                                     task_id,
-                                    "IN_PROGRESS",
+                                    'IN_PROGRESS',
                                     interaction_id=interaction_id,
                                 )
                             )
@@ -150,30 +151,30 @@ class ResearchAgent:
                             job.add_done_callback(background_tasks.discard)
                             progress.update(
                                 task,
-                                description=f"Researching (ID: {interaction_id})...",
+                                description=f'Researching (ID: {interaction_id})...',
                             )
 
-                    thought = get_val(event, "thought")
+                    thought = get_val(event, 'thought')
                     if thought:
                         progress.update(
-                            task, description=f"[italic grey]{thought}[/italic grey]"
+                            task, description=f'[italic grey]{thought}[/italic grey]'
                         )
-                        self.console.print(f"[italic grey]> {thought}[/italic grey]")
+                        self.console.print(f'[italic grey]> {thought}[/italic grey]')
 
-                    content = get_val(event, "content")
+                    content = get_val(event, 'content')
                     if content:
-                        parts = get_val(content, "parts", [])
+                        parts = get_val(content, 'parts', [])
                         for part in parts:
-                            text = get_val(part, "text")
+                            text = get_val(part, 'text')
                             if text:
                                 report_parts.append(text)
 
-                progress.update(task, description="Stream finished.", completed=True)
+                progress.update(task, description='Stream finished.', completed=True)
 
             if background_tasks:
                 await asyncio.gather(*background_tasks, return_exceptions=True)
 
-            report_content = "".join(report_parts)
+            report_content = ''.join(report_parts)
             if not report_content and interaction_id:
                 report_content = await self._poll_interaction(
                     client, interaction_id, report_parts
@@ -182,118 +183,18 @@ class ResearchAgent:
         except Exception:
             await self._handle_error(
                 task_id,
-                "Error during research",
-                "Research execution failed",
+                'Error during research',
+                'Research execution failed',
                 interaction_id,
                 background_tasks,
             )
             return None
 
         if report_content:
-            await async_update_task(task_id, "COMPLETED", report_content)
+            await async_update_task(task_id, 'COMPLETED', report_content)
             print_report(report_content)
             return report_content
 
-        await async_update_task(task_id, "FAILED")
-        self.console.print("[yellow]No report content received.[/yellow]")
-        return None
-
-    async def run_think(
-        self,
-        query: str,
-        model_id: str,
-        api_version: str = "v1alpha",
-        timeout: int = 1800,
-    ):
-        from google.genai import types
-        from rich.panel import Panel
-        from rich.progress import Progress, SpinnerColumn, TextColumn
-
-        task_id = await async_save_task(query, model_id)
-
-        try:
-            client = self.get_client(api_version=api_version, timeout=timeout)
-        except Exception:
-            await self._handle_error(
-                task_id,
-                "Error initializing Gemini client",
-                "Client initialization failed",
-            )
-            raise ResearchError("Client initialization failed")
-
-        self.console.print(
-            Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n[bold blue]Model:[/bold blue] {model_id}\n[bold blue]API Version:[/bold blue] {api_version}",
-                title="Gemini Deep Think Starting",
-            )
-        )
-
-        report_parts: List[str] = []
-        background_tasks = set()
-
-        try:
-            config = types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(include_thoughts=True),
-            )
-
-            stream = await client.aio.models.generate_content_stream(
-                model=model_id,
-                contents=query,
-                config=config,
-            )
-
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=self.console,
-                transient=True,
-            ) as progress:
-                task = progress.add_task("Initializing...", total=None)
-
-                # Update task status to IN_PROGRESS in background
-                update_job = asyncio.create_task(
-                    async_update_task(task_id, "IN_PROGRESS")
-                )
-                background_tasks.add(update_job)
-                update_job.add_done_callback(background_tasks.discard)
-
-                progress.update(task, description="Thinking...")
-                self.console.print("[italic grey]Thinking...[/italic grey]")
-
-                async for chunk in stream:
-                    for part in chunk.candidates[0].content.parts:
-                        if part.thought:
-                            self.console.print(
-                                f"[italic grey]{part.text}[/italic grey]",
-                                end="",
-                                highlight=False,
-                            )
-                        elif part.text:
-                            report_parts.append(part.text)
-
-                progress.update(task, description="Finished thinking.", completed=True)
-
-            self.console.print("\n[green]Finished thinking.[/green]")
-
-            if background_tasks:
-                await asyncio.gather(*background_tasks, return_exceptions=True)
-
-            report_content = "".join(report_parts)
-
-        except Exception:
-            await self._handle_error(
-                task_id,
-                "Error during thinking",
-                "Execution failed",
-                bg_tasks=background_tasks,
-            )
-            return None
-
-        if report_content:
-            await async_update_task(task_id, "COMPLETED", report_content)
-            print_report(report_content)
-            return report_content
-
-        await async_update_task(task_id, "FAILED")
-        self.console.print("[yellow]No content received.[/yellow]")
+        await async_update_task(task_id, 'FAILED')
+        self.console.print('[yellow]No report content received.[/yellow]')
         return None
