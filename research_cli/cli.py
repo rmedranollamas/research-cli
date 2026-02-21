@@ -2,21 +2,22 @@ import argparse
 import sys
 import os
 import asyncio
-from .config import (
-    DEFAULT_MODEL,
-    ResearchError,
-    RESEARCH_API_KEY_VAR,
-)  # Import RESEARCH_API_KEY_VAR
+from .config import DEFAULT_MODEL, ResearchError, RESEARCH_API_KEY_VAR
 from .db import get_task, get_recent_tasks
 from .utils import get_console, truncate_query, save_report_to_file, print_report
 from .researcher import ResearchAgent
+
+# Try to get version from pyproject.toml or package metadata
+VERSION = "0.1.41"
 
 
 def create_parser():
     script_name = os.path.basename(sys.argv[0])
 
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
-    parser.add_argument("--version", action="version", version="research-cli 0.1.0")
+    parser.add_argument(
+        "--version", action="version", version=f"research-cli {VERSION}"
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
