@@ -142,3 +142,11 @@ def get_recent_tasks(limit: int) -> List[Tuple]:
             (limit,),
         )
         return cursor.fetchall()
+
+
+async def async_get_task(*args, **kwargs):
+    return await asyncio.to_thread(get_task, *args, **kwargs)
+
+
+async def async_get_recent_tasks(*args, **kwargs):
+    return await asyncio.to_thread(get_recent_tasks, *args, **kwargs)

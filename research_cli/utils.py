@@ -1,4 +1,5 @@
 import os
+import asyncio
 from .config import QUERY_TRUNCATION_LENGTH
 
 _console = None
@@ -54,3 +55,7 @@ def save_report_to_file(
         f.write(report)
     console.print(f"[green]{success_prefix} {output_file}[/green]")
     return True
+
+
+async def async_save_report_to_file(*args, **kwargs):
+    return await asyncio.to_thread(save_report_to_file, *args, **kwargs)

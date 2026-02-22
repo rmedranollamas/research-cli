@@ -3,8 +3,13 @@ import sys
 import os
 import asyncio
 from .config import DEFAULT_MODEL, ResearchError, RESEARCH_API_KEY_VAR
-from .db import get_task, get_recent_tasks
-from .utils import get_console, truncate_query, save_report_to_file, print_report
+from .db import async_get_task, async_get_recent_tasks
+from .utils import (
+    get_console,
+    truncate_query,
+    async_save_report_to_file,
+    print_report,
+)
 from .researcher import ResearchAgent
 from importlib import metadata
 
@@ -79,13 +84,13 @@ async def handle_run(args, agent: ResearchAgent, parser):
         return
     report = await agent.run_research(args.query, args.model, parent_id=args.parent)
     if report and args.output:
-        save_report_to_file(report, args.output, args.force)
+        await async_save_report_to_file(report, args.output, args.force)
 
 
-def handle_list():
+async def handle_list():
     from rich.table import Table
 
-    tasks = get_recent_tasks(20)
+    tasks = await async_get_recent_tasks(20)
     if not tasks:
         get_console().print("[yellow]No research tasks found in history.[/yellow]")
         return
@@ -102,10 +107,10 @@ def handle_list():
     get_console().print(table)
 
 
-def handle_show(args):
+async def handle_show(args):
     from rich.panel import Panel
 
-    task = get_task(args.id)
+    task = await async_get_task(args.id)
     if not task:
         get_console().print(f"[red]Task {args.id} not found.[/red]")
         return
@@ -120,7 +125,7 @@ def handle_show(args):
     if report:
         print_report(report)
         if args.output:
-            save_report_to_file(report, args.output, args.force)
+            await async_save_report_to_file(report, args.output, args.force)
     else:
         get_console().print(
             "[yellow]No report content available for this task.[/yellow]"
@@ -162,9 +167,9 @@ async def main_async():
             get_console().print("\n[yellow]Cancelled by user.[/yellow]")
             sys.exit(0)
     elif args.command == "list":
-        handle_list()
+        await handle_list()
     elif args.command == "show":
-        handle_show(args)
+        await handle_show(args)
     else:
         parser.print_help()
 
