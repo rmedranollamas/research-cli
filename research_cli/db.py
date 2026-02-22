@@ -138,6 +138,7 @@ def get_recent_tasks(limit: int) -> List[Tuple]:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            f"SELECT id, query, status, created_at, interaction_id FROM research_tasks ORDER BY created_at DESC LIMIT {limit}"
+            "SELECT id, query, status, created_at, interaction_id FROM research_tasks ORDER BY created_at DESC LIMIT ?",
+            (limit,),
         )
         return cursor.fetchall()
