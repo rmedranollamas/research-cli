@@ -1,4 +1,36 @@
-from research_cli import get_val
+from rich.console import Console
+import research_cli.utils
+from research_cli import get_val, get_console
+
+
+def test_get_console_singleton():
+    """Test that get_console returns a singleton instance."""
+    # Reset to ensure a clean state for the test
+    research_cli.utils._console = None
+
+    console1 = get_console()
+    console2 = get_console()
+
+    assert console1 is console2
+    # Console is MockConsole due to conftest.py monkeypatch
+    assert isinstance(console1, Console)
+
+
+def test_get_console_reinitialization():
+    """Test that resetting _console allows for re-initialization."""
+    # Reset to ensure a clean state
+    research_cli.utils._console = None
+
+    console1 = get_console()
+
+    # Manually reset the internal singleton state
+    research_cli.utils._console = None
+
+    console2 = get_console()
+
+    assert console1 is not console2
+    # Console is MockConsole due to conftest.py monkeypatch
+    assert isinstance(console2, Console)
 
 
 def test_get_val_obj_none():
