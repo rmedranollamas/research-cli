@@ -29,13 +29,9 @@ if TYPE_CHECKING:
 
 def get_api_key() -> str:
     """Gets the Gemini API key from environment variables or raises ResearchError."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        get_console().print(
-            "[red]Error: GEMINI_API_KEY environment variable not set.[/red]"
-        )
-        raise ResearchError("GEMINI_API_KEY environment variable not set.")
-    return api_key
+    from .cli import get_api_key as cli_get_api_key
+
+    return cli_get_api_key()
 
 
 def get_gemini_client(

@@ -35,6 +35,20 @@ export RESEARCH_GEMINI_API_KEY="your-api-key"
 uv run research run "Your research query here"
 ```
 
+### Deep Thinking
+
+Use the `think` command for real-time reasoning and brainstorming:
+
+```bash
+uv run think "How does quantum entanglement work?"
+```
+
+Or via the main CLI:
+
+```bash
+uv run research think "Explain the prisoner's dilemma"
+```
+
 ### Managing Tasks
 
 List past research tasks:
@@ -60,6 +74,18 @@ The CLI can be configured via environment variables:
 - `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
 - `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`). The CLI uses exponential backoff starting from 1 second.
 - `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
+
+## Gemini Extension
+
+The CLI can be installed as a Gemini Extension using the provided `gemini-extension.json` manifest.
+
+### Installation
+
+1.  **Download**: Get the `research-cli.tar.gz` from the latest release.
+2.  **Import**: In your extension host (e.g., Google AI Studio), select "Import Extension" and upload the `gemini-extension.json` file.
+3.  **Configure**: Set the `RESEARCH_GEMINI_API_KEY` in the extension settings.
+
+For more details, see the [Instruction Manual](MANUAL.md).
 
 ## Agent Skill
 

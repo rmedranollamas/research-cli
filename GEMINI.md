@@ -7,6 +7,7 @@
 ### Agents & APIs
 
 - **Deep Research**: Uses the `deep-research-pro-preview-12-2025` model via the **Gemini v1alpha Interactions API**. This allows for long-running research tasks with multi-step reasoning and tool use.
+- **Deep Thinking**: Uses the `gemini-2.0-flash-thinking-exp` model via the **Gemini v1alpha Generate Content API**. It supports streaming of internal thoughts and provides rapid reasoning for complex queries.
 
 ### Performance Optimizations
 
@@ -38,6 +39,12 @@
 - **Language**: Python 3.11+ (managed via `uv`)
 - **CLI Framework**: `argparse` with `rich` for terminal formatting and progress visualization.
 - **SDK**: `google-genai` (Interactions API).
+
+## Extension Manifest
+
+The `gemini-extension.json` file follows the extension specification for Gemini. It defines:
+- **Environment Variables**: Maps extension settings to `RESEARCH_GEMINI_API_KEY` and `RESEARCH_MODEL`.
+- **Stateless Design**: Ensures compatibility with ephemeral execution environments.
 
 ## Installer & Security
 

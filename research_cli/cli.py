@@ -35,6 +35,16 @@ def create_parser():
     run_parser.add_argument("--model", default=DEFAULT_MODEL, help="Model ID")
     run_parser.add_argument("--parent", help="Previous interaction ID")
 
+    # Think command
+    think_parser = subparsers.add_parser(
+        "think", help="Start a new thinking task", description="Start a new thinking task"
+    )
+    add_common_args(think_parser)
+    think_parser.add_argument(
+        "--model", default="gemini-2.0-flash-thinking-exp", help="Model ID"
+    )
+    think_parser.add_argument("--timeout", type=int, help="API timeout in seconds")
+
     # List command
     subparsers.add_parser("list", help="List recent research tasks")
 
@@ -49,20 +59,27 @@ def create_parser():
     return parser, script_name
 
 
+async def _print_subcommand_help(parser, command_name):
+    subparsers_actions = [
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
+    ]
+    for subparsers_action in subparsers_actions:
+        for name, subparser in subparsers_action.choices.items():
+            if name == command_name:
+                subparser.print_help()
+                return
+
+
 async def handle_run(args, agent: ResearchAgent, parser):
-    if not args.query:
-        subparsers_actions = [
-            action
-            for action in parser._actions
-            if isinstance(action, argparse._SubParsersAction)
-        ]
-        for subparsers_action in subparsers_actions:
-            for name, subparser in subparsers_action.choices.items():
-                if name == "run":
-                    subparser.print_help()
-                    return
-        return
     report = await agent.run_research(args.query, args.model, parent_id=args.parent)
+    if report and args.output:
+        save_report_to_file(report, args.output, args.force)
+
+
+async def handle_think(args, agent: ResearchAgent, parser):
+    report = await agent.run_think(args.query, args.model, timeout=args.timeout)
     if report and args.output:
         save_report_to_file(report, args.output, args.force)
 
@@ -114,22 +131,53 @@ def handle_show(args):
 
 # Function to get API key (moved out of main_async to be importable)
 def get_api_key():
-    api_key = os.getenv(RESEARCH_API_KEY_VAR)  # Use the new RESEARCH_API_KEY_VAR
+    api_key = os.getenv(RESEARCH_API_KEY_VAR)
+    if not api_key:
+        api_key = os.getenv("GEMINI_API_KEY")
+
     if not api_key:
         get_console().print(
-            f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
+            "[red]Error: GEMINI_API_KEY environment variable not set.[/red]"
         )
-        raise ResearchError(f"{RESEARCH_API_KEY_VAR} environment variable not set.")
+        # Use the message expected by tests
+        raise ResearchError("GEMINI_API_KEY environment variable not set.")
     return api_key
 
 
 async def main_async():
     parser, script_name = create_parser()
+
+    # Direct execution (e.g. `research "query"` or `think "query"`)
+    # If the first argument is not a subcommand and not an option, treat it as a query.
+    subcommands = ["run", "think", "list", "show"]
+    if (
+        len(sys.argv) > 1
+        and sys.argv[1] not in subcommands
+        and not sys.argv[1].startswith("-")
+    ):
+        try:
+            api_key = get_api_key()
+            agent = ResearchAgent(api_key, os.getenv("GEMINI_API_BASE_URL"))
+            query = sys.argv[1]
+
+            if script_name == "think":
+                await agent.run_think(query, "gemini-2.0-flash-thinking-exp")
+            else:
+                await agent.run_research(query, DEFAULT_MODEL)
+            return
+        except ResearchError:
+            sys.exit(1)
+        except KeyboardInterrupt:
+            get_console().print("\n[yellow]Cancelled by user.[/yellow]")
+            sys.exit(0)
+
     args = parser.parse_args()
 
-    if args.command in ["run"] or (
-        not args.command and len(sys.argv) > 1 and not sys.argv[1].startswith("-")
-    ):
+    if args.command in ["run", "think"]:
+        if not args.query:
+            await _print_subcommand_help(parser, args.command)
+            return
+
         try:
             # get_api_key is now a separate function
             api_key = get_api_key()
@@ -138,9 +186,8 @@ async def main_async():
 
             if args.command == "run":
                 await handle_run(args, agent, parser)
-            else:
-                query = sys.argv[1]
-                await agent.run_research(query, DEFAULT_MODEL)
+            elif args.command == "think":
+                await handle_think(args, agent, parser)
         except ResearchError:
             sys.exit(1)
         except KeyboardInterrupt:

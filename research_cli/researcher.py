@@ -209,3 +209,81 @@ class ResearchAgent:
         await async_update_task(task_id, "FAILED")
         self.console.print("[yellow]No report content received.[/yellow]")
         return None
+
+    async def run_think(self, query: str, model_id: str, timeout: Optional[int] = None):
+        from rich.panel import Panel
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+
+        task_id = await async_save_task(query, model_id)
+
+        try:
+            client = self.get_client(api_version="v1alpha", timeout=timeout)
+        except Exception:
+            await self._handle_error(
+                task_id,
+                "Error initializing Gemini client",
+                "Client initialization failed",
+            )
+            raise ResearchError("Client initialization failed")
+
+        self.console.print(
+            Panel(
+                f"[bold blue]Query:[/bold blue] {query}\n[bold blue]Model:[/bold blue] {model_id}",
+                title="Gemini Deep Think Starting",
+            )
+        )
+
+        report_parts: List[str] = []
+
+        try:
+            stream = await client.aio.models.generate_content_stream(
+                model=model_id,
+                contents=query,
+            )
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task("Thinking...", total=None)
+                async for chunk in stream:
+                    candidates = get_val(chunk, "candidates", [])
+                    for candidate in candidates:
+                        content = get_val(candidate, "content")
+                        parts = get_val(content, "parts", [])
+                        for part in parts:
+                            if get_val(part, "thought"):
+                                thought = get_val(part, "text")
+                                if thought:
+                                    progress.update(
+                                        task,
+                                        description=f"[italic grey]{thought}[/italic grey]",
+                                    )
+                                    self.console.print(
+                                        f"[italic grey]> {thought}[/italic grey]"
+                                    )
+                            else:
+                                text = get_val(part, "text")
+                                if text:
+                                    report_parts.append(text)
+
+                progress.update(task, description="Thinking finished.", completed=True)
+
+        except Exception:
+            await self._handle_error(
+                task_id,
+                "Error during thinking",
+                "Execution failed",
+            )
+            return None
+
+        report_content = "".join(report_parts)
+        if report_content:
+            await async_update_task(task_id, "COMPLETED", report_content)
+            print_report(report_content)
+            return report_content
+
+        await async_update_task(task_id, "FAILED")
+        self.console.print("[yellow]No report content received.[/yellow]")
+        return None
