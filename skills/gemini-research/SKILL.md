@@ -21,19 +21,6 @@ Start a new deep research task.
 research run "The impact of solid-state batteries on the EV industry"
 ```
 
-### `research_think`
-
-Start a new thinking task for rapid reasoning.
-
-- **`query`**: (Required) The topic or question to think about.
-- **`model`**: (Optional) The model ID to use for thinking (default: `gemini-2.0-flash-thinking-exp`).
-
-**Example:**
-
-```bash
-research think "Why is the sky blue?"
-```
-
 ### `research_list`
 
 List recent research tasks and their status.

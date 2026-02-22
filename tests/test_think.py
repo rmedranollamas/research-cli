@@ -78,10 +78,7 @@ def test_cli_think_success(mock_get_client, mock_update, mock_save, temp_db, cap
 @patch("research_cli.researcher.ResearchAgent.run_think")
 def test_cli_think_direct_entry(mock_run_think):
     """Test direct script entry for 'think'."""
-    with (
-        patch.dict("os.environ", {"GEMINI_API_KEY": "fake-key"}),
-        patch.object(sys, "argv", ["think", "hello"]),
-    ):
+    with patch.object(sys, "argv", ["think", "hello"]):
         main()
 
     # Check that it was called with 'hello' and the default model
