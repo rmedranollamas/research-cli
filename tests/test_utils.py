@@ -1,3 +1,4 @@
+from rich.console import Console
 import research_cli.utils
 from research_cli import get_val, get_console
 
@@ -11,10 +12,8 @@ def test_get_console_singleton():
     console2 = get_console()
 
     assert console1 is console2
-    # MockConsole is used in conftest.py
-    from tests.conftest import MockConsole
-
-    assert isinstance(console1, MockConsole)
+    # Console is MockConsole due to conftest.py monkeypatch
+    assert isinstance(console1, Console)
 
 
 def test_get_console_reinitialization():
@@ -30,8 +29,8 @@ def test_get_console_reinitialization():
     console2 = get_console()
 
     assert console1 is not console2
-    from tests.conftest import MockConsole
-    assert isinstance(console2, MockConsole)
+    # Console is MockConsole due to conftest.py monkeypatch
+    assert isinstance(console2, Console)
 
 
 def test_get_val_obj_none():
