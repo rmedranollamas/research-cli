@@ -141,3 +141,11 @@ def get_recent_tasks(limit: int) -> List[Tuple]:
             f"SELECT id, query, status, created_at, interaction_id FROM research_tasks ORDER BY created_at DESC LIMIT {limit}"
         )
         return cursor.fetchall()
+
+
+async def async_get_task(*args, **kwargs):
+    return await asyncio.to_thread(get_task, *args, **kwargs)
+
+
+async def async_get_recent_tasks(*args, **kwargs):
+    return await asyncio.to_thread(get_recent_tasks, *args, **kwargs)
