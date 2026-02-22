@@ -35,6 +35,14 @@ export RESEARCH_GEMINI_API_KEY="your-api-key"
 uv run research run "Your research query here"
 ```
 
+### Quick Research
+
+The `think` command is a shortcut to start a research task directly:
+
+```bash
+uv run think "How does quantum entanglement work?"
+```
+
 ### Managing Tasks
 
 List past research tasks:
@@ -60,6 +68,26 @@ The CLI can be configured via environment variables:
 - `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
 - `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`). The CLI uses exponential backoff starting from 1 second.
 - `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
+
+## Gemini CLI Extension
+
+This project is a [standardized Gemini CLI Extension](https://geminicli.com/docs/extensions/).
+
+### Installation
+
+Install it directly into your `gemini` CLI:
+
+```bash
+gemini extensions install https://github.com/rmedranollamas/research-cli
+```
+
+Or for local development:
+
+```bash
+gemini extensions link .
+```
+
+The extension uses the `RESEARCH_GEMINI_API_KEY` and `RESEARCH_MODEL` settings defined in `gemini-extension.json`.
 
 ## Agent Skill
 

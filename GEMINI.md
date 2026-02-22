@@ -8,6 +8,12 @@
 
 - **Deep Research**: Uses the `deep-research-pro-preview-12-2025` model via the **Gemini v1alpha Interactions API**. This allows for long-running research tasks with multi-step reasoning and tool use.
 
+### Gemini CLI Extension
+
+The repository includes a `gemini-extension.json` manifest, allowing it to be used as an extension for the [Gemini CLI](https://geminicli.com/).
+- **Slash Commands**: Supports `/research` via `commands/research.toml`.
+- **Skills**: Exposes the `gemini-research` skill via `skills/gemini-research/SKILL.md`.
+
 ### Performance Optimizations
 
 - **Lazy Loading**: Heavy dependencies such as `google-genai` and `rich` are lazily imported only when needed. This reduces CLI startup latency by approximately 90% for non-execution commands like `--help`, `version`, or `list`.

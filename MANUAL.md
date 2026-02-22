@@ -9,6 +9,7 @@ Research CLI is a specialized tool for performing deep research using the Gemini
 1. [Configuration](#configuration)
 1. [Basic Usage](#basic-usage)
 1. [Advanced Usage](#advanced-usage)
+1. [Gemini CLI Extension](#gemini-cli-extension)
 1. [Architecture & Workflow](#architecture--workflow)
 1. [Development & Building](#development--building)
 1. [Troubleshooting](#troubleshooting)
@@ -60,6 +61,14 @@ Download the latest binary for your OS and architecture from the [GitHub Release
 
 Rename the binary to `research` and move it to your PATH (e.g., `/usr/local/bin`).
 
+### Gemini CLI Extension (Modern)
+
+If you have the [Gemini CLI](https://geminicli.com/) installed, you can add this project as an extension:
+
+```bash
+gemini extensions install https://github.com/rmedranollamas/research-cli
+```
+
 ______________________________________________________________________
 
 ## Basic Usage
@@ -88,12 +97,28 @@ ______________________________________________________________________
 
 ## Configuration
 
-- **API Key**: Requires `RESEARCH_GEMINI_API_KEY` environment variable.
-- **Local History**: Tasks are stored in a SQLite database at `~/.research-cli/history.db`.
+Research CLI can be configured via environment variables:
+
+- **`RESEARCH_GEMINI_API_KEY`**: (Required) Your Google Gemini API key.
+- **`RESEARCH_MODEL`**: Gemini model for research (default: `deep-research-pro-preview-12-2025`).
+- **`RESEARCH_CONFIG_DIR`**: Root directory for configuration and history (default: `~/.research-cli`).
+- **`RESEARCH_DB_PATH`**: Path to the SQLite history database (default: `$RESEARCH_CONFIG_DIR/history.db`).
+- **`RESEARCH_POLL_INTERVAL`**: Maximum interval in seconds for polling interaction status (default: `10`).
+- **`GEMINI_API_BASE_URL`**: Optional custom base URL for the Gemini API.
 
 ______________________________________________________________________
 
 ## Advanced Usage
+
+### Quick Research Shortcut
+
+The `think` entry point allows you to start a research task without the `run` subcommand:
+
+```bash
+uv run think "Latest advancements in fusion energy"
+```
+
+This is equivalent to `uv run research run "Latest advancements in fusion energy"`.
 
 ### Specifying a Model
 
@@ -157,3 +182,25 @@ This is a standard warning from the `google-genai` SDK for the `v1alpha` API. It
 ### Interaction Stuck in `IN_PROGRESS`
 
 Deep research can take several minutes. The CLI will continue polling as long as the status is `IN_PROGRESS`.
+
+______________________________________________________________________
+
+## Gemini CLI Extension
+
+This repository is a compliant Gemini CLI extension.
+
+### Installation
+
+```bash
+gemini extensions install https://github.com/rmedranollamas/research-cli
+```
+
+### Slash Commands
+
+Once installed, the following slash commands are available in your `gemini` CLI:
+
+- **`/research <query>`**: Starts a deep research task using the `gemini-research` skill.
+
+### Agent Skills
+
+The extension provides the `gemini-research` skill, which AI agents can use to perform autonomous research tasks.
