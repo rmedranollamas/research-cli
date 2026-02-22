@@ -6,9 +6,13 @@ from .config import DEFAULT_MODEL, ResearchError, RESEARCH_API_KEY_VAR
 from .db import get_task, get_recent_tasks
 from .utils import get_console, truncate_query, save_report_to_file, print_report
 from .researcher import ResearchAgent
+from importlib import metadata
 
 # Try to get version from pyproject.toml or package metadata
-VERSION = "0.1.45"
+try:
+    VERSION = metadata.version("research-cli")
+except metadata.PackageNotFoundError:
+    VERSION = "0.1.45"
 
 
 def create_parser():
