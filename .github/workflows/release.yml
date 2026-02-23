@@ -62,8 +62,6 @@ jobs:
 
           echo "exe_path=dist/$EXE_NAME" >> $GITHUB_OUTPUT
           echo "exe_name=$EXE_NAME" >> $GITHUB_OUTPUT
-          echo "os_name=${OS_NAME}" >> $GITHUB_OUTPUT
-          echo "arch_name=${ARCH_NAME}" >> $GITHUB_OUTPUT
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -116,11 +114,14 @@ jobs:
               # Copy common files
               cp gemini-extension.json "$TEMP_DIR/"
               cp -r commands "$TEMP_DIR/"
-              cp -r skills "$TEMP_DIR/"
               
-              # Copy the binary and rename to 'research'
-              cp "binaries/research-${OS}-${ARCH}" "$TEMP_DIR/research"
-              chmod +x "$TEMP_DIR/research"
+              # Create the skill structure (compliant with agentskills.io)
+              mkdir -p "$TEMP_DIR/skills/gemini-research/scripts"
+              cp skills/gemini-research/SKILL.md "$TEMP_DIR/skills/gemini-research/"
+              
+              # Copy the binary and rename to 'research' inside scripts/
+              cp "binaries/research-${OS}-${ARCH}" "$TEMP_DIR/skills/gemini-research/scripts/research"
+              chmod +x "$TEMP_DIR/skills/gemini-research/scripts/research"
               
               # Create the archive
               tar -czf "release/$PKG_NAME" -C "$TEMP_DIR" .
@@ -130,10 +131,7 @@ jobs:
             done
           done
           
-          # Create a generic fallback (using linux-amd64 as baseline for source files)
-          # But for the generic fallback, we might not want to include a binary, 
-          # or just include the source. However, Gemini CLI expects a runnable extension.
-          # Let's provide a source-only one too as research-cli.tar.gz
+          # Create a generic fallback (source-only, but with skill structure)
           tar -czf "release/research-cli.tar.gz" gemini-extension.json commands skills README.md MANUAL.md LICENSE
 
       - name: Create Release
