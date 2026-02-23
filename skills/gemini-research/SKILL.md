@@ -2,7 +2,7 @@
 name: gemini-research
 description: Perform deep research on complex topics using the Gemini Interactions API. Use when the user needs in-depth information, technical analysis, or comprehensive reports on a specific topic. This skill leverages the Gemini Interactions API for multi-step reasoning and tool use.
 metadata:
-  version: "0.1.47"
+  version: "0.1.48"
 ---
 
 # Gemini Deep Research Skill

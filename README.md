@@ -6,9 +6,17 @@ Refer to the [Instruction Manual](MANUAL.md) for detailed setup and usage guides
 
 ## Installation
 
-### Quick Install (Binary)
+### As a Gemini CLI Extension (Recommended)
 
-The installation script securely downloads the latest release binary for your platform and verifies its integrity using SHA256 checksums.
+This is the fastest and most efficient way to install the tool. The Gemini CLI will automatically fetch the optimized, platform-specific binary from our latest release.
+
+```bash
+gemini extensions install rmedranollamas/research-cli
+```
+
+### Quick Install (Stand-alone Binary)
+
+Alternatively, you can use the installation script to download and verify the stand-alone binary:
 
 ```bash
 curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh
@@ -32,15 +40,13 @@ Set your `RESEARCH_GEMINI_API_KEY` and run a research task:
 
 ```bash
 export RESEARCH_GEMINI_API_KEY="your-api-key"
-uv run research run "Your research query here"
+research run "How does quantum entanglement work?"
 ```
 
-### Quick Research
-
-The `think` command is a shortcut to start a research task directly:
+If running from source:
 
 ```bash
-uv run think "How does quantum entanglement work?"
+uv run research run "How does quantum entanglement work?"
 ```
 
 ### Managing Tasks
@@ -48,13 +54,13 @@ uv run think "How does quantum entanglement work?"
 List past research tasks:
 
 ```bash
-uv run research list
+research list
 ```
 
 Show a specific report from history:
 
 ```bash
-uv run research show <ID>
+research show <ID>
 ```
 
 The CLI will stream the agent's reasoning (thoughts) in real-time and then display the final report in Markdown.
@@ -69,29 +75,11 @@ The CLI can be configured via environment variables:
 - `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`). The CLI uses exponential backoff starting from 1 second.
 - `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
 
-## Gemini CLI Extension
-
-This project is a [standardized Gemini CLI Extension](https://geminicli.com/docs/extensions/).
-
-### Installation
-
-Install it directly into your `gemini` CLI:
-
-```bash
-gemini extensions install https://github.com/rmedranollamas/research-cli
-```
-
-Or for local development:
-
-```bash
-gemini extensions link .
-```
-
-The extension uses the `RESEARCH_GEMINI_API_KEY` and `RESEARCH_MODEL` settings defined in `gemini-extension.json`.
-
 ## Agent Skill
 
 A [specification-compliant](https://agentskills.io/) agent skill is included in `skills/gemini-research/`. This allows AI agents to learn how to interact with this CLI autonomously.
+
+For developers and agents, the skill structure is strictly compliant with the [Agent Skills specification](https://agentskills.io/specification).
 
 ## Development
 
