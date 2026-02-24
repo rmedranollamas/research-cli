@@ -1,5 +1,5 @@
 import pytest
-from research_cli.utils import save_report_to_file, async_save_report_to_file, print_report
+from research_cli.utils import save_report_to_file, async_save_report_to_file
 
 def test_save_report_to_file_success(tmp_path):
     """Test that save_report_to_file successfully saves a report when the file doesn't exist."""
@@ -47,15 +47,6 @@ def test_save_report_to_file_custom_prefix(tmp_path, capsys):
     # MockConsole writes to sys.stdout. Check if custom_prefix and output_file are in the output
     assert custom_prefix in captured.out
     assert str(output_file) in captured.out
-
-def test_print_report(capsys):
-    """Test that print_report prints the report to the console."""
-    report_text = "Test Report"
-    print_report(f"# {report_text}")
-    captured = capsys.readouterr()
-    assert "=" * 40 in captured.out
-    # Check for rendered Markdown content in output
-    assert report_text in captured.out
 
 @pytest.mark.asyncio
 async def test_async_save_report_to_file(tmp_path):
