@@ -53,6 +53,7 @@ def save_report_to_file(
         return False
     with open(output_file, "w") as f:
         f.write(report)
+    # Print success message and return True
     console.print(f"[green]{success_prefix} {output_file}[/green]")
     return True
 
