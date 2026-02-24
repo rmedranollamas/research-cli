@@ -50,12 +50,12 @@ def test_save_report_to_file_custom_prefix(tmp_path, capsys):
 
 def test_print_report(capsys):
     """Test that print_report prints the report to the console."""
-    report = "# Test Report"
-    print_report(report)
+    report_text = "Test Report"
+    print_report(f"# {report_text}")
     captured = capsys.readouterr()
     assert "=" * 40 in captured.out
-    # Check for Markdown content in output
-    assert report in captured.out
+    # Check for rendered Markdown content in output
+    assert report_text in captured.out
 
 @pytest.mark.asyncio
 async def test_async_save_report_to_file(tmp_path):
