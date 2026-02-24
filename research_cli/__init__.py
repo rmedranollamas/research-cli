@@ -10,6 +10,8 @@ from .db import (
     update_task as update_task,
     async_save_task as async_save_task,
     async_update_task as async_update_task,
+    get_recent_tasks as get_recent_tasks,
+    async_get_recent_tasks as async_get_recent_tasks,
     init_db as init_db,
 )
 from .utils import (
