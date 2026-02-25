@@ -1,6 +1,7 @@
 import pytest
 from research_cli.utils import save_report_to_file, async_save_report_to_file
 
+
 def test_save_report_to_file_success(tmp_path):
     """Test that save_report_to_file successfully saves a report when the file doesn't exist."""
     report = "Test report content"
@@ -10,6 +11,7 @@ def test_save_report_to_file_success(tmp_path):
     assert result is True
     assert output_file.exists()
     assert output_file.read_text() == report
+
 
 def test_save_report_to_file_exists_no_force(tmp_path):
     """Test that save_report_to_file returns False when the file exists and force is False."""
@@ -23,6 +25,7 @@ def test_save_report_to_file_exists_no_force(tmp_path):
     # Content should not have changed
     assert output_file.read_text() == existing_content
 
+
 def test_save_report_to_file_exists_force(tmp_path):
     """Test that save_report_to_file overwrites the file when force is True."""
     report = "New report content"
@@ -35,18 +38,22 @@ def test_save_report_to_file_exists_force(tmp_path):
     # Content should have changed
     assert output_file.read_text() == report
 
+
 def test_save_report_to_file_custom_prefix(tmp_path, capsys):
     """Test that save_report_to_file uses the provided success_prefix."""
     report = "Test report content"
     custom_prefix = "SUCCESS: Report written to"
     output_file = tmp_path / "report.md"
 
-    result = save_report_to_file(report, str(output_file), force=False, success_prefix=custom_prefix)
+    result = save_report_to_file(
+        report, str(output_file), force=False, success_prefix=custom_prefix
+    )
     assert result is True
     captured = capsys.readouterr()
     # MockConsole writes to sys.stdout. Check if custom_prefix and output_file are in the output
     assert custom_prefix in captured.out
     assert str(output_file) in captured.out
+
 
 @pytest.mark.asyncio
 async def test_async_save_report_to_file(tmp_path):

@@ -26,9 +26,9 @@ except metadata.PackageNotFoundError:
             with open(pyproject_path, "rb") as f:
                 VERSION = tomllib.load(f)["project"]["version"]
         else:
-            VERSION = "0.1.48"
+            VERSION = "unknown"
     except (ImportError, FileNotFoundError, KeyError):
-        VERSION = "0.1.48"
+        VERSION = "unknown"
 
 
 def create_parser():

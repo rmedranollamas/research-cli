@@ -106,13 +106,13 @@ class MockColumn:
         pass
 
 
-sys.modules["rich.console"].Console = MockConsole
-sys.modules["rich.table"].Table = MockTable
-sys.modules["rich.panel"].Panel = MockPanel
-sys.modules["rich.markdown"].Markdown = MockMarkdown
-sys.modules["rich.progress"].Progress = MockProgress
-sys.modules["rich.progress"].SpinnerColumn = MockColumn
-sys.modules["rich.progress"].TextColumn = MockColumn
+sys.modules["rich.console"].Console = MockConsole  # type: ignore
+sys.modules["rich.table"].Table = MockTable  # type: ignore
+sys.modules["rich.panel"].Panel = MockPanel  # type: ignore
+sys.modules["rich.markdown"].Markdown = MockMarkdown  # type: ignore
+sys.modules["rich.progress"].Progress = MockProgress  # type: ignore
+sys.modules["rich.progress"].SpinnerColumn = MockColumn  # type: ignore
+sys.modules["rich.progress"].TextColumn = MockColumn  # type: ignore
 
 
 def wait_for_port(port, host="127.0.0.1", timeout=5.0):
@@ -155,7 +155,7 @@ def fake_server():
         raise RuntimeError("Fake server failed to start")
 
     os.environ["GEMINI_API_BASE_URL"] = "http://127.0.0.1:8001"
-    os.environ["GEMINI_API_KEY"] = "fake-key"
+    os.environ["RESEARCH_GEMINI_API_KEY"] = "fake-key"
 
     yield "http://127.0.0.1:8001"
 
@@ -171,6 +171,7 @@ def temp_db(monkeypatch):
         db_path = tmp.name
 
     monkeypatch.setenv("RESEARCH_DB_PATH", db_path)
+    monkeypatch.setenv("RESEARCH_GEMINI_API_KEY", "fake-key")
 
     import research_cli
     import research_cli.config

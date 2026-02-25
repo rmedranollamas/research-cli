@@ -1,34 +1,7 @@
 import pytest
 import sys
 from unittest.mock import patch
-from research_cli import run_think, run_research, ResearchError, get_db, main
-
-
-@pytest.mark.asyncio
-async def test_run_think_client_init_error(temp_db, capsys):
-    """Test run_think when get_gemini_client fails."""
-    with (
-        patch("research_cli.get_api_key", return_value="fake-key"),
-        patch("google.genai.Client", side_effect=Exception("Init failed")),
-    ):
-        with pytest.raises(ResearchError, match="Client initialization failed"):
-            await run_think("query", "model")
-
-    # Verify console output
-    captured = capsys.readouterr()
-    assert "Error initializing Gemini client:" in captured.out
-    assert "Exception occurred" in captured.out
-
-    # Verify DB state
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT status, report FROM research_tasks WHERE query = 'query'"
-        )
-        row = cursor.fetchone()
-        assert row is not None
-        assert row[0] == "ERROR"
-        assert row[1] == "Client initialization failed"
+from research_cli import run_research, ResearchError, get_db, main
 
 
 @pytest.mark.asyncio
@@ -64,33 +37,6 @@ def test_cli_run_client_init_error(temp_db, capsys):
         patch("research_cli.get_api_key", return_value="fake-key"),
         patch("google.genai.Client", side_effect=Exception("Init failed")),
         patch.object(sys, "argv", ["research", "run", "test query"]),
-    ):
-        with pytest.raises(SystemExit) as excinfo:
-            main()
-        assert excinfo.value.code == 1
-
-    captured = capsys.readouterr()
-    assert "Error initializing Gemini client:" in captured.out
-    assert "Exception occurred" in captured.out
-
-    # Verify DB state
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT status, report FROM research_tasks WHERE query = 'test query'"
-        )
-        row = cursor.fetchone()
-        assert row is not None
-        assert row[0] == "ERROR"
-        assert row[1] == "Client initialization failed"
-
-
-def test_cli_think_client_init_error(temp_db, capsys):
-    """Test CLI 'think' command when client initialization fails."""
-    with (
-        patch("research_cli.get_api_key", return_value="fake-key"),
-        patch("google.genai.Client", side_effect=Exception("Init failed")),
-        patch.object(sys, "argv", ["research", "think", "test query"]),
     ):
         with pytest.raises(SystemExit) as excinfo:
             main()

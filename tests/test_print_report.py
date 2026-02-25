@@ -1,6 +1,6 @@
-import pytest
 from unittest.mock import patch, MagicMock, call
 from research_cli.utils import print_report
+
 
 @patch("research_cli.utils.get_console")
 @patch("rich.markdown.Markdown")
@@ -20,13 +20,10 @@ def test_print_report_structure(MockMarkdown, mock_get_console):
 
     # 2. Verify console.print was called with separators and markdown instance
     separator = "\n" + "=" * 40 + "\n"
-    expected_calls = [
-        call(separator),
-        call(mock_md_instance),
-        call(separator)
-    ]
+    expected_calls = [call(separator), call(mock_md_instance), call(separator)]
     mock_console.print.assert_has_calls(expected_calls)
     assert mock_console.print.call_count == 3
+
 
 @patch("research_cli.utils.get_console")
 @patch("rich.markdown.Markdown")
@@ -39,6 +36,7 @@ def test_print_report_empty(MockMarkdown, mock_get_console):
 
     MockMarkdown.assert_called_once_with("")
     assert mock_console.print.call_count == 3
+
 
 @patch("research_cli.utils.get_console")
 @patch("rich.markdown.Markdown")
