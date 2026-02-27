@@ -64,7 +64,7 @@ jobs:
           echo "exe_name=$EXE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.build.outputs.exe_name }}
           path: ${{ steps.build.outputs.exe_path }}
