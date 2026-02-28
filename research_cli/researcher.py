@@ -47,8 +47,14 @@ class ResearchAgent:
     async def _poll_interaction(
         self, client: genai.Client, interaction_id: str, report_parts: List[str]
     ):
+        from rich.text import Text
+
         self.console.print(
-            f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
+            Text.assemble(
+                ("Stream ended without report. Polling interaction ", "yellow"),
+                (interaction_id, "bold yellow"),
+                ("...", "yellow"),
+            )
         )
         last_status = None
         try:
@@ -64,9 +70,14 @@ class ResearchAgent:
             try:
                 final_inter = await client.aio.interactions.get(id=interaction_id)
             except Exception as e:
-                if "500" in str(e) or "503" in str(e):
+                # Handle transient server errors (500, 503) during polling
+                err_str = str(e)
+                if "500" in err_str or "503" in err_str:
                     self.console.print(
-                        f"[dim]Transient API error ({e}), retrying in {current_interval}s...[/dim]"
+                        Text(
+                            f"Transient API error, retrying in {current_interval:.1f}s...",
+                            style="dim",
+                        )
                     )
                     await asyncio.sleep(current_interval)
                     current_interval = min(current_interval * 1.5, max_interval)
@@ -75,7 +86,7 @@ class ResearchAgent:
 
             status = get_val(final_inter, "status", "UNKNOWN").upper()
             if status != last_status:
-                self.console.print(f"[dim]Current status: {status}[/dim]")
+                self.console.print(Text(f"Current status: {status}", style="dim"))
                 last_status = status
 
             if status == "COMPLETED":
@@ -120,6 +131,7 @@ class ResearchAgent:
         self, client: genai.Client, file_paths: List[str]
     ) -> List[str]:
         from rich.progress import Progress, SpinnerColumn, TextColumn
+        from rich.text import Text
 
         uploaded_uris = []
         with Progress(
@@ -129,44 +141,61 @@ class ResearchAgent:
         ) as progress:
             for path in file_paths:
                 if not os.path.exists(path):
-                    self.console.print(f"[red]Error: File {path} not found.[/red]")
+                    self.console.print(
+                        Text.assemble(
+                            ("Error: File ", "red"),
+                            (path, "bold red"),
+                            (" not found.", "red"),
+                        )
+                    )
                     continue
 
-                task = progress.add_task(
-                    f"Uploading {os.path.basename(path)}...", total=None
-                )
-                # Note: Files API is not yet available in aio, using sync call in thread
-                file_obj = await asyncio.to_thread(client.files.upload, file=path)
-                progress.update(
-                    task, description=f"Processing {os.path.basename(path)}..."
-                )
+                filename = os.path.basename(path)
+                task = progress.add_task(f"Uploading {filename}...", total=None)
+                try:
+                    # Note: Files API is not yet available in aio, using sync call in thread
+                    file_obj = await asyncio.to_thread(client.files.upload, file=path)
+                    progress.update(task, description=f"Processing {filename}...")
 
-                file_uri = None
-                while True:
-                    file_status = await asyncio.to_thread(
-                        client.files.get, name=file_obj.name
-                    )  # type: ignore
-                    state = get_val(file_status, "state")
-                    state_name = get_val(state, "name") if state else "UNKNOWN"
+                    file_uri = None
+                    while True:
+                        file_status = await asyncio.to_thread(
+                            client.files.get, name=file_obj.name
+                        )  # type: ignore
+                        state = get_val(file_status, "state")
+                        state_name = get_val(state, "name") if state else "UNKNOWN"
 
-                    if state_name == "ACTIVE":
-                        file_uri = get_val(file_status, "uri")
-                        break
-                    elif state_name in ["FAILED", "DELETED"]:
-                        self.console.print(
-                            f"[red]Error: File {path} failed to process.[/red]"
+                        if state_name == "ACTIVE":
+                            file_uri = get_val(file_status, "uri")
+                            break
+                        elif state_name in ["FAILED", "DELETED"]:
+                            self.console.print(
+                                Text.assemble(
+                                    ("Error: File ", "red"),
+                                    (path, "bold red"),
+                                    (" failed to process.", "red"),
+                                )
+                            )
+                            break
+                        await asyncio.sleep(2)
+
+                    if file_uri:
+                        uploaded_uris.append(file_uri)
+                        progress.update(
+                            task,
+                            description=f"Uploaded {filename}",
+                            completed=True,
                         )
-                        break
-                    await asyncio.sleep(2)
-
-                if file_uri:
-                    uploaded_uris.append(file_uri)
-                    progress.update(
-                        task,
-                        description=f"Uploaded {os.path.basename(path)}",
-                        completed=True,
+                    else:
+                        progress.remove_task(task)
+                except Exception as e:
+                    self.console.print(
+                        Text.assemble(
+                            ("Error uploading ", "red"),
+                            (path, "bold red"),
+                            (f": {e}", "red"),
+                        )
                     )
-                else:
                     progress.remove_task(task)
 
         return uploaded_uris
@@ -229,7 +258,8 @@ class ResearchAgent:
                     thought = get_val(event, "thought")
                     if thought:
                         summary = get_val(thought, "summary") or get_val(
-                            thought, "text"
+                            thought,
+                            "text",
                         )
                         if verbose and summary:
                             self.console.print("> ", end="")
@@ -278,7 +308,7 @@ class ResearchAgent:
             return report_content
 
         await async_update_task(task_id, "FAILED")
-        self.console.print("[yellow]No content received.[/yellow]")
+        self.console.print(Text("No content received.", style="yellow"))
         return None
 
     async def run_research(
@@ -293,24 +323,29 @@ class ResearchAgent:
         verbose: bool = False,
     ):
         from rich.panel import Panel
+        from rich.text import Text
 
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
+        info_text = Text.assemble(
+            ("Query: ", "bold blue"),
+            (f"{query}\n", "white"),
+            ("Model: ", "bold blue"),
+            (f"{model_id}\n", "white"),
+        )
+        if parent_id:
+            info_text.append("Parent ID: ", style="bold blue")
+            info_text.append(f"{parent_id}\n", style="white")
+        if urls:
+            info_text.append("URLs: ", style="bold blue")
+            info_text.append(f"{', '.join(urls)}\n", style="white")
+        if files:
+            info_text.append("Files: ", style="bold blue")
+            info_text.append(f"{', '.join(files)}\n", style="white")
+
         self.console.print(
             Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n"
-                f"[bold blue]Model:[/bold blue] {model_id}"
-                + (
-                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
-                    if parent_id
-                    else ""
-                )
-                + (f"\n[bold blue]URLs:[/bold blue] {', '.join(urls)}" if urls else "")
-                + (
-                    f"\n[bold blue]Files:[/bold blue] {', '.join(files)}"
-                    if files
-                    else ""
-                ),
+                info_text,
                 title="Deep Research Starting",
             )
         )
@@ -379,18 +414,23 @@ class ResearchAgent:
         verbose: bool = False,
     ):
         from rich.panel import Panel
+        from rich.text import Text
 
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
+        info_text = Text.assemble(
+            ("Query: ", "bold blue"),
+            (f"{query}\n", "white"),
+            ("Model: ", "bold blue"),
+            (f"{model_id}\n", "white"),
+        )
+        if parent_id:
+            info_text.append("Parent ID: ", style="bold blue")
+            info_text.append(f"{parent_id}\n", style="white")
+
         self.console.print(
             Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n"
-                f"[bold blue]Model:[/bold blue] {model_id}"
-                + (
-                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
-                    if parent_id
-                    else ""
-                ),
+                info_text,
                 title="Fast Search Starting",
             )
         )
@@ -416,10 +456,15 @@ class ResearchAgent:
         self, prompt: str, output_path: str, model_id: str, force: bool
     ):
         from rich.progress import Progress, SpinnerColumn, TextColumn
+        from rich.text import Text
 
         if os.path.exists(output_path) and not force:
             self.console.print(
-                f"[red]Error: Output file {output_path} already exists. Use --force to overwrite.[/red]"
+                Text.assemble(
+                    ("Error: Output file ", "red"),
+                    (output_path, "bold red"),
+                    (" already exists. Use --force to overwrite.", "red"),
+                )
             )
             return
 
@@ -432,21 +477,30 @@ class ResearchAgent:
         ) as progress:
             progress.add_task(f"Generating image with {model_id}...", total=None)
 
-            # Interactions API for image generation
-            interaction = await client.aio.interactions.create(  # type: ignore
-                model=model_id, input=prompt, response_modalities=cast(Any, ["IMAGE"])
-            )
+            try:
+                # Interactions API for image generation
+                interaction = await client.aio.interactions.create(  # type: ignore
+                    model=model_id,
+                    input=prompt,
+                    response_modalities=cast(Any, ["IMAGE"]),
+                )
 
-            outputs = get_val(interaction, "outputs", [])
-            for output in outputs:
-                if get_val(output, "type") == "image":
-                    data = get_val(output, "data")
-                    if data:
-                        with open(output_path, "wb") as f:
-                            f.write(base64.b64decode(data))
-                        self.console.print(
-                            f"[green]Image saved to {output_path}[/green]"
-                        )
-                        return
+                outputs = get_val(interaction, "outputs", [])
+                for output in outputs:
+                    if get_val(output, "type") == "image":
+                        data = get_val(output, "data")
+                        if data:
+                            with open(output_path, "wb") as f:
+                                f.write(base64.b64decode(data))
+                            self.console.print(
+                                Text.assemble(
+                                    ("Image saved to ", "green"),
+                                    (output_path, "bold green"),
+                                )
+                            )
+                            return
 
-            self.console.print("[yellow]No image was generated.[/yellow]")
+                self.console.print(Text("No image was generated.", style="yellow"))
+            except Exception as e:
+                self.console.print(Text(f"Error generating image: {e}", style="red"))
+                self.console.print_exception()
