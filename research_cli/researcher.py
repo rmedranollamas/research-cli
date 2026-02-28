@@ -4,7 +4,7 @@ from typing import List, Optional, Set, Any
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import get_console, get_val, print_report
-from .config import POLL_INTERVAL_DEFAULT, ResearchError
+from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 
 
 class ResearchAgent:
@@ -101,6 +101,21 @@ class ResearchAgent:
             current_interval = min(current_interval * 1.5, max_interval)
         return "".join(report_parts)
 
+    def _get_tools(
+        self, use_search: bool = False, urls: Optional[List[str]] = None
+    ) -> List[dict[str, Any]]:
+        tools = []
+        if use_search:
+            tools.append({"type": "google_search"})
+        if urls:
+            tools.append({"type": "url_context"})
+
+        for i, mcp_url in enumerate(RESEARCH_MCP_SERVERS):
+            tools.append(
+                {"type": "mcp_server", "name": f"mcp_server_{i}", "url": mcp_url}
+            )
+        return tools
+
     async def run_research(
         self,
         query: str,
@@ -145,11 +160,7 @@ class ResearchAgent:
         background_tasks = set()
 
         # Build tools
-        tools = []
-        if use_search:
-            tools.append({"type": "google_search"})
-        if urls:
-            tools.append({"type": "url_context"})
+        tools = self._get_tools(use_search=use_search, urls=urls)
 
         # Build agent_config
         agent_config: dict[str, Any] = {
@@ -310,7 +321,7 @@ class ResearchAgent:
                 model=model_id,
                 input=query,
                 stream=True,
-                tools=[{"type": "google_search"}],
+                tools=self._get_tools(use_search=True),
                 previous_interaction_id=parent_id,
             )
 
