@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import List, Optional, Set, Any
+from typing import List, Optional, Set, Any, Dict
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import get_console, get_val, print_report
@@ -27,8 +27,6 @@ class ResearchAgent:
         try:
             return genai.Client(api_key=self.api_key, http_options=http_options)  # type: ignore
         except Exception:
-            # Note: This doesn't update the task because it doesn't know the task_id
-            # The caller should handle task update
             raise ResearchError("Client initialization failed")
 
     async def _handle_error(
@@ -37,7 +35,7 @@ class ResearchAgent:
         prefix: str,
         db_msg: str,
         inter_id: Optional[str] = None,
-        bg_tasks: Optional[Set] = None,
+        bg_tasks: Optional[Set[asyncio.Task]] = None,
     ):
         self.console.print(f"[red]{prefix}:[/red]")
         self.console.print_exception()
@@ -65,7 +63,6 @@ class ResearchAgent:
             try:
                 final_inter = await client.aio.interactions.get(id=interaction_id)
             except Exception as e:
-                # Handle transient server errors (500, 503) during polling
                 if "500" in str(e) or "503" in str(e):
                     self.console.print(
                         f"[dim]Transient API error ({e}), retrying in {current_interval}s...[/dim]"
@@ -102,7 +99,9 @@ class ResearchAgent:
         return "".join(report_parts)
 
     def _get_tools(
-        self, use_search: bool = False, urls: Optional[List[str]] = None
+        self,
+        use_search: bool = False,
+        urls: Optional[List[str]] = None,
     ) -> List[dict[str, Any]]:
         tools = []
         if use_search:
@@ -116,20 +115,17 @@ class ResearchAgent:
             )
         return tools
 
-    async def run_research(
+    async def _run_interaction(
         self,
+        task_id: int,
         query: str,
-        model_id: str,
-        parent_id: Optional[str] = None,
-        urls: Optional[List[str]] = None,
-        use_search: bool = True,
-        thinking_level: Optional[str] = None,
+        interaction_params: Dict[str, Any],
         verbose: bool = False,
-    ):
-        from rich.panel import Panel
+        error_prefix: str = "Error during research",
+        error_msg: str = "Execution failed",
+    ) -> Optional[str]:
+        from rich.text import Text
         from rich.progress import Progress, SpinnerColumn, TextColumn
-
-        task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
         try:
             client = self.get_client()
@@ -141,66 +137,20 @@ class ResearchAgent:
             )
             raise ResearchError("Client initialization failed")
 
-        self.console.print(
-            Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n"
-                f"[bold blue]Model:[/bold blue] {model_id}"
-                + (
-                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
-                    if parent_id
-                    else ""
-                )
-                + (f"\n[bold blue]URLs:[/bold blue] {', '.join(urls)}" if urls else ""),
-                title="Deep Research Starting",
-            )
-        )
-
         report_parts: List[str] = []
         interaction_id = None
-        background_tasks = set()
-
-        # Build tools
-        tools = self._get_tools(use_search=use_search, urls=urls)
-
-        # Build agent_config
-        agent_config: dict[str, Any] = {
-            "type": "deep-research",
-            "thinking_summaries": "auto",
-        }
-        if thinking_level:
-            agent_config["thinking_level"] = thinking_level
-
-        # Build input
-        interaction_input: List[dict[str, Any]] = [
-            {
-                "role": "user",
-                "content": [{"type": "text", "text": query}],
-            }
-        ]
-        if urls:
-            for url in urls:
-                interaction_input[0]["content"].append(
-                    {"type": "url_context", "uri": url}
-                )
+        background_tasks: Set[asyncio.Task] = set()
 
         try:
             # We use type: ignore because Interactions API has complex overloads that Ty struggles with
-            stream = await client.aio.interactions.create(  # type: ignore
-                agent=model_id,
-                input=interaction_input,
-                background=True,
-                stream=True,
-                agent_config=agent_config,
-                tools=tools if tools else None,
-                previous_interaction_id=parent_id,
-            )
+            stream = await client.aio.interactions.create(**interaction_params)  # type: ignore
 
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 console=self.console,
             ) as progress:
-                task = progress.add_task("Initializing...", total=None)
+                progress_task = progress.add_task("Initializing...", total=None)
                 async for event in stream:
                     inter = get_val(event, "interaction")
                     if inter and not interaction_id:
@@ -216,8 +166,8 @@ class ResearchAgent:
                             background_tasks.add(job)
                             job.add_done_callback(background_tasks.discard)
                             progress.update(
-                                task,
-                                description=f"Researching (ID: {interaction_id})...",
+                                progress_task,
+                                description=f"Processing (ID: {interaction_id})...",
                             )
 
                     thought = get_val(event, "thought")
@@ -226,18 +176,13 @@ class ResearchAgent:
                             thought, "text"
                         )
                         if verbose and summary:
-                            self.console.print(
-                                f"[italic grey]> {summary}[/italic grey]"
-                            )
+                            self.console.print("> ", end="")
+                            self.console.print(Text(summary, style="italic grey"))
 
-                        desc = (
-                            f"[italic grey]{summary}[/italic grey]"
-                            if summary
-                            else "Thinking..."
-                        )
+                        desc_text = summary if summary else "Thinking..."
                         progress.update(
-                            task,
-                            description=desc,
+                            progress_task,
+                            description=f"[italic grey]{desc_text}[/italic grey]",
                         )
 
                     content = get_val(event, "content")
@@ -248,7 +193,9 @@ class ResearchAgent:
                             if text:
                                 report_parts.append(text)
 
-                progress.update(task, description="Stream finished.", completed=True)
+                progress.update(
+                    progress_task, description="Stream finished.", completed=True
+                )
 
             if background_tasks:
                 await asyncio.gather(*background_tasks, return_exceptions=True)
@@ -262,8 +209,8 @@ class ResearchAgent:
         except Exception:
             await self._handle_error(
                 task_id,
-                "Error during research",
-                "Research execution failed",
+                error_prefix,
+                error_msg,
                 interaction_id,
                 background_tasks,
             )
@@ -275,8 +222,74 @@ class ResearchAgent:
             return report_content
 
         await async_update_task(task_id, "FAILED")
-        self.console.print("[yellow]No report content received.[/yellow]")
+        self.console.print("[yellow]No content received.[/yellow]")
         return None
+
+    async def run_research(
+        self,
+        query: str,
+        model_id: str,
+        parent_id: Optional[str] = None,
+        urls: Optional[List[str]] = None,
+        use_search: bool = True,
+        thinking_level: Optional[str] = None,
+        verbose: bool = False,
+    ):
+        from rich.panel import Panel
+
+        task_id = await async_save_task(query, model_id, parent_id=parent_id)
+
+        self.console.print(
+            Panel(
+                f"[bold blue]Query:[/bold blue] {query}\n"
+                f"[bold blue]Model:[/bold blue] {model_id}"
+                + (
+                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
+                    if parent_id
+                    else ""
+                )
+                + (f"\n[bold blue]URLs:[/bold blue] {', '.join(urls)}" if urls else ""),
+                title="Deep Research Starting",
+            )
+        )
+
+        agent_config: dict[str, Any] = {
+            "type": "deep-research",
+            "thinking_summaries": "auto",
+        }
+        if thinking_level:
+            agent_config["thinking_level"] = thinking_level
+
+        interaction_input: List[dict[str, Any]] = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": query}],
+            }
+        ]
+        if urls:
+            for url in urls:
+                interaction_input[0]["content"].append(
+                    {"type": "url_context", "uri": url}
+                )
+
+        params = {
+            "agent": model_id,
+            "input": interaction_input,
+            "background": True,
+            "stream": True,
+            "agent_config": agent_config,
+            "tools": self._get_tools(use_search=use_search, urls=urls) or None,
+            "previous_interaction_id": parent_id,
+        }
+
+        return await self._run_interaction(
+            task_id,
+            query,
+            params,
+            verbose=verbose,
+            error_prefix="Error during research",
+            error_msg="Research execution failed",
+        )
 
     async def run_search(
         self,
@@ -288,16 +301,6 @@ class ResearchAgent:
         from rich.panel import Panel
 
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
-
-        try:
-            client = self.get_client()
-        except Exception:
-            await self._handle_error(
-                task_id,
-                "Error initializing Gemini client",
-                "Client initialization failed",
-            )
-            raise ResearchError("Client initialization failed")
 
         self.console.print(
             Panel(
@@ -312,58 +315,19 @@ class ResearchAgent:
             )
         )
 
-        report_parts: List[str] = []
-        interaction_id = None
+        params = {
+            "model": model_id,
+            "input": query,
+            "stream": True,
+            "tools": self._get_tools(use_search=True),
+            "previous_interaction_id": parent_id,
+        }
 
-        try:
-            # We use type: ignore because Interactions API has complex overloads that Ty struggles with
-            stream = await client.aio.interactions.create(  # type: ignore
-                model=model_id,
-                input=query,
-                stream=True,
-                tools=self._get_tools(use_search=True),
-                previous_interaction_id=parent_id,
-            )
-
-            async for event in stream:
-                inter = get_val(event, "interaction")
-                if inter and not interaction_id:
-                    interaction_id = get_val(inter, "id")
-                    if interaction_id:
-                        await async_update_task(
-                            task_id, "IN_PROGRESS", interaction_id=interaction_id
-                        )
-
-                thought = get_val(event, "thought")
-                if thought:
-                    summary = get_val(thought, "summary") or get_val(thought, "text")
-                    if verbose and summary:
-                        self.console.print(f"[italic grey]> {summary}[/italic grey]")
-
-                content = get_val(event, "content")
-                if content:
-                    parts = get_val(content, "parts", [])
-                    for part in parts:
-                        text = get_val(part, "text")
-                        if text:
-                            report_parts.append(text)
-
-            report_content = "".join(report_parts)
-
-        except Exception:
-            await self._handle_error(
-                task_id,
-                "Error during search",
-                "Search execution failed",
-                interaction_id,
-            )
-            return None
-
-        if report_content:
-            await async_update_task(task_id, "COMPLETED", report_content)
-            print_report(report_content)
-            return report_content
-
-        await async_update_task(task_id, "FAILED")
-        self.console.print("[yellow]No search content received.[/yellow]")
-        return None
+        return await self._run_interaction(
+            task_id,
+            query,
+            params,
+            verbose=verbose,
+            error_prefix="Error during search",
+            error_msg="Search execution failed",
+        )

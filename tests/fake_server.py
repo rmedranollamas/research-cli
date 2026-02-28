@@ -2,8 +2,6 @@ import asyncio
 import json
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from typing import Optional
 
 app = FastAPI()
 
@@ -11,23 +9,33 @@ app = FastAPI()
 interactions = {}
 
 
-class AgentInteractionRequest(BaseModel):
-    input: str
-    background: bool = True
-    agent_config: Optional[dict] = None
-
-
 @app.post("/v1alpha/interactions")
 async def create_interaction(request: Request):
     print("DEBUG: Received request to create interaction")
     body = await request.json()
     interaction_id = f"int_{len(interactions) + 1}"
-    is_slow = "slow" in body.get("input", "").lower()
+
+    # Handle both string input and Turn list input
+    raw_input = body.get("input", "")
+    if isinstance(raw_input, list) and len(raw_input) > 0:
+        # Extract text from Turn list if present
+        turn = raw_input[0]
+        content = turn.get("content", [])
+        if isinstance(content, list):
+            input_text = " ".join(
+                [p.get("text", "") for p in content if p.get("type") == "text"]
+            )
+        else:
+            input_text = str(content)
+    else:
+        input_text = str(raw_input)
+
+    is_slow = "slow" in input_text.lower()
 
     interactions[interaction_id] = {
         "id": interaction_id,
         "status": "IN_PROGRESS",
-        "query": body.get("input"),
+        "query": input_text,
         "thoughts": ["Initial thought..."],
         "content": "Finished content.",
         "outputs": [{"text": "Finished content."}],

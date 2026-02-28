@@ -38,6 +38,7 @@ def print_report(report: str):
 
     console = get_console()
     console.print("\n" + "=" * 40 + "\n")
+    # For Markdown, rich handles it, but for raw text we use Text(markup=False)
     console.print(Markdown(report))
     console.print("\n" + "=" * 40 + "\n")
 
