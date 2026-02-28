@@ -159,9 +159,11 @@ class ResearchAgent:
 
                     file_uri = None
                     while True:
+                        # Ty helper to avoid None name issue
+                        name = cast(str, file_obj.name)
                         file_status = await asyncio.to_thread(
-                            client.files.get, name=file_obj.name
-                        )  # type: ignore
+                            client.files.get, name=name
+                        )
                         state = get_val(file_status, "state")
                         state_name = get_val(state, "name") if state else "UNKNOWN"
 
@@ -227,8 +229,10 @@ class ResearchAgent:
         background_tasks: Set[asyncio.Task] = set()
 
         try:
-            # We use type: ignore because Interactions API has complex overloads that Ty struggles with
-            stream = await client.aio.interactions.create(**interaction_params)  # type: ignore
+            # We use cast(Any) because Interactions API has complex overloads that Ty struggles with
+            stream = await cast(Any, client.aio.interactions.create)(
+                **interaction_params
+            )
 
             with Progress(
                 SpinnerColumn(),
@@ -369,23 +373,26 @@ class ResearchAgent:
             "type": "deep-research",
             "thinking_summaries": "auto",
         }
-        if thinking_level:
-            agent_config["thinking_level"] = thinking_level
+
+        # Workaround for Interactions API current limitations with direct URL/File context:
+        # We append them to the query so the model can fetch them via tools if enabled.
+        modified_query = query
+        if urls:
+            modified_query += (
+                "\n\nPlease use the following URLs as context:\n" + "\n".join(urls)
+            )
+        if file_uris:
+            modified_query += (
+                "\n\nPlease use the following uploaded files as context:\n"
+                + "\n".join(file_uris)
+            )
 
         interaction_input: List[dict[str, Any]] = [
             {
                 "role": "user",
-                "content": [{"type": "text", "text": query}],
+                "content": [{"type": "text", "text": modified_query}],
             }
         ]
-        if urls:
-            for url in urls:
-                interaction_input[0]["content"].append(
-                    {"type": "url_context", "uri": url}
-                )
-        if file_uris:
-            for uri in file_uris:
-                interaction_input[0]["content"].append({"type": "file", "uri": uri})
 
         params = {
             "agent": model_id,
@@ -479,7 +486,7 @@ class ResearchAgent:
 
             try:
                 # Interactions API for image generation
-                interaction = await client.aio.interactions.create(  # type: ignore
+                interaction = await cast(Any, client.aio.interactions.create)(
                     model=model_id,
                     input=prompt,
                     response_modalities=cast(Any, ["IMAGE"]),
