@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Any
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import get_console, get_val, print_report
@@ -18,14 +18,14 @@ class ResearchAgent:
         api_version: str = "v1alpha",
         timeout: Optional[int] = None,
     ) -> genai.Client:
-        http_options = {"api_version": api_version}
+        http_options: Any = {"api_version": api_version}
         if timeout is not None:
             http_options["timeout"] = timeout
         if self.base_url:
             http_options["base_url"] = self.base_url
 
         try:
-            return genai.Client(api_key=self.api_key, http_options=http_options)
+            return genai.Client(api_key=self.api_key, http_options=http_options)  # type: ignore
         except Exception:
             # Note: This doesn't update the task because it doesn't know the task_id
             # The caller should handle task update
@@ -102,7 +102,13 @@ class ResearchAgent:
         return "".join(report_parts)
 
     async def run_research(
-        self, query: str, model_id: str, parent_id: Optional[str] = None
+        self,
+        query: str,
+        model_id: str,
+        parent_id: Optional[str] = None,
+        urls: Optional[List[str]] = None,
+        use_search: bool = True,
+        thinking_level: Optional[str] = None,
     ):
         from rich.panel import Panel
         from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -121,7 +127,14 @@ class ResearchAgent:
 
         self.console.print(
             Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n[bold blue]Model:[/bold blue] {model_id}",
+                f"[bold blue]Query:[/bold blue] {query}\n"
+                f"[bold blue]Model:[/bold blue] {model_id}"
+                + (
+                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
+                    if parent_id
+                    else ""
+                )
+                + (f"\n[bold blue]URLs:[/bold blue] {', '.join(urls)}" if urls else ""),
                 title="Deep Research Starting",
             )
         )
@@ -130,13 +143,42 @@ class ResearchAgent:
         interaction_id = None
         background_tasks = set()
 
+        # Build tools
+        tools = []
+        if use_search:
+            tools.append({"type": "google_search"})
+        if urls:
+            tools.append({"type": "url_context"})
+
+        # Build agent_config
+        agent_config: dict[str, Any] = {
+            "type": "deep-research",
+            "thinking_summaries": "auto",
+        }
+        if thinking_level:
+            agent_config["thinking_level"] = thinking_level
+
+        # Build input as a Turn list for maximum compatibility
+        interaction_input: List[dict[str, Any]] = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": query}],
+            }
+        ]
+        if urls:
+            for url in urls:
+                interaction_input[0]["content"].append(
+                    {"type": "url_context", "uri": url}
+                )
+
         try:
             stream = await client.aio.interactions.create(
                 agent=model_id,
-                input=query,
+                input=interaction_input,
                 background=True,
                 stream=True,
-                agent_config={"type": "deep-research", "thinking_summaries": "auto"},
+                agent_config=agent_config,
+                tools=tools if tools else None,  # type: ignore
                 previous_interaction_id=parent_id,
             )
 
