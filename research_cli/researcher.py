@@ -1,6 +1,7 @@
 import asyncio
 import os
-from typing import List, Optional, Set, Any, Dict
+import base64
+from typing import List, Optional, Set, Any, Dict, cast
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import get_console, get_val, print_report
@@ -114,6 +115,61 @@ class ResearchAgent:
                 {"type": "mcp_server", "name": f"mcp_server_{i}", "url": mcp_url}
             )
         return tools
+
+    async def _upload_files(
+        self, client: genai.Client, file_paths: List[str]
+    ) -> List[str]:
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+
+        uploaded_uris = []
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console,
+        ) as progress:
+            for path in file_paths:
+                if not os.path.exists(path):
+                    self.console.print(f"[red]Error: File {path} not found.[/red]")
+                    continue
+
+                task = progress.add_task(
+                    f"Uploading {os.path.basename(path)}...", total=None
+                )
+                # Note: Files API is not yet available in aio, using sync call in thread
+                file_obj = await asyncio.to_thread(client.files.upload, file=path)
+                progress.update(
+                    task, description=f"Processing {os.path.basename(path)}..."
+                )
+
+                file_uri = None
+                while True:
+                    file_status = await asyncio.to_thread(
+                        client.files.get, name=file_obj.name
+                    )  # type: ignore
+                    state = get_val(file_status, "state")
+                    state_name = get_val(state, "name") if state else "UNKNOWN"
+
+                    if state_name == "ACTIVE":
+                        file_uri = get_val(file_status, "uri")
+                        break
+                    elif state_name in ["FAILED", "DELETED"]:
+                        self.console.print(
+                            f"[red]Error: File {path} failed to process.[/red]"
+                        )
+                        break
+                    await asyncio.sleep(2)
+
+                if file_uri:
+                    uploaded_uris.append(file_uri)
+                    progress.update(
+                        task,
+                        description=f"Uploaded {os.path.basename(path)}",
+                        completed=True,
+                    )
+                else:
+                    progress.remove_task(task)
+
+        return uploaded_uris
 
     async def _run_interaction(
         self,
@@ -231,6 +287,7 @@ class ResearchAgent:
         model_id: str,
         parent_id: Optional[str] = None,
         urls: Optional[List[str]] = None,
+        files: Optional[List[str]] = None,
         use_search: bool = True,
         thinking_level: Optional[str] = None,
         verbose: bool = False,
@@ -248,10 +305,30 @@ class ResearchAgent:
                     if parent_id
                     else ""
                 )
-                + (f"\n[bold blue]URLs:[/bold blue] {', '.join(urls)}" if urls else ""),
+                + (f"\n[bold blue]URLs:[/bold blue] {', '.join(urls)}" if urls else "")
+                + (
+                    f"\n[bold blue]Files:[/bold blue] {', '.join(files)}"
+                    if files
+                    else ""
+                ),
                 title="Deep Research Starting",
             )
         )
+
+        try:
+            client = self.get_client()
+        except Exception:
+            await self._handle_error(
+                task_id,
+                "Error initializing Gemini client",
+                "Client initialization failed",
+            )
+            raise ResearchError("Client initialization failed")
+
+        # Handle file uploads
+        file_uris = []
+        if files:
+            file_uris = await self._upload_files(client, files)
 
         agent_config: dict[str, Any] = {
             "type": "deep-research",
@@ -271,6 +348,9 @@ class ResearchAgent:
                 interaction_input[0]["content"].append(
                     {"type": "url_context", "uri": url}
                 )
+        if file_uris:
+            for uri in file_uris:
+                interaction_input[0]["content"].append({"type": "file", "uri": uri})
 
         params = {
             "agent": model_id,
@@ -324,10 +404,49 @@ class ResearchAgent:
         }
 
         return await self._run_interaction(
-            task_id,
-            query,
-            params,
-            verbose=verbose,
-            error_prefix="Error during search",
-            error_msg="Search execution failed",
+            task_id, query, params, verbose=verbose, error_prefix="Error during search"
         )
+
+    async def get_status(self, interaction_id: str) -> Optional[str]:
+        client = self.get_client()
+        report_parts: List[str] = []
+        return await self._poll_interaction(client, interaction_id, report_parts)
+
+    async def generate_image(
+        self, prompt: str, output_path: str, model_id: str, force: bool
+    ):
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+
+        if os.path.exists(output_path) and not force:
+            self.console.print(
+                f"[red]Error: Output file {output_path} already exists. Use --force to overwrite.[/red]"
+            )
+            return
+
+        client = self.get_client()
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console,
+        ) as progress:
+            progress.add_task(f"Generating image with {model_id}...", total=None)
+
+            # Interactions API for image generation
+            interaction = await client.aio.interactions.create(  # type: ignore
+                model=model_id, input=prompt, response_modalities=cast(Any, ["IMAGE"])
+            )
+
+            outputs = get_val(interaction, "outputs", [])
+            for output in outputs:
+                if get_val(output, "type") == "image":
+                    data = get_val(output, "data")
+                    if data:
+                        with open(output_path, "wb") as f:
+                            f.write(base64.b64decode(data))
+                        self.console.print(
+                            f"[green]Image saved to {output_path}[/green]"
+                        )
+                        return
+
+            self.console.print("[yellow]No image was generated.[/yellow]")

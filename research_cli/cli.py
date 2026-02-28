@@ -61,6 +61,12 @@ def create_parser():
         help="Include URL in context (can be repeated)",
     )
     run_parser.add_argument(
+        "--file",
+        action="append",
+        dest="files",
+        help="Include local file in context (can be repeated)",
+    )
+    run_parser.add_argument(
         "--thinking",
         choices=["minimal", "low", "medium", "high"],
         help="Thinking level (for supported models)",
@@ -83,6 +89,33 @@ def create_parser():
     search_parser.add_argument("--parent", help="Previous interaction ID")
     search_parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show reasoning thoughts"
+    )
+
+    # Status command
+    status_parser = subparsers.add_parser(
+        "status", help="Check status of a research task by Interaction ID"
+    )
+    status_parser.add_argument("interaction_id", help="Interaction ID to check")
+    status_parser.add_argument(
+        "--output", "-o", help="Save report to file if completed"
+    )
+    status_parser.add_argument(
+        "--force", "-f", action="store_true", help="Overwrite existing file"
+    )
+
+    # Image generation command
+    image_parser = subparsers.add_parser(
+        "generate-image", help="Generate an image from a prompt"
+    )
+    image_parser.add_argument("prompt", help="The image prompt")
+    image_parser.add_argument(
+        "--output", "-o", default="generated_image.png", help="Output file path"
+    )
+    image_parser.add_argument(
+        "--force", "-f", action="store_true", help="Overwrite existing file"
+    )
+    image_parser.add_argument(
+        "--model", default="gemini-3-pro-image-preview", help="Model ID"
     )
 
     # List command
@@ -114,6 +147,7 @@ async def handle_run(args, agent: ResearchAgent, parser):
         args.model,
         parent_id=args.parent,
         urls=args.urls,
+        files=args.files,
         use_search=args.use_search,
         thinking_level=args.thinking,
         verbose=args.verbose,
@@ -140,6 +174,16 @@ async def handle_search(args, agent: ResearchAgent, parser):
     )
     if report and args.output:
         await async_save_report_to_file(report, args.output, args.force)
+
+
+async def handle_status(args, agent: ResearchAgent):
+    report = await agent.get_status(args.interaction_id)
+    if report and args.output:
+        await async_save_report_to_file(report, args.output, args.force)
+
+
+async def handle_generate_image(args, agent: ResearchAgent):
+    await agent.generate_image(args.prompt, args.output, args.model, args.force)
 
 
 async def handle_list():
@@ -202,7 +246,7 @@ async def main_async():
     parser, script_name = create_parser()
     args = parser.parse_args()
 
-    if args.command in ["run", "search"] or (
+    if args.command in ["run", "search", "status", "generate-image"] or (
         not args.command and len(sys.argv) > 1 and not sys.argv[1].startswith("-")
     ):
         try:
@@ -215,6 +259,10 @@ async def main_async():
                 await handle_run(args, agent, parser)
             elif args.command == "search":
                 await handle_search(args, agent, parser)
+            elif args.command == "status":
+                await handle_status(args, agent)
+            elif args.command == "generate-image":
+                await handle_generate_image(args, agent)
             else:
                 query = sys.argv[1]
                 await agent.run_research(query, DEFAULT_MODEL)
