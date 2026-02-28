@@ -6,8 +6,7 @@
     {
       "name": "Gemini API Key",
       "description": "API Key with v1alpha/Interactions access",
-      "envVar": "RESEARCH_GEMINI_API_KEY",
-      "sensitive": true
+      "envVar": "RESEARCH_GEMINI_API_KEY"
     },
     {
       "name": "Research Model",
