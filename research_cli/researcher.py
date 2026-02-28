@@ -109,6 +109,7 @@ class ResearchAgent:
         urls: Optional[List[str]] = None,
         use_search: bool = True,
         thinking_level: Optional[str] = None,
+        verbose: bool = False,
     ):
         from rich.panel import Panel
         from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -158,7 +159,7 @@ class ResearchAgent:
         if thinking_level:
             agent_config["thinking_level"] = thinking_level
 
-        # Build input as a Turn list for maximum compatibility
+        # Build input
         interaction_input: List[dict[str, Any]] = [
             {
                 "role": "user",
@@ -172,13 +173,14 @@ class ResearchAgent:
                 )
 
         try:
-            stream = await client.aio.interactions.create(
+            # We use type: ignore because Interactions API has complex overloads that Ty struggles with
+            stream = await client.aio.interactions.create(  # type: ignore
                 agent=model_id,
                 input=interaction_input,
                 background=True,
                 stream=True,
                 agent_config=agent_config,
-                tools=tools if tools else None,  # type: ignore
+                tools=tools if tools else None,
                 previous_interaction_id=parent_id,
             )
 
@@ -209,10 +211,23 @@ class ResearchAgent:
 
                     thought = get_val(event, "thought")
                     if thought:
-                        progress.update(
-                            task, description=f"[italic grey]{thought}[/italic grey]"
+                        summary = get_val(thought, "summary") or get_val(
+                            thought, "text"
                         )
-                        self.console.print(f"[italic grey]> {thought}[/italic grey]")
+                        if verbose and summary:
+                            self.console.print(
+                                f"[italic grey]> {summary}[/italic grey]"
+                            )
+
+                        desc = (
+                            f"[italic grey]{summary}[/italic grey]"
+                            if summary
+                            else "Thinking..."
+                        )
+                        progress.update(
+                            task,
+                            description=desc,
+                        )
 
                     content = get_val(event, "content")
                     if content:
@@ -250,4 +265,94 @@ class ResearchAgent:
 
         await async_update_task(task_id, "FAILED")
         self.console.print("[yellow]No report content received.[/yellow]")
+        return None
+
+    async def run_search(
+        self,
+        query: str,
+        model_id: str = "gemini-2.0-flash",
+        parent_id: Optional[str] = None,
+        verbose: bool = False,
+    ):
+        from rich.panel import Panel
+
+        task_id = await async_save_task(query, model_id, parent_id=parent_id)
+
+        try:
+            client = self.get_client()
+        except Exception:
+            await self._handle_error(
+                task_id,
+                "Error initializing Gemini client",
+                "Client initialization failed",
+            )
+            raise ResearchError("Client initialization failed")
+
+        self.console.print(
+            Panel(
+                f"[bold blue]Query:[/bold blue] {query}\n"
+                f"[bold blue]Model:[/bold blue] {model_id}"
+                + (
+                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
+                    if parent_id
+                    else ""
+                ),
+                title="Fast Search Starting",
+            )
+        )
+
+        report_parts: List[str] = []
+        interaction_id = None
+
+        try:
+            # We use type: ignore because Interactions API has complex overloads that Ty struggles with
+            stream = await client.aio.interactions.create(  # type: ignore
+                model=model_id,
+                input=query,
+                stream=True,
+                tools=[{"type": "google_search"}],
+                previous_interaction_id=parent_id,
+            )
+
+            async for event in stream:
+                inter = get_val(event, "interaction")
+                if inter and not interaction_id:
+                    interaction_id = get_val(inter, "id")
+                    if interaction_id:
+                        await async_update_task(
+                            task_id, "IN_PROGRESS", interaction_id=interaction_id
+                        )
+
+                thought = get_val(event, "thought")
+                if thought:
+                    summary = get_val(thought, "summary") or get_val(thought, "text")
+                    if verbose and summary:
+                        self.console.print(f"[italic grey]> {summary}[/italic grey]")
+
+                content = get_val(event, "content")
+                if content:
+                    parts = get_val(content, "parts", [])
+                    for part in parts:
+                        text = get_val(part, "text")
+                        if text:
+                            report_parts.append(text)
+
+            report_content = "".join(report_parts)
+
+        except Exception:
+            await self._handle_error(
+                task_id,
+                "Error during search",
+                "Search execution failed",
+                interaction_id,
+            )
+            return None
+
+        if report_content:
+            await async_update_task(task_id, "COMPLETED", report_content)
+            print_report(report_content)
+            return report_content
+
+        await async_update_task(task_id, "FAILED")
+        self.console.print("[yellow]No search content received.[/yellow]")
         return None
