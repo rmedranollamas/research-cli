@@ -54,6 +54,36 @@ def create_parser():
     add_common_args(run_parser)
     run_parser.add_argument("--model", default=DEFAULT_MODEL, help="Model ID")
     run_parser.add_argument("--parent", help="Previous interaction ID")
+    run_parser.add_argument(
+        "--url",
+        action="append",
+        dest="urls",
+        help="Include URL in context (can be repeated)",
+    )
+    run_parser.add_argument(
+        "--thinking",
+        choices=["minimal", "low", "medium", "high"],
+        help="Thinking level (for supported models)",
+    )
+    run_parser.add_argument(
+        "--no-search",
+        action="store_false",
+        dest="use_search",
+        help="Disable Google Search grounding",
+    )
+    run_parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Show reasoning thoughts"
+    )
+    run_parser.set_defaults(use_search=True)
+
+    # Search command (Fast grounding)
+    search_parser = subparsers.add_parser("search", help="Fast grounding search")
+    add_common_args(search_parser)
+    search_parser.add_argument("--model", default="gemini-2.0-flash", help="Model ID")
+    search_parser.add_argument("--parent", help="Previous interaction ID")
+    search_parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Show reasoning thoughts"
+    )
 
     # List command
     subparsers.add_parser("list", help="List recent research tasks")
@@ -71,18 +101,43 @@ def create_parser():
 
 async def handle_run(args, agent: ResearchAgent, parser):
     if not args.query:
-        subparsers_actions = [
+        subparsers_action = next(
             action
             for action in parser._actions
             if isinstance(action, argparse._SubParsersAction)
-        ]
-        for subparsers_action in subparsers_actions:
-            for name, subparser in subparsers_action.choices.items():
-                if name == "run":
-                    subparser.print_help()
-                    return
+        )
+        subparsers_action.choices["run"].print_help()
         return
-    report = await agent.run_research(args.query, args.model, parent_id=args.parent)
+
+    report = await agent.run_research(
+        args.query,
+        args.model,
+        parent_id=args.parent,
+        urls=args.urls,
+        use_search=args.use_search,
+        thinking_level=args.thinking,
+        verbose=args.verbose,
+    )
+    if report and args.output:
+        await async_save_report_to_file(report, args.output, args.force)
+
+
+async def handle_search(args, agent: ResearchAgent, parser):
+    if not args.query:
+        subparsers_action = next(
+            action
+            for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
+        )
+        subparsers_action.choices["search"].print_help()
+        return
+
+    report = await agent.run_search(
+        args.query,
+        args.model,
+        parent_id=args.parent,
+        verbose=args.verbose,
+    )
     if report and args.output:
         await async_save_report_to_file(report, args.output, args.force)
 
@@ -147,7 +202,7 @@ async def main_async():
     parser, script_name = create_parser()
     args = parser.parse_args()
 
-    if args.command in ["run"] or (
+    if args.command in ["run", "search"] or (
         not args.command and len(sys.argv) > 1 and not sys.argv[1].startswith("-")
     ):
         try:
@@ -158,6 +213,8 @@ async def main_async():
 
             if args.command == "run":
                 await handle_run(args, agent, parser)
+            elif args.command == "search":
+                await handle_search(args, agent, parser)
             else:
                 query = sys.argv[1]
                 await agent.run_research(query, DEFAULT_MODEL)
