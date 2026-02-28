@@ -1,14 +1,15 @@
 # Research CLI Instruction Manual
 
-Research CLI is a specialized tool for performing deep research using the Gemini Deep Research Agent. It provides a real-time, streaming interface in your terminal.
+Research CLI is a specialized tool for performing deep research, fast grounded searches, and AI-powered image generation using the Gemini Interactions API. It provides a real-time, streaming interface in your terminal.
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
 1. [Installation](#installation)
 1. [Configuration](#configuration)
-1. [Basic Usage](#basic-usage)
-1. [Advanced Usage](#advanced-usage)
+1. [Core Commands](#core-commands)
+1. [Context & Options](#context--options)
+1. [Stateful Research (Continuity)](#stateful-research-continuity)
 1. [Architecture & Workflow](#architecture--workflow)
 1. [Development & Building](#development--building)
 1. [Troubleshooting](#troubleshooting)
@@ -17,7 +18,11 @@ ______________________________________________________________________
 
 ## Prerequisites
 
-- **API Access**: You must have a Gemini API key with access to the `v1alpha` Interactions API and the `deep-research-pro-preview-12-2025` model.
+- **API Access**: You must have a Gemini API key with access to the `v1alpha` Interactions API.
+- **Models**:
+  - Deep Research: `deep-research-pro-preview-12-2025`
+  - Fast Search: `gemini-2.0-flash` (or newer)
+  - Image Gen: `gemini-3-pro-image-preview`
 - **Python**: Version 3.11 or higher (if running from source).
 - **Tools**: `uv` is recommended for dependency management.
 
@@ -33,95 +38,118 @@ This is the preferred installation method for Gemini CLI users. It avoids a full
 gemini extensions install rmedranollamas/research-cli
 ```
 
-The Gemini CLI will automatically detect your platform and download the corresponding asset (e.g., `linux.arm64.research-cli.tar.gz`) from our latest GitHub Release.
-
 ### 2. Quick Install (Stand-alone Binary)
 
 If you are not using the Gemini CLI, you can install the stand-alone binary using our installation script:
 
 ```bash
 curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh
-# Review the script's contents
-less install.sh
 chmod +x install.sh
 ./install.sh
 ```
 
 ### 3. From Source (Recommended for Developers)
 
-1. Clone the repository.
-1. Install `uv` if you haven't already:
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-1. Sync dependencies:
-   ```bash
-   uv sync
-   ```
-
-______________________________________________________________________
-
-## Basic Usage
-
-Research CLI uses subcommands for different actions.
-
-### Start a new research task
-
 ```bash
-research run "The history of the quantum Zeno effect"
-```
-
-If running from source:
-
-```bash
-uv run research run "Your query here"
-```
-
-### List recent tasks
-
-```bash
-research list
-```
-
-### Show a specific report
-
-```bash
-research show <ID>
+git clone https://github.com/rmedranollamas/research-cli.git
+cd research-cli
+uv sync
 ```
 
 ______________________________________________________________________
 
 ## Configuration
 
-- **API Key**: Requires `RESEARCH_GEMINI_API_KEY` environment variable.
-- **Local History**: Tasks are stored in a SQLite database at `~/.research-cli/history.db`.
+The CLI is configured primarily through environment variables:
+
+- `RESEARCH_GEMINI_API_KEY`: (Required) Your Google Gemini API key.
+- `RESEARCH_MODEL`: Default model for `run` (default: `deep-research-pro-preview-12-2025`).
+- `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
+- `RESEARCH_POLL_INTERVAL`: Max interval in seconds for polling (default: `10`).
+- `RESEARCH_MCP_SERVERS`: Comma-separated list of MCP server URLs (e.g., `http://localhost:8080/mcp`).
+- `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
 
 ______________________________________________________________________
 
-## Advanced Usage
+## Core Commands
 
-### Specifying a Model
+### Deep Research (`run`)
 
-You can override the default research model using the `--model` flag:
+Performs an exhaustive, multi-step research task. It uses grounding, searches, and reasoning to produce a high-quality report.
 
 ```bash
-research run "Latest advancements in fusion energy" --model "deep-research-pro-preview-12-2025"
+research run "The impact of solid-state batteries on the EV industry"
 ```
 
-### Keyboard Interrupts
+### Fast Search (`search`)
 
-If you press `Ctrl+C` during research, the CLI will catch the interrupt and exit gracefully. Note that the research task might continue to run on the server side.
+A quicker, grounded search command for questions that need immediate, fact-checked answers without full deep research.
+
+```bash
+research search "What is the current population of Tokyo?" -v
+```
+
+### Status Check (`status`)
+
+If you have an Interaction ID (from a background or previous task), you can poll its current status and retrieve the report if finished.
+
+```bash
+research status v1_ChdPdXVpYWNpdkpNMnJrZFVQdXJEVDZBURIXT3V1...
+```
+
+### Image Generation (`generate-image`)
+
+Generates an image from a text prompt and saves it locally.
+
+```bash
+research generate-image "A futuristic cyberpunk city with neon lights" --output city.png
+```
+
+### History Management
+
+- `research list`: Shows the last 20 tasks and their status.
+- `research show <ID>`: Displays the full report for a previously completed task.
+
+______________________________________________________________________
+
+## Context & Options
+
+### Multimodal Input
+
+- **Files**: Use `--file` to upload local documents (PDF, TXT, images) as context.
+  ```bash
+  research run "Summarize the key findings in this report" --file annual_report.pdf
+  ```
+- **URLs**: Use `--url` to include web pages in the research context.
+  ```bash
+  research run "Compare these two articles" --url https://site-a.com --url https://site-b.com
+  ```
+
+### Reasoning Control
+
+- **Verbose Mode (`-v`)**: Shows the model's internal "Thought Blocks" in real-time. Highly recommended for understanding the research process.
+- **Thinking Level**: Use `--thinking [minimal|low|medium|high]` to control the depth of reasoning on supported models.
+
+______________________________________________________________________
+
+## Stateful Research (Continuity)
+
+The CLI supports multi-turn conversations by referencing a "Parent ID". This allows the model to remember previous turns without re-sending the entire history.
+
+1. Start a task and note the **Interaction ID** in the output.
+1. Run a follow-up query:
+   ```bash
+   research run "Can you expand more on the second point?" --parent <PREVIOUS_INTERACTION_ID>
+   ```
 
 ______________________________________________________________________
 
 ## Architecture & Workflow
 
-The CLI follows a stateless, polling-based architecture:
-
 1. **Submission**: Sends the query to the Gemini Interactions API.
-1. **Streaming**: Connects to an SSE (Server-Sent Events) stream to receive "thoughts" (the agent's internal reasoning).
-1. **Polling Fallback**: If the stream disconnects before the report is ready, the CLI enters an optimized polling loop with exponential backoff. It starts with a 1-second interval and increases it until the maximum (default 10 seconds) is reached, polling until it reaches a `COMPLETED` state.
-1. **Extraction**: Once completed, the CLI extracts the final report from the interaction's output and renders it as Markdown.
+1. **Streaming**: Connects to an SSE stream to receive "thoughts" and partial content.
+1. **Polling Fallback**: If the stream disconnects, the CLI enters an exponential backoff polling loop.
+1. **Storage**: All queries and final reports are stored in a local SQLite database with `0600` permissions.
 
 ______________________________________________________________________
 
@@ -129,36 +157,31 @@ ______________________________________________________________________
 
 ### Quality Tools
 
+- **Testing**: `uv run pytest tests/`
 - **Linting**: `uv run ruff check . --fix`
 - **Formatting**: `uv run ruff format .`
-- **Testing**: `PYTHONPATH=. uv run pytest tests/`
 
 ### Building the Binary Locally
 
-To generate a standalone executable for your current platform:
-
 ```bash
-uv run pyinstaller --onefile --name research --hidden-import=rich._unicode_data.unicode17-0-0 --collect-all research_cli run.py
+uv run pyinstaller --onefile --name research \
+  --hidden-import=rich._unicode_data.unicode17-0-0 \
+  --collect-all research_cli \
+  run.py
 ```
-
-The resulting binary will be in the `dist/` directory.
 
 ______________________________________________________________________
 
 ## Troubleshooting
 
-### "Error: RESEARCH_GEMINI_API_KEY environment variable not set."
+### "Invalid content type: document" or "Cannot fetch content"
 
-Ensure you have exported the key in your current terminal session.
+The Interactions API is experimental. If direct file context fails, ensure your API key has the necessary permissions or try a smaller file.
 
-### "No report content received."
+### "API key expired"
 
-This usually happens if the model failed to generate a report or if the interaction state was lost. Check your API usage/quota on the Google AI Studio console.
+Renew your API key in Google AI Studio.
 
-### "Internal server error" (API 500/503)
+### "Model not found"
 
-The CLI has built-in retry logic for transient upstream server errors. It will automatically wait and retry polling until the service recovers or the task completes.
-
-### "UserWarning: Interactions usage is experimental"
-
-This is a standard warning from the `google-genai` SDK for the `v1alpha` API. It does not affect functionality.
+Ensure you are using a supported model ID. For `search`, `gemini-2.0-flash` or newer is required.

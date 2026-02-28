@@ -49,21 +49,21 @@ If running from source:
 uv run research run "How does quantum entanglement work?"
 ```
 
-### Managing Tasks
+### Key Commands
 
-List past research tasks:
+- **Deep Research**: `research run "query"` - Multi-step, long-running research.
+- **Fast Search**: `research search "query"` - Quick, grounded answers using `gemini-2.0-flash`.
+- **Status**: `research status <interaction_id>` - Check progress of a background task.
+- **Image Generation**: `research generate-image "prompt" -o robot.png` - Generate AI images.
+- **List Tasks**: `research list` - View recent task history.
+- **Show Task**: `research show <ID>` - Display a specific report from history.
 
-```bash
-research list
-```
+### Context & Options
 
-Show a specific report from history:
-
-```bash
-research show <ID>
-```
-
-The CLI will stream the agent's reasoning (thoughts) in real-time and then display the final report in Markdown.
+- **Files**: `--file path/to/file.pdf` - Use local files as context.
+- **URLs**: `--url https://example.com` - Use web pages as context.
+- **Verbose**: `-v` or `--verbose` - See the agent's real-time "thoughts" and reasoning.
+- **Thinking**: `--thinking [minimal|low|medium|high]` - Control reasoning depth (on supported models).
 
 ## Configuration
 
@@ -72,17 +72,16 @@ The CLI can be configured via environment variables:
 - `RESEARCH_GEMINI_API_KEY`: (Required) Your Google Gemini API key.
 - `RESEARCH_MODEL`: Gemini model for research (default: `deep-research-pro-preview-12-2025`).
 - `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
-- `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`). The CLI uses exponential backoff starting from 1 second.
+- `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`).
+- `RESEARCH_MCP_SERVERS`: Comma-separated list of MCP server URLs for extended tool use.
 - `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
 
 ## Agent Skill
 
 A [specification-compliant](https://agentskills.io/) agent skill is included in `skills/gemini-research/`. This allows AI agents to learn how to interact with this CLI autonomously.
 
-For developers and agents, the skill structure is strictly compliant with the [Agent Skills specification](https://agentskills.io/specification).
-
 ## Development
 
 - **Linting & Fixing**: `uv run ruff check . --fix`
 - **Formatting**: `uv run ruff format .`
-- **Testing**: `PYTHONPATH=. uv run pytest tests/`
+- **Testing**: `uv run pytest tests/`
