@@ -1,6 +1,7 @@
 import asyncio
 import os
-from typing import List, Optional, Set, Any, Dict
+import base64
+from typing import List, Optional, Set, Any, Dict, cast
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import get_console, get_val, print_report
@@ -46,8 +47,14 @@ class ResearchAgent:
     async def _poll_interaction(
         self, client: genai.Client, interaction_id: str, report_parts: List[str]
     ):
+        from rich.text import Text
+
         self.console.print(
-            f"[yellow]Stream ended without report. Polling interaction {interaction_id}...[/yellow]"
+            Text.assemble(
+                ("Stream ended without report. Polling interaction ", "yellow"),
+                (interaction_id, "bold yellow"),
+                ("...", "yellow"),
+            )
         )
         last_status = None
         try:
@@ -63,9 +70,14 @@ class ResearchAgent:
             try:
                 final_inter = await client.aio.interactions.get(id=interaction_id)
             except Exception as e:
-                if "500" in str(e) or "503" in str(e):
+                # Handle transient server errors (500, 503) during polling
+                err_str = str(e)
+                if "500" in err_str or "503" in err_str:
                     self.console.print(
-                        f"[dim]Transient API error ({e}), retrying in {current_interval}s...[/dim]"
+                        Text(
+                            f"Transient API error, retrying in {current_interval:.1f}s...",
+                            style="dim",
+                        )
                     )
                     await asyncio.sleep(current_interval)
                     current_interval = min(current_interval * 1.5, max_interval)
@@ -74,7 +86,7 @@ class ResearchAgent:
 
             status = get_val(final_inter, "status", "UNKNOWN").upper()
             if status != last_status:
-                self.console.print(f"[dim]Current status: {status}[/dim]")
+                self.console.print(Text(f"Current status: {status}", style="dim"))
                 last_status = status
 
             if status == "COMPLETED":
@@ -114,6 +126,79 @@ class ResearchAgent:
                 {"type": "mcp_server", "name": f"mcp_server_{i}", "url": mcp_url}
             )
         return tools
+
+    async def _upload_files(
+        self, client: genai.Client, file_paths: List[str]
+    ) -> List[str]:
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+        from rich.text import Text
+
+        uploaded_uris = []
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console,
+        ) as progress:
+            for path in file_paths:
+                if not os.path.exists(path):
+                    self.console.print(
+                        Text.assemble(
+                            ("Error: File ", "red"),
+                            (path, "bold red"),
+                            (" not found.", "red"),
+                        )
+                    )
+                    continue
+
+                filename = os.path.basename(path)
+                task = progress.add_task(f"Uploading {filename}...", total=None)
+                try:
+                    # Note: Files API is not yet available in aio, using sync call in thread
+                    file_obj = await asyncio.to_thread(client.files.upload, file=path)
+                    progress.update(task, description=f"Processing {filename}...")
+
+                    file_uri = None
+                    while True:
+                        file_status = await asyncio.to_thread(
+                            client.files.get, name=file_obj.name
+                        )  # type: ignore
+                        state = get_val(file_status, "state")
+                        state_name = get_val(state, "name") if state else "UNKNOWN"
+
+                        if state_name == "ACTIVE":
+                            file_uri = get_val(file_status, "uri")
+                            break
+                        elif state_name in ["FAILED", "DELETED"]:
+                            self.console.print(
+                                Text.assemble(
+                                    ("Error: File ", "red"),
+                                    (path, "bold red"),
+                                    (" failed to process.", "red"),
+                                )
+                            )
+                            break
+                        await asyncio.sleep(2)
+
+                    if file_uri:
+                        uploaded_uris.append(file_uri)
+                        progress.update(
+                            task,
+                            description=f"Uploaded {filename}",
+                            completed=True,
+                        )
+                    else:
+                        progress.remove_task(task)
+                except Exception as e:
+                    self.console.print(
+                        Text.assemble(
+                            ("Error uploading ", "red"),
+                            (path, "bold red"),
+                            (f": {e}", "red"),
+                        )
+                    )
+                    progress.remove_task(task)
+
+        return uploaded_uris
 
     async def _run_interaction(
         self,
@@ -173,7 +258,8 @@ class ResearchAgent:
                     thought = get_val(event, "thought")
                     if thought:
                         summary = get_val(thought, "summary") or get_val(
-                            thought, "text"
+                            thought,
+                            "text",
                         )
                         if verbose and summary:
                             self.console.print("> ", end="")
@@ -222,7 +308,7 @@ class ResearchAgent:
             return report_content
 
         await async_update_task(task_id, "FAILED")
-        self.console.print("[yellow]No content received.[/yellow]")
+        self.console.print(Text("No content received.", style="yellow"))
         return None
 
     async def run_research(
@@ -231,27 +317,53 @@ class ResearchAgent:
         model_id: str,
         parent_id: Optional[str] = None,
         urls: Optional[List[str]] = None,
+        files: Optional[List[str]] = None,
         use_search: bool = True,
         thinking_level: Optional[str] = None,
         verbose: bool = False,
     ):
         from rich.panel import Panel
+        from rich.text import Text
 
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
+        info_text = Text.assemble(
+            ("Query: ", "bold blue"),
+            (f"{query}\n", "white"),
+            ("Model: ", "bold blue"),
+            (f"{model_id}\n", "white"),
+        )
+        if parent_id:
+            info_text.append("Parent ID: ", style="bold blue")
+            info_text.append(f"{parent_id}\n", style="white")
+        if urls:
+            info_text.append("URLs: ", style="bold blue")
+            info_text.append(f"{', '.join(urls)}\n", style="white")
+        if files:
+            info_text.append("Files: ", style="bold blue")
+            info_text.append(f"{', '.join(files)}\n", style="white")
+
         self.console.print(
             Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n"
-                f"[bold blue]Model:[/bold blue] {model_id}"
-                + (
-                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
-                    if parent_id
-                    else ""
-                )
-                + (f"\n[bold blue]URLs:[/bold blue] {', '.join(urls)}" if urls else ""),
+                info_text,
                 title="Deep Research Starting",
             )
         )
+
+        try:
+            client = self.get_client()
+        except Exception:
+            await self._handle_error(
+                task_id,
+                "Error initializing Gemini client",
+                "Client initialization failed",
+            )
+            raise ResearchError("Client initialization failed")
+
+        # Handle file uploads
+        file_uris = []
+        if files:
+            file_uris = await self._upload_files(client, files)
 
         agent_config: dict[str, Any] = {
             "type": "deep-research",
@@ -271,6 +383,9 @@ class ResearchAgent:
                 interaction_input[0]["content"].append(
                     {"type": "url_context", "uri": url}
                 )
+        if file_uris:
+            for uri in file_uris:
+                interaction_input[0]["content"].append({"type": "file", "uri": uri})
 
         params = {
             "agent": model_id,
@@ -299,18 +414,23 @@ class ResearchAgent:
         verbose: bool = False,
     ):
         from rich.panel import Panel
+        from rich.text import Text
 
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
+        info_text = Text.assemble(
+            ("Query: ", "bold blue"),
+            (f"{query}\n", "white"),
+            ("Model: ", "bold blue"),
+            (f"{model_id}\n", "white"),
+        )
+        if parent_id:
+            info_text.append("Parent ID: ", style="bold blue")
+            info_text.append(f"{parent_id}\n", style="white")
+
         self.console.print(
             Panel(
-                f"[bold blue]Query:[/bold blue] {query}\n"
-                f"[bold blue]Model:[/bold blue] {model_id}"
-                + (
-                    f"\n[bold blue]Parent ID:[/bold blue] {parent_id}"
-                    if parent_id
-                    else ""
-                ),
+                info_text,
                 title="Fast Search Starting",
             )
         )
@@ -324,10 +444,63 @@ class ResearchAgent:
         }
 
         return await self._run_interaction(
-            task_id,
-            query,
-            params,
-            verbose=verbose,
-            error_prefix="Error during search",
-            error_msg="Search execution failed",
+            task_id, query, params, verbose=verbose, error_prefix="Error during search"
         )
+
+    async def get_status(self, interaction_id: str) -> Optional[str]:
+        client = self.get_client()
+        report_parts: List[str] = []
+        return await self._poll_interaction(client, interaction_id, report_parts)
+
+    async def generate_image(
+        self, prompt: str, output_path: str, model_id: str, force: bool
+    ):
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+        from rich.text import Text
+
+        if os.path.exists(output_path) and not force:
+            self.console.print(
+                Text.assemble(
+                    ("Error: Output file ", "red"),
+                    (output_path, "bold red"),
+                    (" already exists. Use --force to overwrite.", "red"),
+                )
+            )
+            return
+
+        client = self.get_client()
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console,
+        ) as progress:
+            progress.add_task(f"Generating image with {model_id}...", total=None)
+
+            try:
+                # Interactions API for image generation
+                interaction = await client.aio.interactions.create(  # type: ignore
+                    model=model_id,
+                    input=prompt,
+                    response_modalities=cast(Any, ["IMAGE"]),
+                )
+
+                outputs = get_val(interaction, "outputs", [])
+                for output in outputs:
+                    if get_val(output, "type") == "image":
+                        data = get_val(output, "data")
+                        if data:
+                            with open(output_path, "wb") as f:
+                                f.write(base64.b64decode(data))
+                            self.console.print(
+                                Text.assemble(
+                                    ("Image saved to ", "green"),
+                                    (output_path, "bold green"),
+                                )
+                            )
+                            return
+
+                self.console.print(Text("No image was generated.", style="yellow"))
+            except Exception as e:
+                self.console.print(Text(f"Error generating image: {e}", style="red"))
+                self.console.print_exception()
