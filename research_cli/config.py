@@ -16,6 +16,7 @@ RESEARCH_MCP_SERVERS = [s.strip() for s in RESEARCH_MCP_SERVERS if s.strip()]
 QUERY_TRUNCATION_LENGTH = 50
 RECENT_TASKS_LIMIT = 20
 POLL_INTERVAL_DEFAULT = 10.0
+WORKSPACE_DIR = os.getenv("RESEARCH_WORKSPACE", os.getcwd())
 
 
 class ResearchError(Exception):
