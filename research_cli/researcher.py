@@ -4,7 +4,7 @@ import base64
 from typing import List, Optional, Set, Any, Dict, cast
 from google import genai
 from .db import async_save_task, async_update_task
-from .utils import get_console, get_val, print_report
+from .utils import get_console, get_val, print_report, validate_path
 from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 
 
@@ -464,6 +464,12 @@ class ResearchAgent:
     ):
         from rich.progress import Progress, SpinnerColumn, TextColumn
         from rich.text import Text
+
+        try:
+            output_path = validate_path(output_path)
+        except ResearchError as e:
+            self.console.print(Text(str(e), style="red"))
+            return
 
         if os.path.exists(output_path) and not force:
             self.console.print(
