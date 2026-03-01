@@ -34,3 +34,28 @@ async def test_generate_image_client_init_failure():
         with patch("os.path.exists", return_value=False):
             with pytest.raises(ResearchError, match="Client initialization failed"):
                 await agent.generate_image("prompt", "out.png", "model", False)
+
+@pytest.mark.asyncio
+async def test_run_research_client_init_failure():
+    agent = ResearchAgent(api_key="fake-key")
+    # Both run_research and _run_interaction try to get a client.
+    # In run_research, it's used for file uploads first.
+    with patch.object(ResearchAgent, "get_client", side_effect=ResearchError("Client initialization failed")):
+        with patch("research_cli.researcher.async_save_task", return_value=1):
+            with patch.object(agent, "_handle_error") as mock_handle:
+                with pytest.raises(ResearchError, match="Client initialization failed"):
+                    await agent.run_research("query", "model")
+                # Should be called once by run_research
+                mock_handle.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_run_search_client_init_failure():
+    agent = ResearchAgent(api_key="fake-key")
+    # run_search calls _run_interaction which calls get_client
+    with patch.object(ResearchAgent, "get_client", side_effect=ResearchError("Client initialization failed")):
+        with patch("research_cli.researcher.async_save_task", return_value=1):
+            with patch.object(agent, "_handle_error") as mock_handle:
+                with pytest.raises(ResearchError, match="Client initialization failed"):
+                    await agent.run_search("query", "model")
+                # Should be called once by _run_interaction
+                mock_handle.assert_called_once()
