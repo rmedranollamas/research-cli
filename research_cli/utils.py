@@ -1,6 +1,11 @@
 import os
 import asyncio
-from .config import QUERY_TRUNCATION_LENGTH, WORKSPACE_DIR, ResearchError
+from .config import (
+    QUERY_TRUNCATION_LENGTH,
+    WORKSPACE_DIR,
+    ResearchError,
+    RESEARCH_API_KEY_VAR,
+)
 
 _console = None
 
@@ -12,6 +17,17 @@ def get_console():
 
         _console = Console()
     return _console
+
+
+def get_api_key() -> str:
+    """Gets the Gemini API key from environment variables or raises ResearchError."""
+    api_key = os.getenv(RESEARCH_API_KEY_VAR)
+    if not api_key:
+        get_console().print(
+            f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
+        )
+        raise ResearchError(f"{RESEARCH_API_KEY_VAR} environment variable not set.")
+    return api_key
 
 
 def validate_path(path: str) -> str:
