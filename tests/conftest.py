@@ -20,6 +20,7 @@ mock_modules = [
     "rich.panel",
     "rich.table",
     "rich.progress",
+    "rich.text",
 ]
 
 for mod in mock_modules:
@@ -113,6 +114,15 @@ sys.modules["rich.markdown"].Markdown = MockMarkdown  # type: ignore
 sys.modules["rich.progress"].Progress = MockProgress  # type: ignore
 sys.modules["rich.progress"].SpinnerColumn = MockColumn  # type: ignore
 sys.modules["rich.progress"].TextColumn = MockColumn  # type: ignore
+
+
+class MockText:
+    @staticmethod
+    def assemble(*args, **kwargs):
+        return "".join(arg[0] if isinstance(arg, tuple) else arg for arg in args)
+
+
+sys.modules["rich.text"].Text = MockText  # type: ignore
 
 
 def wait_for_port(port, host="127.0.0.1", timeout=5.0):

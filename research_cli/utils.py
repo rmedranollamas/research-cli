@@ -35,7 +35,7 @@ def validate_path(path: str) -> str:
     Returns the resolved real path if valid, otherwise raises ResearchError.
     """
     if not path:
-        return path
+        raise ResearchError("Empty or invalid path provided")
 
     abs_workspace = os.path.realpath(WORKSPACE_DIR)
 
