@@ -23,10 +23,9 @@ def get_api_key() -> str:
     """Gets the Gemini API key from environment variables or raises ResearchError."""
     api_key = os.getenv(RESEARCH_API_KEY_VAR)
     if not api_key:
-        get_console().print(
-            f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
-        )
-        raise ResearchError(f"{RESEARCH_API_KEY_VAR} environment variable not set.")
+        error_message = f"{RESEARCH_API_KEY_VAR} environment variable not set."
+        get_console().print(f"[red]Error: {error_message}[/red]")
+        raise ResearchError(error_message)
     return api_key
 
 
