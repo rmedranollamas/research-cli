@@ -4,7 +4,13 @@ import base64
 from typing import List, Optional, Set, Any, Dict, cast
 from google import genai
 from .db import async_save_task, async_update_task
-from .utils import get_console, get_val, print_report, validate_path
+from .utils import (
+    get_console,
+    get_val,
+    print_report,
+    validate_path,
+    async_save_binary_to_file,
+)
 from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 
 
@@ -503,13 +509,11 @@ class ResearchAgent:
                     if get_val(output, "type") == "image":
                         data = get_val(output, "data")
                         if data:
-                            with open(output_path, "wb") as f:
-                                f.write(base64.b64decode(data))
-                            self.console.print(
-                                Text.assemble(
-                                    ("Image saved to ", "green"),
-                                    (output_path, "bold green"),
-                                )
+                            await async_save_binary_to_file(
+                                base64.b64decode(data),
+                                output_path,
+                                force,
+                                success_prefix="Image saved to",
                             )
                             return
 

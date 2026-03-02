@@ -115,3 +115,36 @@ def save_report_to_file(
 
 async def async_save_report_to_file(*args, **kwargs):
     return await asyncio.to_thread(save_report_to_file, *args, **kwargs)
+
+
+def save_binary_to_file(
+    data: bytes, output_file: str, force: bool, success_prefix: str = "Binary saved to"
+):
+    console = get_console()
+    try:
+        output_file = validate_path(output_file)
+    except ResearchError as e:
+        console.print(f"[red]{e}[/red]")
+        return False
+
+    if os.path.exists(output_file) and not force:
+        console.print(
+            f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
+        )
+        return False
+    with open(output_file, "wb") as f:
+        f.write(data)
+    # Print success message and return True
+    from rich.text import Text
+
+    console.print(
+        Text.assemble(
+            (f"{success_prefix} ", "green"),
+            (output_file, "bold green"),
+        )
+    )
+    return True
+
+
+async def async_save_binary_to_file(*args, **kwargs):
+    return await asyncio.to_thread(save_binary_to_file, *args, **kwargs)
