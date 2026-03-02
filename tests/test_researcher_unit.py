@@ -1,6 +1,5 @@
 import pytest
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from research_cli.researcher import ResearchAgent
 from research_cli.config import ResearchError
 

@@ -1,5 +1,6 @@
 import os
 import asyncio
+from typing import Union
 from .config import (
     QUERY_TRUNCATION_LENGTH,
     WORKSPACE_DIR,
@@ -17,6 +18,12 @@ def get_console():
 
         _console = Console()
     return _console
+
+
+def set_console(console):
+    """Sets a custom console (useful for testing)."""
+    global _console
+    _console = console
 
 
 def get_api_key() -> str:
@@ -86,14 +93,18 @@ def print_report(report: str):
 
     console = get_console()
     console.print("\n" + "=" * 40 + "\n")
-    # For Markdown, rich handles it, but for raw text we use Text(markup=False)
     console.print(Markdown(report))
     console.print("\n" + "=" * 40 + "\n")
 
 
-def save_report_to_file(
-    report: str, output_file: str, force: bool, success_prefix: str = "Report saved to"
-):
+def _save_to_file(
+    data: Union[str, bytes],
+    output_file: str,
+    force: bool,
+    success_prefix: str,
+    binary: bool = False,
+) -> bool:
+    """Internal helper to save data to a file with path validation."""
     console = get_console()
     try:
         output_file = validate_path(output_file)
@@ -106,9 +117,15 @@ def save_report_to_file(
             f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
         )
         return False
-    with open(output_file, "w") as f:
-        f.write(report)
-    # Print success message and return True
+
+    mode = "wb" if binary else "w"
+    try:
+        with open(output_file, mode) as f:
+            f.write(data)
+    except Exception as e:
+        console.print(f"[red]Error saving to file {output_file}: {e}[/red]")
+        return False
+
     from rich.text import Text
 
     console.print(
@@ -118,6 +135,12 @@ def save_report_to_file(
         )
     )
     return True
+
+
+def save_report_to_file(
+    report: str, output_file: str, force: bool, success_prefix: str = "Report saved to"
+) -> bool:
+    return _save_to_file(report, output_file, force, success_prefix, binary=False)
 
 
 async def async_save_report_to_file(*args, **kwargs):
@@ -126,31 +149,8 @@ async def async_save_report_to_file(*args, **kwargs):
 
 def save_binary_to_file(
     data: bytes, output_file: str, force: bool, success_prefix: str = "Binary saved to"
-):
-    console = get_console()
-    try:
-        output_file = validate_path(output_file)
-    except ResearchError as e:
-        console.print(f"[red]{e}[/red]")
-        return False
-
-    if os.path.exists(output_file) and not force:
-        console.print(
-            f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
-        )
-        return False
-    with open(output_file, "wb") as f:
-        f.write(data)
-    # Print success message and return True
-    from rich.text import Text
-
-    console.print(
-        Text.assemble(
-            (f"{success_prefix} ", "green"),
-            (output_file, "bold green"),
-        )
-    )
-    return True
+) -> bool:
+    return _save_to_file(data, output_file, force, success_prefix, binary=True)
 
 
 async def async_save_binary_to_file(*args, **kwargs):

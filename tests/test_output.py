@@ -18,17 +18,28 @@ def test_run_research_output(temp_db):
             output_file = tmp.name
 
         try:
-            with patch.object(
-                sys,
-                "argv",
-                ["research", "run", "test query", "--output", output_file, "--force"],
+            # Mock WORKSPACE_DIR to allow saving to the temp file
+            with patch(
+                "research_cli.utils.WORKSPACE_DIR", os.path.dirname(output_file)
             ):
-                main()
+                with patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "research",
+                        "run",
+                        "test query",
+                        "--output",
+                        output_file,
+                        "--force",
+                    ],
+                ):
+                    main()
 
-            assert os.path.exists(output_file)
-            with open(output_file, "r") as f:
-                content = f.read()
-            assert content == mock_report
+                assert os.path.exists(output_file)
+                with open(output_file, "r") as f:
+                    content = f.read()
+                assert content == mock_report
         finally:
             if os.path.exists(output_file):
                 os.remove(output_file)
@@ -50,14 +61,19 @@ def test_run_research_no_overwrite(temp_db):
                 f.write(existing_content)
 
         try:
-            with patch.object(
-                sys, "argv", ["research", "run", "test query", "--output", output_file]
+            with patch(
+                "research_cli.utils.WORKSPACE_DIR", os.path.dirname(output_file)
             ):
-                main()
+                with patch.object(
+                    sys,
+                    "argv",
+                    ["research", "run", "test query", "--output", output_file],
+                ):
+                    main()
 
-            with open(output_file, "r") as f:
-                content = f.read()
-            assert content == existing_content
+                with open(output_file, "r") as f:
+                    content = f.read()
+                assert content == existing_content
         finally:
             if os.path.exists(output_file):
                 os.remove(output_file)
@@ -74,17 +90,18 @@ def test_show_task_output(temp_db):
         output_file = tmp.name
 
     try:
-        with patch.object(
-            sys,
-            "argv",
-            ["research", "show", str(task_id), "--output", output_file, "--force"],
-        ):
-            main()
+        with patch("research_cli.utils.WORKSPACE_DIR", os.path.dirname(output_file)):
+            with patch.object(
+                sys,
+                "argv",
+                ["research", "show", str(task_id), "--output", output_file, "--force"],
+            ):
+                main()
 
-        assert os.path.exists(output_file)
-        with open(output_file, "r") as f:
-            content = f.read()
-        assert content == mock_report
+            assert os.path.exists(output_file)
+            with open(output_file, "r") as f:
+                content = f.read()
+            assert content == mock_report
     finally:
         if os.path.exists(output_file):
             os.remove(output_file)

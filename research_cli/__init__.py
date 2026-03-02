@@ -1,52 +1,38 @@
-import os
-from typing import TYPE_CHECKING, Optional
-from .cli import main as main
-from .researcher import ResearchAgent as ResearchAgent
-from .db import (
-    get_db as get_db,
-    save_task as save_task,
-    update_task as update_task,
-    async_save_task as async_save_task,
-    async_update_task as async_update_task,
-    get_recent_tasks as get_recent_tasks,
-    async_get_recent_tasks as async_get_recent_tasks,
-    get_task as get_task,
-    async_get_task as async_get_task,
-    init_db as init_db,
-)
-from .utils import (
-    truncate_query as truncate_query,
-    get_val as get_val,
-    get_console,
-    print_report as print_report,
-    save_report_to_file as save_report_to_file,
-    async_save_report_to_file as async_save_report_to_file,
-    get_api_key as get_api_key,
-)
 from .config import (
-    ResearchError as ResearchError,
-    QUERY_TRUNCATION_LENGTH as QUERY_TRUNCATION_LENGTH,
+    DEFAULT_MODEL as DEFAULT_MODEL,
     DB_PATH as DB_PATH,
+    ResearchError as ResearchError,
     RESEARCH_API_KEY_VAR as RESEARCH_API_KEY_VAR,
 )
+from .db import (
+    init_db as init_db,
+    save_task as save_task,
+    update_task as update_task,
+    get_task as get_task,
+    get_recent_tasks as get_recent_tasks,
+)
+from .utils import (
+    get_api_key as get_api_key,
+    truncate_query as truncate_query,
+    get_val as get_val,
+    get_console as get_console,
+    print_report as print_report,
+    save_report_to_file as save_report_to_file,
+    save_binary_to_file as save_binary_to_file,
+)
+from .researcher import ResearchAgent as ResearchAgent
+from .cli import main as main
 
-if TYPE_CHECKING:
-    from google import genai
 
-
-def get_gemini_client(
-    api_key: Optional[str] = None,
-    api_version: str = "v1alpha",
-    timeout: Optional[int] = None,
-) -> "genai.Client":
-    if api_key is None:
-        api_key = get_api_key()
-    agent = ResearchAgent(api_key, os.getenv("GEMINI_API_BASE_URL"))
-    return agent.get_client(api_version=api_version, timeout=timeout)
-
-
-# For backward compatibility with tests that expect run_research at top level
-async def run_research(*args, **kwargs):
+async def run_research(query: str, model: str):
+    """Convenience function for running research."""
     api_key = get_api_key()
-    agent = ResearchAgent(api_key, os.getenv("GEMINI_API_BASE_URL"))
-    return await agent.run_research(*args, **kwargs)
+    agent = ResearchAgent(api_key)
+    return await agent.run_research(query, model)
+
+
+def get_gemini_client():
+    """Convenience function to get a Gemini client."""
+    api_key = get_api_key()
+    agent = ResearchAgent(api_key)
+    return agent.get_client()

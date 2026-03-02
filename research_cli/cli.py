@@ -2,7 +2,7 @@ import argparse
 import sys
 import os
 import asyncio
-from .config import DEFAULT_MODEL, ResearchError, RESEARCH_API_KEY_VAR
+from .config import DEFAULT_MODEL, ResearchError
 from .db import async_get_task, async_get_recent_tasks
 from .utils import (
     get_console,
@@ -191,8 +191,9 @@ async def handle_list():
     from rich.table import Table
 
     tasks = await async_get_recent_tasks(20)
+    console = get_console()
     if not tasks:
-        get_console().print("[yellow]No research tasks found in history.[/yellow]")
+        console.print("[yellow]No research tasks found in history.[/yellow]")
         return
 
     table = Table(title="Recent Research Tasks")
@@ -204,19 +205,20 @@ async def handle_list():
 
     for tid, q, status, dt, iid in tasks:
         table.add_row(str(tid), truncate_query(q), status, dt, iid or "-")
-    get_console().print(table)
+    console.print(table)
 
 
 async def handle_show(args):
     from rich.panel import Panel
 
     task = await async_get_task(args.id)
+    console = get_console()
     if not task:
-        get_console().print(f"[red]Task {args.id} not found.[/red]")
+        console.print(f"[red]Task {args.id} not found.[/red]")
         return
 
     q, report, status = task
-    get_console().print(
+    console.print(
         Panel(
             f"[bold blue]Query:[/bold blue] {q}\n[bold blue]Status:[/bold blue] {status}",
             title=f"Research Task {args.id}",
@@ -227,14 +229,13 @@ async def handle_show(args):
         if args.output:
             await async_save_report_to_file(report, args.output, args.force)
     else:
-        get_console().print(
-            "[yellow]No report content available for this task.[/yellow]"
-        )
+        console.print("[yellow]No report content available for this task.[/yellow]")
 
 
 async def main_async():
     parser, script_name = create_parser()
     args = parser.parse_args()
+    console = get_console()
 
     if args.command in ["run", "search", "status", "generate-image"] or (
         not args.command and len(sys.argv) > 1 and not sys.argv[1].startswith("-")
@@ -243,7 +244,9 @@ async def main_async():
             # get_api_key is now a separate function
             api_key = get_api_key()
 
-            agent = ResearchAgent(api_key, os.getenv("GEMINI_API_BASE_URL"))
+            agent = ResearchAgent(
+                api_key, os.getenv("GEMINI_API_BASE_URL"), console=console
+            )
 
             if args.command == "run":
                 await handle_run(args, agent, parser)
@@ -259,7 +262,7 @@ async def main_async():
         except ResearchError:
             sys.exit(1)
         except KeyboardInterrupt:
-            get_console().print("\n[yellow]Cancelled by user.[/yellow]")
+            console.print("\n[yellow]Cancelled by user.[/yellow]")
             sys.exit(0)
     elif args.command == "list":
         await handle_list()

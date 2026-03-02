@@ -33,8 +33,12 @@ for mod in mock_modules:
 
 # Improve mocks for Rich to allow CLI tests to pass
 class MockConsole:
+    def __init__(self, *args, **kwargs):
+        pass
+
     def print(self, *args, **kwargs):
         for arg in args:
+            # Handle rich objects that have a __str__ or content
             sys.stdout.write(str(arg) + "\n")
 
     def print_exception(self, *args, **kwargs):
@@ -62,7 +66,7 @@ class MockTable:
         self.rows.append(args)
 
     def __str__(self):
-        res = [self.title]
+        res = [str(self.title)]
         for row in self.rows:
             res.append(" | ".join(map(str, row)))
         return "\n".join(res)
@@ -74,7 +78,10 @@ class MockPanel:
         self.title = kwargs.get("title", "")
 
     def __str__(self):
-        return f"Panel: {self.title}\n{self.content}"
+        # The tests expect "Research Task " to be present in the output
+        if self.title:
+            return f"Panel: {self.title}\n{self.content}"
+        return str(self.content)
 
 
 class MockMarkdown:
@@ -87,7 +94,7 @@ class MockMarkdown:
 
 class MockProgress:
     def __init__(self, *args, **kwargs):
-        pass
+        self.tasks = {}
 
     def __enter__(self):
         return self
@@ -95,11 +102,17 @@ class MockProgress:
     def __exit__(self, *args, **kwargs):
         pass
 
-    def add_task(self, *args, **kwargs):
-        return 1
+    def add_task(self, description, **kwargs):
+        task_id = len(self.tasks) + 1
+        self.tasks[task_id] = description
+        return task_id
 
-    def update(self, *args, **kwargs):
+    def update(self, task_id, **kwargs):
         pass
+
+    def remove_task(self, task_id):
+        if task_id in self.tasks:
+            del self.tasks[task_id]
 
 
 class MockColumn:
@@ -117,9 +130,17 @@ sys.modules["rich.progress"].TextColumn = MockColumn  # type: ignore
 
 
 class MockText:
+    def __init__(self, content="", *args, **kwargs):
+        self.content = content
+
+    def __str__(self):
+        return str(self.content)
+
     @staticmethod
     def assemble(*args, **kwargs):
-        return "".join(arg[0] if isinstance(arg, tuple) else arg for arg in args)
+        return MockText(
+            "".join(arg[0] if isinstance(arg, tuple) else str(arg) for arg in args)
+        )
 
 
 sys.modules["rich.text"].Text = MockText  # type: ignore

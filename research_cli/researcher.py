@@ -15,16 +15,19 @@ from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 
 
 class ResearchAgent:
-    def __init__(self, api_key: str, base_url: Optional[str] = None):
+    """Agent for running deep research, search, and image generation using Gemini Interactions API."""
+
+    def __init__(self, api_key: str, base_url: Optional[str] = None, console=None):
         self.api_key = api_key
         self.base_url = base_url
-        self.console = get_console()
+        self.console = console or get_console()
 
     def get_client(
         self,
         api_version: str = "v1alpha",
         timeout: Optional[int] = None,
     ) -> genai.Client:
+        """Initializes and returns the Gemini client."""
         http_options: Any = {"api_version": api_version}
         if timeout is not None:
             http_options["timeout"] = timeout
@@ -44,6 +47,7 @@ class ResearchAgent:
         inter_id: Optional[str] = None,
         bg_tasks: Optional[Set[asyncio.Task]] = None,
     ):
+        """Unified error handling for research tasks."""
         self.console.print(f"[red]{prefix}:[/red]")
         self.console.print_exception()
         if bg_tasks:
@@ -52,7 +56,8 @@ class ResearchAgent:
 
     async def _poll_interaction(
         self, client: genai.Client, interaction_id: str, report_parts: List[str]
-    ):
+    ) -> str:
+        """Polls an interaction until completion or failure."""
         from rich.text import Text
 
         self.console.print(
@@ -121,6 +126,7 @@ class ResearchAgent:
         use_search: bool = False,
         urls: Optional[List[str]] = None,
     ) -> List[dict[str, Any]]:
+        """Constructs and returns the list of tools for an interaction."""
         tools = []
         if use_search:
             tools.append({"type": "google_search"})
@@ -136,6 +142,7 @@ class ResearchAgent:
     async def _upload_files(
         self, client: genai.Client, file_paths: List[str]
     ) -> List[str]:
+        """Uploads files to the Gemini Files API and returns their URIs."""
         from rich.progress import Progress, SpinnerColumn, TextColumn
         from rich.text import Text
 
@@ -171,7 +178,7 @@ class ResearchAgent:
 
                     file_uri = None
                     while True:
-                        # Ty helper to avoid None name issue
+                        # Use cast to ensure name is string for the type checker
                         name = cast(str, file_obj.name)
                         file_status = await asyncio.to_thread(
                             client.files.get, name=name
@@ -217,12 +224,12 @@ class ResearchAgent:
     async def _run_interaction(
         self,
         task_id: int,
-        query: str,
         interaction_params: Dict[str, Any],
         verbose: bool = False,
-        error_prefix: str = "Error during research",
+        error_prefix: str = "Error during interaction",
         error_msg: str = "Execution failed",
     ) -> Optional[str]:
+        """Internal helper to run and stream an interaction."""
         from rich.text import Text
         from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -241,7 +248,7 @@ class ResearchAgent:
         background_tasks: Set[asyncio.Task] = set()
 
         try:
-            # We use cast(Any) because Interactions API has complex overloads that Ty struggles with
+            # Create the interaction stream
             stream = await cast(Any, client.aio.interactions.create)(
                 **interaction_params
             )
@@ -253,6 +260,7 @@ class ResearchAgent:
             ) as progress:
                 progress_task = progress.add_task("Initializing...", total=None)
                 async for event in stream:
+                    # Update interaction ID and DB status
                     inter = get_val(event, "interaction")
                     if inter and not interaction_id:
                         interaction_id = get_val(inter, "id")
@@ -271,6 +279,7 @@ class ResearchAgent:
                                 description=f"Processing (ID: {interaction_id})...",
                             )
 
+                    # Handle thought blocks
                     thought = get_val(event, "thought")
                     if thought:
                         summary = get_val(thought, "summary") or get_val(
@@ -287,6 +296,7 @@ class ResearchAgent:
                             description=f"[italic grey]{desc_text}[/italic grey]",
                         )
 
+                    # Handle content blocks
                     content = get_val(event, "content")
                     if content:
                         parts = get_val(content, "parts", [])
@@ -299,9 +309,11 @@ class ResearchAgent:
                     progress_task, description="Stream finished.", completed=True
                 )
 
+            # Ensure all background tasks are done
             if background_tasks:
                 await asyncio.gather(*background_tasks, return_exceptions=True)
 
+            # Polling fallback if stream didn't provide content
             report_content = "".join(report_parts)
             if not report_content and interaction_id:
                 report_content = await self._poll_interaction(
@@ -318,6 +330,7 @@ class ResearchAgent:
             )
             return None
 
+        # Success path
         if report_content:
             await async_update_task(task_id, "COMPLETED", report_content)
             print_report(report_content)
@@ -338,6 +351,7 @@ class ResearchAgent:
         thinking_level: Optional[str] = None,
         verbose: bool = False,
     ):
+        """Runs a deep research task."""
         from rich.panel import Panel
         from rich.text import Text
 
@@ -418,7 +432,6 @@ class ResearchAgent:
 
         return await self._run_interaction(
             task_id,
-            query,
             params,
             verbose=verbose,
             error_prefix="Error during research",
@@ -432,6 +445,7 @@ class ResearchAgent:
         parent_id: Optional[str] = None,
         verbose: bool = False,
     ):
+        """Runs a fast grounded search interaction."""
         from rich.panel import Panel
         from rich.text import Text
 
@@ -463,10 +477,15 @@ class ResearchAgent:
         }
 
         return await self._run_interaction(
-            task_id, query, params, verbose=verbose, error_prefix="Error during search"
+            task_id,
+            params,
+            verbose=verbose,
+            error_prefix="Error during search",
+            error_msg="Search execution failed",
         )
 
     async def get_status(self, interaction_id: str) -> Optional[str]:
+        """Polls for the status and result of an existing interaction."""
         client = self.get_client()
         report_parts: List[str] = []
         return await self._poll_interaction(client, interaction_id, report_parts)
@@ -474,6 +493,7 @@ class ResearchAgent:
     async def generate_image(
         self, prompt: str, output_path: str, model_id: str, force: bool
     ):
+        """Generates an image from a prompt and saves it."""
         from rich.progress import Progress, SpinnerColumn, TextColumn
         from rich.text import Text
 
