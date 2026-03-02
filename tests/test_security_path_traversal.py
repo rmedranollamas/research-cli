@@ -12,6 +12,7 @@ sys.modules['rich.console'] = MagicMock()
 sys.modules['rich.progress'] = MagicMock()
 sys.modules['rich.text'] = MagicMock()
 
+import pytest
 from research_cli.researcher import ResearchAgent
 from research_cli.utils import save_report_to_file
 
@@ -53,3 +54,15 @@ def test_save_report_path_traversal_vulnerability():
         # Verify if open was NOT called with the traversal path
         for call in mocked_file.call_args_list:
             assert traversal_path not in call[0]
+
+def test_upload_files_path_traversal_vulnerability():
+    agent = ResearchAgent("fake-key")
+    mock_client = MagicMock()
+
+    # Path traversal payload
+    traversal_path = "../../etc/passwd"
+
+    # We want to check if files.upload is NOT called with the traversal path
+    asyncio.run(agent._upload_files(mock_client, [traversal_path]))
+
+    assert not mock_client.files.upload.called

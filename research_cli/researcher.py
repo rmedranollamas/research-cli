@@ -146,6 +146,12 @@ class ResearchAgent:
             console=self.console,
         ) as progress:
             for path in file_paths:
+                try:
+                    path = validate_path(path)
+                except ResearchError as e:
+                    self.console.print(Text(str(e), style="red"))
+                    continue
+
                 if not os.path.exists(path):
                     self.console.print(
                         Text.assemble(
