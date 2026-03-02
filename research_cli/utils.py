@@ -109,7 +109,14 @@ def save_report_to_file(
     with open(output_file, "w") as f:
         f.write(report)
     # Print success message and return True
-    console.print(f"[green]{success_prefix} {output_file}[/green]")
+    from rich.text import Text
+
+    console.print(
+        Text.assemble(
+            (f"{success_prefix} ", "green"),
+            (output_file, "bold green"),
+        )
+    )
     return True
 
 
