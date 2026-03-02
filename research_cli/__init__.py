@@ -21,6 +21,7 @@ from .utils import (
     print_report as print_report,
     save_report_to_file as save_report_to_file,
     async_save_report_to_file as async_save_report_to_file,
+    get_api_key as get_api_key,
 )
 from .config import (
     ResearchError as ResearchError,
@@ -31,17 +32,6 @@ from .config import (
 
 if TYPE_CHECKING:
     from google import genai
-
-
-def get_api_key() -> str:
-    """Gets the Gemini API key from environment variables or raises ResearchError."""
-    api_key = os.getenv(RESEARCH_API_KEY_VAR)
-    if not api_key:
-        get_console().print(
-            f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
-        )
-        raise ResearchError(f"{RESEARCH_API_KEY_VAR} environment variable not set.")
-    return api_key
 
 
 def get_gemini_client(

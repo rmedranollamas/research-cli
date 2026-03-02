@@ -9,6 +9,7 @@ from .utils import (
     truncate_query,
     async_save_report_to_file,
     print_report,
+    get_api_key,
 )
 from .researcher import ResearchAgent
 from importlib import metadata
@@ -229,17 +230,6 @@ async def handle_show(args):
         get_console().print(
             "[yellow]No report content available for this task.[/yellow]"
         )
-
-
-# Function to get API key (moved out of main_async to be importable)
-def get_api_key():
-    api_key = os.getenv(RESEARCH_API_KEY_VAR)  # Use the new RESEARCH_API_KEY_VAR
-    if not api_key:
-        get_console().print(
-            f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
-        )
-        raise ResearchError(f"{RESEARCH_API_KEY_VAR} environment variable not set.")
-    return api_key
 
 
 async def main_async():
