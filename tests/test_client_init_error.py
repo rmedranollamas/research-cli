@@ -1,7 +1,8 @@
 import pytest
 import sys
 from unittest.mock import patch
-from research_cli import run_research, ResearchError, get_db, main
+from research_cli import run_research, ResearchError, main
+from research_cli.db import get_db
 
 
 @pytest.mark.asyncio

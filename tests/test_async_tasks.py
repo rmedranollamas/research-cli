@@ -1,7 +1,7 @@
 import pytest
 import threading
 from unittest.mock import patch, AsyncMock
-from research_cli import (
+from research_cli.db import (
     async_save_task,
     async_update_task,
     save_task,

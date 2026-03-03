@@ -1,5 +1,5 @@
 import pytest
-from research_cli import get_recent_tasks, async_get_recent_tasks, get_db, save_task
+from research_cli.db import get_recent_tasks, async_get_recent_tasks, get_db, save_task
 
 
 def test_get_recent_tasks_empty(temp_db):

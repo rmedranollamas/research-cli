@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
-from research_cli import run_research, get_db
+from research_cli import run_research
+from research_cli.db import get_db
 
 
 @pytest.mark.asyncio

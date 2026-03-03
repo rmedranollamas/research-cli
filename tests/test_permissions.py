@@ -1,5 +1,5 @@
 import os
-from research_cli import get_db
+from research_cli.db import get_db
 
 
 def test_db_permissions(tmp_path):

@@ -1,4 +1,4 @@
-from research_cli import save_task, update_task, get_db
+from research_cli.db import save_task, update_task, get_db
 
 
 def test_init_db(temp_db):
