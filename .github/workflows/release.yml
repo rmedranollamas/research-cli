@@ -88,6 +88,11 @@ jobs:
 
       - name: Package Extension Archives
         run: |
+          # Sync version in gemini-extension.json with tag name
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v} # strip 'v' prefix
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" gemini-extension.json
+          
           mkdir -p release
           
           # Platforms/Archs we build
