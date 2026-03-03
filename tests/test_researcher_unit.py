@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from research_cli.researcher import ResearchAgent
 from research_cli.config import ResearchError
 
@@ -58,3 +58,42 @@ async def test_run_search_client_init_failure():
                     await agent.run_search("query", "model")
                 # Should be called once by _run_interaction
                 mock_handle.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_generate_image_error_handling():
+    # Setup mock console
+    mock_console = MagicMock()
+
+    agent = ResearchAgent(api_key="fake-key", console=mock_console)
+    mock_client = MagicMock()
+
+    # Mock create to raise an Exception
+    # Need to simulate client.aio.interactions.create raising an error
+    error_msg = "Test API Error"
+    mock_client.aio.interactions.create.side_effect = Exception(error_msg)
+
+    with patch.object(ResearchAgent, "get_client", return_value=mock_client):
+        with patch("research_cli.utils.validate_path", return_value="out.png"):
+            with patch("os.path.exists", return_value=False):
+                await agent.generate_image("prompt", "out.png", "model", False)
+
+    # Verify that console.print and console.print_exception were called
+    assert mock_console.print.called
+
+    # We should get 1 print for the Text object representing the error message
+    # Let's verify that the error message contains the expected string
+    error_printed = False
+    for call in mock_console.print.call_args_list:
+        args, kwargs = call
+        if len(args) > 0:
+            text_obj = args[0]
+
+            if hasattr(text_obj, "plain") and "Error generating image:" in text_obj.plain and error_msg in text_obj.plain:
+                error_printed = True
+            elif hasattr(text_obj, "markup") and "Error generating image:" in text_obj.markup and error_msg in text_obj.markup:
+                error_printed = True
+            elif str(text_obj) == f"Error generating image: {error_msg}":
+                 error_printed = True
+
+    assert error_printed, "The error message should have been printed to the console."
+    assert mock_console.print_exception.called, "console.print_exception should have been called."

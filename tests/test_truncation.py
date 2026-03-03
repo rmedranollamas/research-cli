@@ -1,6 +1,7 @@
 import sys
 from unittest.mock import patch
-from research_cli import truncate_query, QUERY_TRUNCATION_LENGTH, save_task, main
+from research_cli import truncate_query, save_task, main
+from research_cli.config import QUERY_TRUNCATION_LENGTH
 
 
 def test_truncate_query_short():
