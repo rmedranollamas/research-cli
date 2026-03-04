@@ -97,3 +97,32 @@ async def test_generate_image_error_handling():
 
     assert error_printed, "The error message should have been printed to the console."
     assert mock_console.print_exception.called, "console.print_exception should have been called."
+
+@pytest.mark.asyncio
+async def test_upload_files_error_handling():
+    mock_console = MagicMock()
+    agent = ResearchAgent(api_key="fake-key", console=mock_console)
+    mock_client = MagicMock()
+
+    error_msg = "Test Upload Error"
+
+    with patch("research_cli.researcher.validate_path", return_value="test_file.txt"):
+        with patch("os.path.exists", return_value=True):
+            with patch("asyncio.to_thread", side_effect=Exception(error_msg)):
+                result = await agent._upload_files(mock_client, ["test_file.txt"])
+
+    assert result == []
+
+    error_printed = False
+    for call in mock_console.print.call_args_list:
+        args, kwargs = call
+        if len(args) > 0:
+            text_obj = args[0]
+            if hasattr(text_obj, "plain") and "Error uploading" in text_obj.plain and error_msg in text_obj.plain:
+                error_printed = True
+            elif hasattr(text_obj, "markup") and "Error uploading" in text_obj.markup and error_msg in text_obj.markup:
+                error_printed = True
+            elif f"Error uploading test_file.txt: {error_msg}" in str(text_obj):
+                error_printed = True
+
+    assert error_printed, "The error message should have been printed to the console."
