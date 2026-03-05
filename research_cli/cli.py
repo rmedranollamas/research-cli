@@ -153,6 +153,13 @@ async def handle_run(args, agent: ResearchAgent, parser):
         thinking_level=args.thinking,
         verbose=args.verbose,
     )
+    if report is None:
+        # Check if research failed. agent.run_research returns None on failure after handling it.
+        # But for CLI exit code 1, we might need to know if it was a ResearchError.
+        # Actually, the requirement is that it exits with 1.
+        # If run_research handles the error and returns None, we need to raise to trigger sys.exit(1) in main_async.
+        raise ResearchError("Research failed")
+
     if report and args.output:
         await async_save_report_to_file(report, args.output, args.force)
 
@@ -173,17 +180,25 @@ async def handle_search(args, agent: ResearchAgent, parser):
         parent_id=args.parent,
         verbose=args.verbose,
     )
+    if report is None:
+        raise ResearchError("Search failed")
+
     if report and args.output:
         await async_save_report_to_file(report, args.output, args.force)
 
 
 async def handle_status(args, agent: ResearchAgent):
     report = await agent.get_status(args.interaction_id)
+    if report is None:
+        raise ResearchError("Status check failed")
+
     if report and args.output:
         await async_save_report_to_file(report, args.output, args.force)
 
 
 async def handle_generate_image(args, agent: ResearchAgent):
+    # generate_image currently doesn't return anything, it handles its own errors.
+    # We might want it to raise ResearchError on failure too.
     await agent.generate_image(args.prompt, args.output, args.model, args.force)
 
 
@@ -241,7 +256,6 @@ async def main_async():
         not args.command and len(sys.argv) > 1 and not sys.argv[1].startswith("-")
     ):
         try:
-            # get_api_key is now a separate function
             api_key = get_api_key()
 
             agent = ResearchAgent(
@@ -258,8 +272,25 @@ async def main_async():
                 await handle_generate_image(args, agent)
             else:
                 query = sys.argv[1]
-                await agent.run_research(query, DEFAULT_MODEL)
-        except ResearchError:
+                await handle_run(
+                    argparse.Namespace(
+                        query=query,
+                        model=DEFAULT_MODEL,
+                        output=None,
+                        force=False,
+                        parent=None,
+                        urls=None,
+                        files=None,
+                        thinking=None,
+                        use_search=True,
+                        verbose=False,
+                    ),
+                    agent,
+                    parser,
+                )
+        except (ResearchError, SystemExit) as e:
+            if isinstance(e, SystemExit):
+                raise e
             sys.exit(1)
         except KeyboardInterrupt:
             console.print("\n[yellow]Cancelled by user.[/yellow]")

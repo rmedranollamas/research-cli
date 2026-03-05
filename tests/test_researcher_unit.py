@@ -1,7 +1,8 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from research_cli.researcher import ResearchAgent
 from research_cli.config import ResearchError
+
 
 def test_get_client_success():
     agent = ResearchAgent(api_key="fake-key", base_url="http://fake-url")
@@ -10,8 +11,13 @@ def test_get_client_success():
         assert client == mock_client.return_value
         mock_client.assert_called_once_with(
             api_key="fake-key",
-            http_options={"api_version": "v1beta", "timeout": 30, "base_url": "http://fake-url"}
+            http_options={
+                "api_version": "v1beta",
+                "timeout": 30,
+                "base_url": "http://fake-url",
+            },
         )
+
 
 def test_get_client_failure():
     agent = ResearchAgent(api_key="fake-key")
@@ -19,56 +25,68 @@ def test_get_client_failure():
         with pytest.raises(ResearchError, match="Client initialization failed"):
             agent.get_client()
 
+
 @pytest.mark.asyncio
 async def test_get_status_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
-    with patch.object(ResearchAgent, "get_client", side_effect=ResearchError("Client initialization failed")):
+    with patch.object(
+        ResearchAgent,
+        "get_client",
+        side_effect=ResearchError("Client initialization failed"),
+    ):
         with pytest.raises(ResearchError, match="Client initialization failed"):
             await agent.get_status("some-id")
+
 
 @pytest.mark.asyncio
 async def test_generate_image_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
-    with patch.object(ResearchAgent, "get_client", side_effect=ResearchError("Client initialization failed")):
+    with patch.object(
+        ResearchAgent,
+        "get_client",
+        side_effect=ResearchError("Client initialization failed"),
+    ):
         with patch("os.path.exists", return_value=False):
             with pytest.raises(ResearchError, match="Client initialization failed"):
                 await agent.generate_image("prompt", "out.png", "model", False)
 
+
 @pytest.mark.asyncio
 async def test_run_research_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
-    # Both run_research and _run_interaction try to get a client.
-    # In run_research, it's used for file uploads first.
-    with patch.object(ResearchAgent, "get_client", side_effect=ResearchError("Client initialization failed")):
+    with patch.object(
+        ResearchAgent,
+        "get_client",
+        side_effect=ResearchError("Client initialization failed"),
+    ):
         with patch("research_cli.researcher.async_save_task", return_value=1):
             with patch.object(agent, "_handle_error") as mock_handle:
-                with pytest.raises(ResearchError, match="Client initialization failed"):
-                    await agent.run_research("query", "model")
-                # Should be called once by run_research
+                result = await agent.run_research("query", "model")
+                assert result is None
                 mock_handle.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_run_search_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
-    # run_search calls _run_interaction which calls get_client
-    with patch.object(ResearchAgent, "get_client", side_effect=ResearchError("Client initialization failed")):
+    with patch.object(
+        ResearchAgent,
+        "get_client",
+        side_effect=ResearchError("Client initialization failed"),
+    ):
         with patch("research_cli.researcher.async_save_task", return_value=1):
             with patch.object(agent, "_handle_error") as mock_handle:
-                with pytest.raises(ResearchError, match="Client initialization failed"):
-                    await agent.run_search("query", "model")
-                # Should be called once by _run_interaction
+                result = await agent.run_search("query", "model")
+                assert result is None
                 mock_handle.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_generate_image_error_handling():
-    # Setup mock console
     mock_console = MagicMock()
-
     agent = ResearchAgent(api_key="fake-key", console=mock_console)
     mock_client = MagicMock()
 
-    # Mock create to raise an Exception
-    # Need to simulate client.aio.interactions.create raising an error
     error_msg = "Test API Error"
     mock_client.aio.interactions.create.side_effect = Exception(error_msg)
 
@@ -77,33 +95,25 @@ async def test_generate_image_error_handling():
             with patch("os.path.exists", return_value=False):
                 await agent.generate_image("prompt", "out.png", "model", False)
 
-    # Verify that console.print and console.print_exception were called
     assert mock_console.print.called
-
-    # We should get 1 print for the Text object representing the error message
-    # Let's verify that the error message contains the expected string
     error_printed = False
     for call in mock_console.print.call_args_list:
-        args, kwargs = call
+        args, _ = call
         if len(args) > 0:
             text_obj = args[0]
-
-            if hasattr(text_obj, "plain") and "Error generating image:" in text_obj.plain and error_msg in text_obj.plain:
+            if "Error generating image:" in str(text_obj) and error_msg in str(
+                text_obj
+            ):
                 error_printed = True
-            elif hasattr(text_obj, "markup") and "Error generating image:" in text_obj.markup and error_msg in text_obj.markup:
-                error_printed = True
-            elif str(text_obj) == f"Error generating image: {error_msg}":
-                 error_printed = True
+    assert error_printed
+    assert mock_console.print_exception.called
 
-    assert error_printed, "The error message should have been printed to the console."
-    assert mock_console.print_exception.called, "console.print_exception should have been called."
 
 @pytest.mark.asyncio
 async def test_upload_files_error_handling():
     mock_console = MagicMock()
     agent = ResearchAgent(api_key="fake-key", console=mock_console)
     mock_client = MagicMock()
-
     error_msg = "Test Upload Error"
 
     with patch("research_cli.researcher.validate_path", return_value="test_file.txt"):
@@ -112,17 +122,166 @@ async def test_upload_files_error_handling():
                 result = await agent._upload_files(mock_client, ["test_file.txt"])
 
     assert result == []
-
     error_printed = False
     for call in mock_console.print.call_args_list:
-        args, kwargs = call
+        args, _ = call
         if len(args) > 0:
             text_obj = args[0]
-            if hasattr(text_obj, "plain") and "Error uploading" in text_obj.plain and error_msg in text_obj.plain:
+            if "Error uploading" in str(text_obj) and error_msg in str(text_obj):
                 error_printed = True
-            elif hasattr(text_obj, "markup") and "Error uploading" in text_obj.markup and error_msg in text_obj.markup:
-                error_printed = True
-            elif f"Error uploading test_file.txt: {error_msg}" in str(text_obj):
-                error_printed = True
+    assert error_printed
 
-    assert error_printed, "The error message should have been printed to the console."
+
+@pytest.mark.asyncio
+async def test_poll_interaction_completed_outputs():
+    agent = ResearchAgent(api_key="fake-key")
+    mock_client = MagicMock()
+    mock_client.aio.interactions.get = AsyncMock()
+    interaction_id = "test-id"
+    report_parts = ["Part 1"]
+
+    mock_inter = MagicMock()
+    mock_inter.status = "COMPLETED"
+    mock_inter.outputs = [{"text": "Part 2"}, {"text": "Part 3"}]
+    mock_client.aio.interactions.get.return_value = mock_inter
+
+    with patch("asyncio.sleep", return_value=None):
+        result = await agent._poll_interaction(
+            mock_client, interaction_id, report_parts
+        )
+
+    assert result == "Part 1Part 2Part 3"
+
+
+@pytest.mark.asyncio
+async def test_poll_interaction_completed_response():
+    agent = ResearchAgent(api_key="fake-key")
+    mock_client = MagicMock()
+    mock_client.aio.interactions.get = AsyncMock()
+    interaction_id = "test-id"
+    report_parts = []
+
+    mock_inter = MagicMock()
+    mock_inter.status = "COMPLETED"
+    mock_inter.outputs = []
+    mock_inter.response = {"text": "Full Report"}
+    mock_client.aio.interactions.get.return_value = mock_inter
+
+    with patch("asyncio.sleep", return_value=None):
+        result = await agent._poll_interaction(
+            mock_client, interaction_id, report_parts
+        )
+
+    assert result == "Full Report"
+
+
+@pytest.mark.asyncio
+async def test_poll_interaction_failed():
+    agent = ResearchAgent(api_key="fake-key")
+    mock_client = MagicMock()
+    mock_client.aio.interactions.get = AsyncMock()
+    interaction_id = "test-id"
+
+    mock_inter = MagicMock()
+    mock_inter.status = "FAILED"
+    mock_inter.error = "Some API error"
+    mock_client.aio.interactions.get.return_value = mock_inter
+
+    with patch("asyncio.sleep", return_value=None):
+        with pytest.raises(ResearchError, match="Interaction failed: Some API error"):
+            await agent._poll_interaction(mock_client, interaction_id, [])
+
+
+@pytest.mark.asyncio
+async def test_poll_interaction_cancelled():
+    agent = ResearchAgent(api_key="fake-key")
+    mock_client = MagicMock()
+    mock_client.aio.interactions.get = AsyncMock()
+    interaction_id = "test-id"
+
+    mock_inter = MagicMock()
+    mock_inter.status = "CANCELLED"
+    mock_client.aio.interactions.get.return_value = mock_inter
+
+    with patch("asyncio.sleep", return_value=None):
+        with pytest.raises(ResearchError, match="Interaction cancelled"):
+            await agent._poll_interaction(mock_client, interaction_id, [])
+
+
+@pytest.mark.asyncio
+async def test_poll_interaction_retry_on_503():
+    agent = ResearchAgent(api_key="fake-key")
+    mock_client = MagicMock()
+    mock_client.aio.interactions.get = AsyncMock()
+    interaction_id = "test-id"
+
+    mock_inter = MagicMock()
+    mock_inter.status = "COMPLETED"
+    mock_inter.outputs = [{"text": "Success after retry"}]
+
+    mock_client.aio.interactions.get.side_effect = [
+        Exception("Service Unavailable (503)"),
+        mock_inter,
+    ]
+
+    with patch("asyncio.sleep", return_value=None):
+        result = await agent._poll_interaction(mock_client, interaction_id, [])
+
+    assert result == "Success after retry"
+    assert mock_client.aio.interactions.get.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_poll_interaction_status_progression():
+    agent = ResearchAgent(api_key="fake-key")
+    mock_client = MagicMock()
+    mock_client.aio.interactions.get = AsyncMock()
+    interaction_id = "test-id"
+
+    mock_inter_1 = MagicMock()
+    mock_inter_1.status = "IN_PROGRESS"
+    mock_inter_2 = MagicMock()
+    mock_inter_2.status = "COMPLETED"
+    mock_inter_2.outputs = [{"text": "Done"}]
+
+    mock_client.aio.interactions.get.side_effect = [mock_inter_1, mock_inter_2]
+
+    with patch("asyncio.sleep", return_value=None):
+        result = await agent._poll_interaction(mock_client, interaction_id, [])
+
+    assert result == "Done"
+    assert mock_client.aio.interactions.get.call_count == 2
+
+
+def test_get_tools_default():
+    agent = ResearchAgent(api_key="fake-key")
+    with patch("research_cli.researcher.RESEARCH_MCP_SERVERS", []):
+        tools = agent._get_tools(use_search=False, urls=None)
+        assert tools == []
+
+
+def test_get_tools_search_and_urls():
+    agent = ResearchAgent(api_key="fake-key")
+    with patch("research_cli.researcher.RESEARCH_MCP_SERVERS", []):
+        tools = agent._get_tools(use_search=True, urls=["http://example.com"])
+        assert len(tools) == 2
+        assert {"type": "google_search"} in tools
+        assert {"type": "url_context"} in tools
+
+
+def test_get_tools_mcp():
+    agent = ResearchAgent(api_key="fake-key")
+    mcp_servers = ["http://mcp1.local", "http://mcp2.local"]
+    with patch("research_cli.researcher.RESEARCH_MCP_SERVERS", mcp_servers):
+        tools = agent._get_tools(use_search=False, urls=None)
+        assert len(tools) == 2
+        assert tools[0] == {
+            "type": "mcp_server",
+            "name": "mcp_server_0",
+            "url": "http://mcp1.local",
+        }
+        assert tools[1] == {
+            "type": "mcp_server",
+            "name": "mcp_server_1",
+            "url": "http://mcp2.local",
+        }

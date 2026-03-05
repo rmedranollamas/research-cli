@@ -17,7 +17,12 @@ from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 class ResearchAgent:
     """Agent for running deep research, search, and image generation using Gemini Interactions API."""
 
-    def __init__(self, api_key: str, base_url: Optional[str] = None, console=None):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: Optional[str] = None,
+        console: Optional[Any] = None,
+    ):
         self.api_key = api_key
         self.base_url = base_url
         self.console = console or get_console()
@@ -28,7 +33,7 @@ class ResearchAgent:
         timeout: Optional[int] = None,
     ) -> genai.Client:
         """Initializes and returns the Gemini client."""
-        http_options: Any = {"api_version": api_version}
+        http_options: Dict[str, Any] = {"api_version": api_version}
         if timeout is not None:
             http_options["timeout"] = timeout
         if self.base_url:
@@ -36,8 +41,8 @@ class ResearchAgent:
 
         try:
             return genai.Client(api_key=self.api_key, http_options=http_options)  # type: ignore
-        except Exception:
-            raise ResearchError("Client initialization failed")
+        except Exception as e:
+            raise ResearchError(f"Client initialization failed: {e}")
 
     async def _handle_error(
         self,
@@ -51,6 +56,7 @@ class ResearchAgent:
         self.console.print(f"[red]{prefix}:[/red]")
         self.console.print_exception()
         if bg_tasks:
+            # Gather remaining background tasks if any
             await asyncio.gather(*bg_tasks, return_exceptions=True)
         await async_update_task(task_id, "ERROR", db_msg, interaction_id=inter_id)
 
@@ -69,14 +75,15 @@ class ResearchAgent:
         )
         last_status = None
         try:
-            max_interval = float(
+            max_poll_interval = float(
                 os.getenv("RESEARCH_POLL_INTERVAL", str(POLL_INTERVAL_DEFAULT))
             )
         except ValueError:
-            max_interval = POLL_INTERVAL_DEFAULT
+            max_poll_interval = POLL_INTERVAL_DEFAULT
 
-        max_interval = max(1.0, max_interval)
+        max_poll_interval = max(1.0, max_poll_interval)
         current_interval = 1.0
+
         while True:
             try:
                 final_inter = await client.aio.interactions.get(id=interaction_id)
@@ -91,7 +98,7 @@ class ResearchAgent:
                         )
                     )
                     await asyncio.sleep(current_interval)
-                    current_interval = min(current_interval * 1.5, max_interval)
+                    current_interval = min(current_interval * 1.5, max_poll_interval)
                     continue
                 raise e
 
@@ -115,19 +122,25 @@ class ResearchAgent:
                             report_parts.append(text)
                 break
             elif status in ["FAILED", "CANCELLED"]:
-                break
+                error_msg = f"Interaction {status.lower()}"
+                if status == "FAILED":
+                    error_details = get_val(final_inter, "error")
+                    if error_details:
+                        error_msg += f": {error_details}"
+                raise ResearchError(error_msg)
 
             await asyncio.sleep(current_interval)
-            current_interval = min(current_interval * 1.5, max_interval)
+            current_interval = min(current_interval * 1.5, max_poll_interval)
+
         return "".join(report_parts)
 
     def _get_tools(
         self,
         use_search: bool = False,
         urls: Optional[List[str]] = None,
-    ) -> List[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Constructs and returns the list of tools for an interaction."""
-        tools = []
+        tools: List[Dict[str, Any]] = []
         if use_search:
             tools.append({"type": "google_search"})
         if urls:
@@ -146,7 +159,7 @@ class ResearchAgent:
         from rich.progress import Progress, SpinnerColumn, TextColumn
         from rich.text import Text
 
-        uploaded_uris = []
+        uploaded_uris: List[str] = []
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -235,20 +248,21 @@ class ResearchAgent:
 
         try:
             client = self.get_client()
-        except Exception:
+        except Exception as e:
             await self._handle_error(
                 task_id,
                 "Error initializing Gemini client",
-                "Client initialization failed",
+                f"Client initialization failed: {e}",
             )
-            raise ResearchError("Client initialization failed")
+            return None
 
         report_parts: List[str] = []
-        interaction_id = None
+        interaction_id: Optional[str] = None
         background_tasks: Set[asyncio.Task] = set()
 
         try:
             # Create the interaction stream
+            # The interactions.create returns an async iterator
             stream = await cast(Any, client.aio.interactions.create)(
                 **interaction_params
             )
@@ -320,11 +334,11 @@ class ResearchAgent:
                     client, interaction_id, report_parts
                 )
 
-        except Exception:
+        except Exception as e:
             await self._handle_error(
                 task_id,
                 error_prefix,
-                error_msg,
+                f"{error_msg}: {e}",
                 interaction_id,
                 background_tasks,
             )
@@ -350,7 +364,7 @@ class ResearchAgent:
         use_search: bool = True,
         thinking_level: Optional[str] = None,
         verbose: bool = False,
-    ):
+    ) -> Optional[str]:
         """Runs a deep research task."""
         from rich.panel import Panel
         from rich.text import Text
@@ -382,20 +396,20 @@ class ResearchAgent:
 
         try:
             client = self.get_client()
-        except Exception:
+        except Exception as e:
             await self._handle_error(
                 task_id,
                 "Error initializing Gemini client",
-                "Client initialization failed",
+                f"Client initialization failed: {e}",
             )
-            raise ResearchError("Client initialization failed")
+            return None
 
         # Handle file uploads
-        file_uris = []
+        file_uris: List[str] = []
         if files:
             file_uris = await self._upload_files(client, files)
 
-        agent_config: dict[str, Any] = {
+        agent_config: Dict[str, Any] = {
             "type": "deep-research",
             "thinking_summaries": "auto",
         }
@@ -413,14 +427,14 @@ class ResearchAgent:
                 + "\n".join(file_uris)
             )
 
-        interaction_input: List[dict[str, Any]] = [
+        interaction_input: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": [{"type": "text", "text": modified_query}],
             }
         ]
 
-        params = {
+        params: Dict[str, Any] = {
             "agent": model_id,
             "input": interaction_input,
             "background": True,
@@ -444,7 +458,7 @@ class ResearchAgent:
         model_id: str = "gemini-2.0-flash",
         parent_id: Optional[str] = None,
         verbose: bool = False,
-    ):
+    ) -> Optional[str]:
         """Runs a fast grounded search interaction."""
         from rich.panel import Panel
         from rich.text import Text
@@ -468,7 +482,7 @@ class ResearchAgent:
             )
         )
 
-        params = {
+        params: Dict[str, Any] = {
             "model": model_id,
             "input": query,
             "stream": True,
@@ -486,7 +500,10 @@ class ResearchAgent:
 
     async def get_status(self, interaction_id: str) -> Optional[str]:
         """Polls for the status and result of an existing interaction."""
-        client = self.get_client()
+        try:
+            client = self.get_client()
+        except Exception as e:
+            raise ResearchError(f"Client initialization failed: {e}")
         report_parts: List[str] = []
         return await self._poll_interaction(client, interaction_id, report_parts)
 
@@ -513,7 +530,10 @@ class ResearchAgent:
             )
             return
 
-        client = self.get_client()
+        try:
+            client = self.get_client()
+        except Exception as e:
+            raise ResearchError(f"Client initialization failed: {e}")
 
         with Progress(
             SpinnerColumn(),

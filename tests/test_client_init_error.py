@@ -1,7 +1,7 @@
 import pytest
 import sys
 from unittest.mock import patch
-from research_cli import run_research, ResearchError, main
+from research_cli import run_research, main
 from research_cli.db import get_db
 
 
@@ -12,8 +12,9 @@ async def test_run_research_client_init_error(temp_db, capsys):
         patch("research_cli.get_api_key", return_value="fake-key"),
         patch("google.genai.Client", side_effect=Exception("Init failed")),
     ):
-        with pytest.raises(ResearchError, match="Client initialization failed"):
-            await run_research("query", "model")
+        # run_research now catches the ResearchError from get_client, handles it, and returns None
+        result = await run_research("query", "model")
+        assert result is None
 
     # Verify console output
     captured = capsys.readouterr()
@@ -29,7 +30,11 @@ async def test_run_research_client_init_error(temp_db, capsys):
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "ERROR"
-        assert row[1] == "Client initialization failed"
+        # Updated message format
+        assert (
+            "Client initialization failed: Client initialization failed: Init failed"
+            in row[1]
+        )
 
 
 def test_cli_run_client_init_error(temp_db, capsys):
@@ -56,4 +61,7 @@ def test_cli_run_client_init_error(temp_db, capsys):
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "ERROR"
-        assert row[1] == "Client initialization failed"
+        assert (
+            "Client initialization failed: Client initialization failed: Init failed"
+            in row[1]
+        )

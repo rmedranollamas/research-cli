@@ -46,7 +46,8 @@ async def test_run_research_stream_failure(temp_db, capsys):
             row = cursor.fetchone()
             assert row is not None
             assert row[0] == "ERROR"
-            assert row[1] == "Research execution failed"
+            # New format includes the exception message
+            assert "Research execution failed: Stream failure" in row[1]
 
 
 @pytest.mark.asyncio
@@ -101,5 +102,5 @@ async def test_run_research_stream_failure_after_interaction(temp_db, capsys):
             row = cursor.fetchone()
             assert row is not None
             assert row[0] == "ERROR"
-            assert row[1] == "Research execution failed"
+            assert "Research execution failed: Stream failure mid-way" in row[1]
             assert row[2] == interaction_id

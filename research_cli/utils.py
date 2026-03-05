@@ -1,6 +1,6 @@
 import os
 import asyncio
-from typing import Union
+from typing import Union, Optional, Any
 from .config import (
     QUERY_TRUNCATION_LENGTH,
     WORKSPACE_DIR,
@@ -8,10 +8,11 @@ from .config import (
     RESEARCH_API_KEY_VAR,
 )
 
-_console = None
+_console: Optional[Any] = None
 
 
-def get_console():
+def get_console() -> Any:
+    """Returns the singleton rich console instance."""
     global _console
     if _console is None:
         from rich.console import Console
@@ -20,14 +21,22 @@ def get_console():
     return _console
 
 
-def set_console(console):
+def set_console(console: Any):
     """Sets a custom console (useful for testing)."""
     global _console
     _console = console
 
 
 def get_api_key() -> str:
-    """Gets the Gemini API key from environment variables or raises ResearchError."""
+    """
+    Gets the Gemini API key from environment variables or raises ResearchError.
+
+    Returns:
+        The API key string.
+
+    Raises:
+        ResearchError: If the API key is not found in the environment.
+    """
     api_key = os.getenv(RESEARCH_API_KEY_VAR)
     if not api_key:
         error_message = f"{RESEARCH_API_KEY_VAR} environment variable not set."
@@ -40,6 +49,15 @@ def validate_path(path: str) -> str:
     """
     Validates that the given path is within the WORKSPACE_DIR.
     Returns the resolved real path if valid, otherwise raises ResearchError.
+
+    Args:
+        path: The path to validate.
+
+    Returns:
+        The resolved absolute path.
+
+    Raises:
+        ResearchError: If the path is invalid or points outside the workspace.
     """
     if not path:
         raise ResearchError("Empty or invalid path provided")
@@ -70,6 +88,7 @@ def validate_path(path: str) -> str:
 
 
 def truncate_query(query: str) -> str:
+    """Truncates the query to a safe length for display."""
     if not query:
         return ""
     return (
@@ -79,7 +98,18 @@ def truncate_query(query: str) -> str:
     )
 
 
-def get_val(obj, key: str, default=None):
+def get_val(obj: Any, key: str, default: Any = None) -> Any:
+    """
+    Safely retrieves a value from an object or dictionary.
+
+    Args:
+        obj: The object or dictionary to retrieve from.
+        key: The key or attribute name.
+        default: The default value to return if not found.
+
+    Returns:
+        The retrieved value or the default.
+    """
     if obj is None:
         return default
     val = getattr(obj, key, None)
@@ -89,6 +119,7 @@ def get_val(obj, key: str, default=None):
 
 
 def print_report(report: str):
+    """Prints a research report formatted as Markdown."""
     from rich.markdown import Markdown
 
     console = get_console()
@@ -138,20 +169,30 @@ def _save_to_file(
 
 
 def save_report_to_file(
-    report: str, output_file: str, force: bool, success_prefix: str = "Report saved to"
+    report: str,
+    output_file: str,
+    force: bool,
+    success_prefix: str = "Report saved to",
 ) -> bool:
+    """Saves a research report to a text file."""
     return _save_to_file(report, output_file, force, success_prefix, binary=False)
 
 
-async def async_save_report_to_file(*args, **kwargs):
+async def async_save_report_to_file(*args, **kwargs) -> bool:
+    """Asynchronous wrapper for save_report_to_file."""
     return await asyncio.to_thread(save_report_to_file, *args, **kwargs)
 
 
 def save_binary_to_file(
-    data: bytes, output_file: str, force: bool, success_prefix: str = "Binary saved to"
+    data: bytes,
+    output_file: str,
+    force: bool,
+    success_prefix: str = "Binary saved to",
 ) -> bool:
+    """Saves binary data (e.g., an image) to a file."""
     return _save_to_file(data, output_file, force, success_prefix, binary=True)
 
 
-async def async_save_binary_to_file(*args, **kwargs):
+async def async_save_binary_to_file(*args, **kwargs) -> bool:
+    """Asynchronous wrapper for save_binary_to_file."""
     return await asyncio.to_thread(save_binary_to_file, *args, **kwargs)
