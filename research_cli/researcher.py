@@ -152,87 +152,98 @@ class ResearchAgent:
             )
         return tools
 
+    async def _upload_single_file(
+        self,
+        client: genai.Client,
+        path: str,
+        progress: Any,
+    ) -> Optional[str]:
+        """Uploads a single file and polls for its active status."""
+        from rich.text import Text
+
+        try:
+            path = validate_path(path)
+        except ResearchError as e:
+            self.console.print(Text(str(e), style="red"))
+            return None
+
+        if not os.path.exists(path):
+            self.console.print(
+                Text.assemble(
+                    ("Error: File ", "red"),
+                    (path, "bold red"),
+                    (" not found.", "red"),
+                )
+            )
+            return None
+
+        filename = os.path.basename(path)
+        task = progress.add_task(f"Uploading {filename}...", total=None)
+        try:
+            # Note: Files API is not yet available in aio, using sync call in thread
+            file_obj = await asyncio.to_thread(client.files.upload, file=path)
+            progress.update(task, description=f"Processing {filename}...")
+
+            file_uri = None
+            while True:
+                # Use cast to ensure name is string for the type checker
+                name = cast(str, file_obj.name)
+                file_status = await asyncio.to_thread(client.files.get, name=name)
+                state = get_val(file_status, "state")
+                state_name = get_val(state, "name") if state else "UNKNOWN"
+
+                if state_name == "ACTIVE":
+                    file_uri = get_val(file_status, "uri")
+                    break
+                elif state_name in ["FAILED", "DELETED"]:
+                    self.console.print(
+                        Text.assemble(
+                            ("Error: File ", "red"),
+                            (path, "bold red"),
+                            (" failed to process.", "red"),
+                        )
+                    )
+                    break
+                await asyncio.sleep(2)
+
+            if file_uri:
+                progress.update(
+                    task,
+                    description=f"Uploaded {filename}",
+                    completed=True,
+                )
+                return file_uri
+            else:
+                progress.remove_task(task)
+                return None
+        except Exception as e:
+            self.console.print(
+                Text.assemble(
+                    ("Error uploading ", "red"),
+                    (path, "bold red"),
+                    (f": {e}", "red"),
+                )
+            )
+            progress.remove_task(task)
+            return None
+
     async def _upload_files(
         self, client: genai.Client, file_paths: List[str]
     ) -> List[str]:
-        """Uploads files to the Gemini Files API and returns their URIs."""
+        """Uploads files to the Gemini Files API concurrently and returns their URIs."""
         from rich.progress import Progress, SpinnerColumn, TextColumn
-        from rich.text import Text
 
-        uploaded_uris: List[str] = []
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=self.console,
         ) as progress:
-            for path in file_paths:
-                try:
-                    path = validate_path(path)
-                except ResearchError as e:
-                    self.console.print(Text(str(e), style="red"))
-                    continue
+            tasks = [
+                self._upload_single_file(client, path, progress) for path in file_paths
+            ]
+            results = await asyncio.gather(*tasks)
 
-                if not os.path.exists(path):
-                    self.console.print(
-                        Text.assemble(
-                            ("Error: File ", "red"),
-                            (path, "bold red"),
-                            (" not found.", "red"),
-                        )
-                    )
-                    continue
-
-                filename = os.path.basename(path)
-                task = progress.add_task(f"Uploading {filename}...", total=None)
-                try:
-                    # Note: Files API is not yet available in aio, using sync call in thread
-                    file_obj = await asyncio.to_thread(client.files.upload, file=path)
-                    progress.update(task, description=f"Processing {filename}...")
-
-                    file_uri = None
-                    while True:
-                        # Use cast to ensure name is string for the type checker
-                        name = cast(str, file_obj.name)
-                        file_status = await asyncio.to_thread(
-                            client.files.get, name=name
-                        )
-                        state = get_val(file_status, "state")
-                        state_name = get_val(state, "name") if state else "UNKNOWN"
-
-                        if state_name == "ACTIVE":
-                            file_uri = get_val(file_status, "uri")
-                            break
-                        elif state_name in ["FAILED", "DELETED"]:
-                            self.console.print(
-                                Text.assemble(
-                                    ("Error: File ", "red"),
-                                    (path, "bold red"),
-                                    (" failed to process.", "red"),
-                                )
-                            )
-                            break
-                        await asyncio.sleep(2)
-
-                    if file_uri:
-                        uploaded_uris.append(file_uri)
-                        progress.update(
-                            task,
-                            description=f"Uploaded {filename}",
-                            completed=True,
-                        )
-                    else:
-                        progress.remove_task(task)
-                except Exception as e:
-                    self.console.print(
-                        Text.assemble(
-                            ("Error uploading ", "red"),
-                            (path, "bold red"),
-                            (f": {e}", "red"),
-                        )
-                    )
-                    progress.remove_task(task)
-
-        return uploaded_uris
+        return [uri for uri in results if uri is not None]
 
     async def _run_interaction(
         self,
