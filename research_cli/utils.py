@@ -143,16 +143,18 @@ def _save_to_file(
         console.print(f"[red]{e}[/red]")
         return False
 
-    if os.path.exists(output_file) and not force:
+    mode = "wb" if binary else "w"
+    if not force:
+        mode = "xb" if binary else "x"
+
+    try:
+        with open(output_file, mode) as f:
+            f.write(data)
+    except FileExistsError:
         console.print(
             f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
         )
         return False
-
-    mode = "wb" if binary else "w"
-    try:
-        with open(output_file, mode) as f:
-            f.write(data)
     except Exception as e:
         console.print(f"[red]Error saving to file {output_file}: {e}[/red]")
         return False
