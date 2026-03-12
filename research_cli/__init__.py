@@ -1,6 +1,5 @@
 import os
 from .config import (
-    DEFAULT_MODEL as DEFAULT_MODEL,
     ResearchError as ResearchError,
     RESEARCH_API_KEY_VAR as RESEARCH_API_KEY_VAR,
 )
