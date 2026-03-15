@@ -6,6 +6,12 @@ CONFIG_DIR = os.getenv("RESEARCH_CONFIG_DIR", _DEFAULT_CONFIG_DIR)
 
 _DOTENV_PATH = os.path.join(CONFIG_DIR, ".env")
 if os.path.exists(_DOTENV_PATH):
+    # Enforce secure permissions (0600) before loading
+    try:
+        os.chmod(_DOTENV_PATH, 0o600)
+    except OSError:
+        # Fallback if chmod is not supported or permitted
+        pass
     load_dotenv(_DOTENV_PATH)
 
 DB_PATH = os.getenv("RESEARCH_DB_PATH", os.path.join(CONFIG_DIR, "history.db"))
