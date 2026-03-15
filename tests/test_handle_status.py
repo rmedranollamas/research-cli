@@ -52,3 +52,5 @@ def test_handle_status_exception():
     # Execute and Verify
     with pytest.raises(Exception, match="API Error"):
         asyncio.run(handle_status(args, agent))
+
+    agent.get_status.assert_called_once_with("test-id")
