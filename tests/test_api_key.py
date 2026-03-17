@@ -60,16 +60,37 @@ def test_get_gemini_client_no_api_key():
             get_gemini_client()
 
 
-@pytest.mark.asyncio
-async def test_run_research_no_api_key(temp_db, capsys):
+def test_get_gemini_client_success():
+    """Test get_gemini_client success path."""
+    with patch.dict(
+        os.environ,
+        {
+            RESEARCH_API_KEY_VAR: "test-key",
+            "GEMINI_API_BASE_URL": "https://test-api.example.com",
+        },
+    ):
+        with patch("research_cli.researcher.genai.Client") as mock_client:
+            client = get_gemini_client()
+            assert client == mock_client.return_value
+            mock_client.assert_called_once_with(
+                api_key="test-key",
+                http_options={
+                    "api_version": "v1alpha",
+                    "base_url": "https://test-api.example.com",
+                },
+            )
+
+
+def test_run_research_no_api_key(temp_db, capsys):
     """Test run_research when API key is missing."""
+    import asyncio
     with patch.dict(os.environ):
         if RESEARCH_API_KEY_VAR in os.environ:
             del os.environ[RESEARCH_API_KEY_VAR]
         with pytest.raises(
             ResearchError, match=f"{RESEARCH_API_KEY_VAR} environment variable not set."
         ):
-            await run_research("query", "model")
+            asyncio.run(run_research("query", "model"))
 
     captured = capsys.readouterr()
     assert (
