@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 from research_cli.researcher import ResearchAgent
 from research_cli.config import ResearchError
@@ -6,7 +7,7 @@ from research_cli.config import ResearchError
 
 def test_get_client_success():
     agent = ResearchAgent(api_key="fake-key", base_url="http://fake-url")
-    with patch("google.genai.Client") as mock_client:
+    with patch("research_cli.researcher.genai.Client") as mock_client:
         client = agent.get_client(api_version="v1beta", timeout=30)
         assert client == mock_client.return_value
         mock_client.assert_called_once_with(
@@ -21,13 +22,12 @@ def test_get_client_success():
 
 def test_get_client_failure():
     agent = ResearchAgent(api_key="fake-key")
-    with patch("google.genai.Client", side_effect=Exception("Connection failed")):
+    with patch("research_cli.researcher.genai.Client", side_effect=Exception("Connection failed")):
         with pytest.raises(ResearchError, match="Client initialization failed"):
             agent.get_client()
 
 
-@pytest.mark.asyncio
-async def test_get_status_client_init_failure():
+def test_get_status_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
     with patch.object(
         ResearchAgent,
@@ -35,11 +35,10 @@ async def test_get_status_client_init_failure():
         side_effect=ResearchError("Client initialization failed"),
     ):
         with pytest.raises(ResearchError, match="Client initialization failed"):
-            await agent.get_status("some-id")
+            asyncio.run(agent.get_status("some-id"))
 
 
-@pytest.mark.asyncio
-async def test_generate_image_client_init_failure():
+def test_generate_image_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
     with patch.object(
         ResearchAgent,
@@ -48,11 +47,10 @@ async def test_generate_image_client_init_failure():
     ):
         with patch("os.path.exists", return_value=False):
             with pytest.raises(ResearchError, match="Client initialization failed"):
-                await agent.generate_image("prompt", "out.png", "model", False)
+                asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
 
-@pytest.mark.asyncio
-async def test_run_research_client_init_failure():
+def test_run_research_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
     with patch.object(
         ResearchAgent,
@@ -61,13 +59,12 @@ async def test_run_research_client_init_failure():
     ):
         with patch("research_cli.researcher.async_save_task", return_value=1):
             with patch.object(agent, "_handle_error") as mock_handle:
-                result = await agent.run_research("query", "model")
+                result = asyncio.run(agent.run_research("query", "model"))
                 assert result is None
                 mock_handle.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_run_search_client_init_failure():
+def test_run_search_client_init_failure():
     agent = ResearchAgent(api_key="fake-key")
     with patch.object(
         ResearchAgent,
@@ -76,13 +73,12 @@ async def test_run_search_client_init_failure():
     ):
         with patch("research_cli.researcher.async_save_task", return_value=1):
             with patch.object(agent, "_handle_error") as mock_handle:
-                result = await agent.run_search("query", "model")
+                result = asyncio.run(agent.run_search("query", "model"))
                 assert result is None
                 mock_handle.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_generate_image_error_handling():
+def test_generate_image_error_handling():
     mock_console = MagicMock()
     agent = ResearchAgent(api_key="fake-key", console=mock_console)
     mock_client = MagicMock()
@@ -93,7 +89,7 @@ async def test_generate_image_error_handling():
     with patch.object(ResearchAgent, "get_client", return_value=mock_client):
         with patch("research_cli.utils.validate_path", return_value="out.png"):
             with patch("os.path.exists", return_value=False):
-                await agent.generate_image("prompt", "out.png", "model", False)
+                asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
     assert mock_console.print.called
     error_printed = False
@@ -109,8 +105,7 @@ async def test_generate_image_error_handling():
     assert mock_console.print_exception.called
 
 
-@pytest.mark.asyncio
-async def test_upload_files_error_handling():
+def test_upload_files_error_handling():
     mock_console = MagicMock()
     agent = ResearchAgent(api_key="fake-key", console=mock_console)
     mock_client = MagicMock()
@@ -119,7 +114,7 @@ async def test_upload_files_error_handling():
     with patch("research_cli.researcher.validate_path", return_value="test_file.txt"):
         with patch("os.path.exists", return_value=True):
             with patch("asyncio.to_thread", side_effect=Exception(error_msg)):
-                result = await agent._upload_files(mock_client, ["test_file.txt"])
+                result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
 
     assert result == []
     error_printed = False
@@ -132,8 +127,7 @@ async def test_upload_files_error_handling():
     assert error_printed
 
 
-@pytest.mark.asyncio
-async def test_poll_interaction_completed_outputs():
+def test_poll_interaction_completed_outputs():
     agent = ResearchAgent(api_key="fake-key")
     mock_client = MagicMock()
     mock_client.aio.interactions.get = AsyncMock()
@@ -146,15 +140,14 @@ async def test_poll_interaction_completed_outputs():
     mock_client.aio.interactions.get.return_value = mock_inter
 
     with patch("asyncio.sleep", return_value=None):
-        result = await agent._poll_interaction(
+        result = asyncio.run(agent._poll_interaction(
             mock_client, interaction_id, report_parts
-        )
+        ))
 
     assert result == "Part 1Part 2Part 3"
 
 
-@pytest.mark.asyncio
-async def test_poll_interaction_completed_response():
+def test_poll_interaction_completed_response():
     agent = ResearchAgent(api_key="fake-key")
     mock_client = MagicMock()
     mock_client.aio.interactions.get = AsyncMock()
@@ -168,15 +161,14 @@ async def test_poll_interaction_completed_response():
     mock_client.aio.interactions.get.return_value = mock_inter
 
     with patch("asyncio.sleep", return_value=None):
-        result = await agent._poll_interaction(
+        result = asyncio.run(agent._poll_interaction(
             mock_client, interaction_id, report_parts
-        )
+        ))
 
     assert result == "Full Report"
 
 
-@pytest.mark.asyncio
-async def test_poll_interaction_failed():
+def test_poll_interaction_failed():
     agent = ResearchAgent(api_key="fake-key")
     mock_client = MagicMock()
     mock_client.aio.interactions.get = AsyncMock()
@@ -189,11 +181,10 @@ async def test_poll_interaction_failed():
 
     with patch("asyncio.sleep", return_value=None):
         with pytest.raises(ResearchError, match="Interaction failed: Some API error"):
-            await agent._poll_interaction(mock_client, interaction_id, [])
+            asyncio.run(agent._poll_interaction(mock_client, interaction_id, []))
 
 
-@pytest.mark.asyncio
-async def test_poll_interaction_cancelled():
+def test_poll_interaction_cancelled():
     agent = ResearchAgent(api_key="fake-key")
     mock_client = MagicMock()
     mock_client.aio.interactions.get = AsyncMock()
@@ -205,11 +196,10 @@ async def test_poll_interaction_cancelled():
 
     with patch("asyncio.sleep", return_value=None):
         with pytest.raises(ResearchError, match="Interaction cancelled"):
-            await agent._poll_interaction(mock_client, interaction_id, [])
+            asyncio.run(agent._poll_interaction(mock_client, interaction_id, []))
 
 
-@pytest.mark.asyncio
-async def test_poll_interaction_retry_on_503():
+def test_poll_interaction_retry_on_503():
     agent = ResearchAgent(api_key="fake-key")
     mock_client = MagicMock()
     mock_client.aio.interactions.get = AsyncMock()
@@ -225,14 +215,13 @@ async def test_poll_interaction_retry_on_503():
     ]
 
     with patch("asyncio.sleep", return_value=None):
-        result = await agent._poll_interaction(mock_client, interaction_id, [])
+        result = asyncio.run(agent._poll_interaction(mock_client, interaction_id, []))
 
     assert result == "Success after retry"
     assert mock_client.aio.interactions.get.call_count == 2
 
 
-@pytest.mark.asyncio
-async def test_poll_interaction_status_progression():
+def test_poll_interaction_status_progression():
     agent = ResearchAgent(api_key="fake-key")
     mock_client = MagicMock()
     mock_client.aio.interactions.get = AsyncMock()
@@ -247,7 +236,7 @@ async def test_poll_interaction_status_progression():
     mock_client.aio.interactions.get.side_effect = [mock_inter_1, mock_inter_2]
 
     with patch("asyncio.sleep", return_value=None):
-        result = await agent._poll_interaction(mock_client, interaction_id, [])
+        result = asyncio.run(agent._poll_interaction(mock_client, interaction_id, []))
 
     assert result == "Done"
     assert mock_client.aio.interactions.get.call_count == 2
