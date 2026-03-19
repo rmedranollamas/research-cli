@@ -525,21 +525,12 @@ class ResearchAgent:
         from rich.progress import Progress, SpinnerColumn, TextColumn
         from rich.text import Text
 
-        try:
-            output_path = validate_path(output_path)
-        except ResearchError as e:
-            self.console.print(Text(str(e), style="red"))
-            return
+        output_path = validate_path(output_path)
 
         if os.path.exists(output_path) and not force:
-            self.console.print(
-                Text.assemble(
-                    ("Error: Output file ", "red"),
-                    (output_path, "bold red"),
-                    (" already exists. Use --force to overwrite.", "red"),
-                )
+            raise ResearchError(
+                f"Output file {output_path} already exists. Use --force to overwrite."
             )
-            return
 
         try:
             client = self.get_client()
@@ -574,7 +565,8 @@ class ResearchAgent:
                             )
                             return
 
-                self.console.print(Text("No image was generated.", style="yellow"))
+                raise ResearchError("No image was generated.")
             except Exception as e:
-                self.console.print(Text(f"Error generating image: {e}", style="red"))
-                self.console.print_exception()
+                if isinstance(e, ResearchError):
+                    raise e
+                raise ResearchError(f"Error generating image: {e}") from e
