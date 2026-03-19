@@ -89,20 +89,8 @@ def test_generate_image_error_handling():
     with patch.object(ResearchAgent, "get_client", return_value=mock_client):
         with patch("research_cli.utils.validate_path", return_value="out.png"):
             with patch("os.path.exists", return_value=False):
-                asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
-
-    assert mock_console.print.called
-    error_printed = False
-    for call in mock_console.print.call_args_list:
-        args, _ = call
-        if len(args) > 0:
-            text_obj = args[0]
-            if "Error generating image:" in str(text_obj) and error_msg in str(
-                text_obj
-            ):
-                error_printed = True
-    assert error_printed
-    assert mock_console.print_exception.called
+                with pytest.raises(ResearchError, match=f"Error generating image: {error_msg}"):
+                    asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
 
 def test_upload_files_error_handling():
