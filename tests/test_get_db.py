@@ -71,3 +71,22 @@ def test_get_db_lock_usage():
 
                 mock_lock.__enter__.assert_called_once()
                 mock_lock.__exit__.assert_called_once()
+
+def test_get_db_initializes_before_connect():
+    """Test that _init_db is called before sqlite3.connect."""
+    with mock.patch("research_cli.db._init_db") as mock_init:
+        with mock.patch("sqlite3.connect") as mock_connect:
+            # Use a manager to track call order
+            manager = mock.Mock()
+            manager.attach_mock(mock_init, 'init')
+            manager.attach_mock(mock_connect, 'connect')
+
+            with get_db():
+                pass
+
+            # Check that init was called before connect
+            expected_calls = [
+                mock.call.init(config.DB_PATH),
+                mock.call.connect(config.DB_PATH)
+            ]
+            manager.assert_has_calls(expected_calls)
