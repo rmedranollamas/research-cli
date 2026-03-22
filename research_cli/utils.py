@@ -137,10 +137,11 @@ def _save_to_file(
 ) -> bool:
     """Internal helper to save data to a file with path validation."""
     console = get_console()
+    from rich.markup import escape
     try:
         output_file = validate_path(output_file)
     except ResearchError as e:
-        console.print(f"[red]{e}[/red]")
+        console.print(f"[red]{escape(str(e))}[/red]")
         return False
 
     mode = "wb" if binary else "w"
@@ -152,11 +153,11 @@ def _save_to_file(
             f.write(data)
     except FileExistsError:
         console.print(
-            f"[red]Error: Output file {output_file} already exists. Use --force to overwrite.[/red]"
+            f"[red]Error: Output file {escape(output_file)} already exists. Use --force to overwrite.[/red]"
         )
         return False
     except Exception as e:
-        console.print(f"[red]Error saving to file {output_file}: {e}[/red]")
+        console.print(f"[red]Error saving to file {escape(output_file)}: {escape(str(e))}[/red]")
         return False
 
     from rich.text import Text

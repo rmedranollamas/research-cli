@@ -205,6 +205,7 @@ async def handle_generate_image(args, agent: ResearchAgent):
 async def handle_list():
     from rich.table import Table
 
+    from rich.markup import escape
     tasks = await async_get_recent_tasks(20)
     console = get_console()
     if not tasks:
@@ -219,12 +220,19 @@ async def handle_list():
     table.add_column("Interaction ID", style="dim")
 
     for tid, q, status, dt, iid in tasks:
-        table.add_row(str(tid), truncate_query(q), status, dt, iid or "-")
+        table.add_row(
+            escape(str(tid)),
+            escape(truncate_query(q)),
+            escape(status),
+            escape(dt),
+            escape(iid or "-"),
+        )
     console.print(table)
 
 
 async def handle_show(args):
     from rich.panel import Panel
+    from rich.markup import escape
 
     task = await async_get_task(args.id)
     console = get_console()
@@ -235,7 +243,7 @@ async def handle_show(args):
     q, report, status = task
     console.print(
         Panel(
-            f"[bold blue]Query:[/bold blue] {q}\n[bold blue]Status:[/bold blue] {status}",
+            f"[bold blue]Query:[/bold blue] {escape(q)}\n[bold blue]Status:[/bold blue] {escape(status)}",
             title=f"Research Task {args.id}",
         )
     )
