@@ -162,7 +162,7 @@ class ResearchAgent:
         from rich.text import Text
 
         try:
-            path = validate_path(path)
+            path = await asyncio.to_thread(validate_path, path)
         except ResearchError as e:
             self.console.print(Text(str(e), style="red"))
             return None
@@ -525,9 +525,9 @@ class ResearchAgent:
         from rich.progress import Progress, SpinnerColumn, TextColumn
         from rich.text import Text
 
-        output_path = validate_path(output_path)
+        output_path = await asyncio.to_thread(validate_path, output_path)
 
-        if os.path.exists(output_path) and not force:
+        if await asyncio.to_thread(os.path.exists, output_path) and not force:
             raise ResearchError(
                 f"Output file {output_path} already exists. Use --force to overwrite."
             )
