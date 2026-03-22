@@ -45,7 +45,7 @@ def test_generate_image_client_init_failure():
         "get_client",
         side_effect=ResearchError("Client initialization failed"),
     ):
-        with patch("os.path.exists", return_value=False):
+        with patch("asyncio.to_thread", return_value=False):
             with pytest.raises(ResearchError, match="Client initialization failed"):
                 asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
@@ -87,10 +87,9 @@ def test_generate_image_error_handling():
     mock_client.aio.interactions.create.side_effect = Exception(error_msg)
 
     with patch.object(ResearchAgent, "get_client", return_value=mock_client):
-        with patch("research_cli.utils.validate_path", return_value="out.png"):
-            with patch("os.path.exists", return_value=False):
-                with pytest.raises(ResearchError, match=f"Error generating image: {error_msg}"):
-                    asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
+        with patch("asyncio.to_thread", side_effect=["out.png", False]):
+            with pytest.raises(ResearchError, match=f"Error generating image: {error_msg}"):
+                asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
 
 def test_upload_files_error_handling():
@@ -99,10 +98,8 @@ def test_upload_files_error_handling():
     mock_client = MagicMock()
     error_msg = "Test Upload Error"
 
-    with patch("research_cli.researcher.validate_path", return_value="test_file.txt"):
-        with patch("os.path.exists", return_value=True):
-            with patch("asyncio.to_thread", side_effect=Exception(error_msg)):
-                result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
+    with patch("asyncio.to_thread", side_effect=["test_file.txt", True, Exception(error_msg)]):
+        result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
 
     assert result == []
     error_printed = False
