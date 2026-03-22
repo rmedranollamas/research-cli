@@ -7,17 +7,12 @@ from .db import (
     init_db as init_db,
     save_task as save_task,
     update_task as update_task,
-    get_task as get_task,
-    get_recent_tasks as get_recent_tasks,
 )
 from .utils import (
     get_api_key as get_api_key,
     truncate_query as truncate_query,
     get_val as get_val,
     get_console as get_console,
-    print_report as print_report,
-    save_report_to_file as save_report_to_file,
-    save_binary_to_file as save_binary_to_file,
 )
 from .researcher import ResearchAgent as ResearchAgent
 from .cli import main as main
