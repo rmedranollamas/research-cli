@@ -100,9 +100,8 @@ def test_upload_files_error_handling():
     error_msg = "Test Upload Error"
 
     with patch("research_cli.researcher.validate_path", return_value="test_file.txt"):
-        with patch("os.path.exists", return_value=True):
-            with patch("asyncio.to_thread", side_effect=Exception(error_msg)):
-                result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
+        with patch("asyncio.to_thread", side_effect=[True, Exception(error_msg)]):
+            result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
 
     assert result == []
     error_printed = False

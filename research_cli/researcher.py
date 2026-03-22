@@ -167,7 +167,7 @@ class ResearchAgent:
             self.console.print(Text(str(e), style="red"))
             return None
 
-        if not os.path.exists(path):
+        if not await asyncio.to_thread(os.path.exists, path):
             self.console.print(
                 Text.assemble(
                     ("Error: File ", "red"),
