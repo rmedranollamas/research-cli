@@ -122,7 +122,12 @@ def test_handle_search_exception():
     with pytest.raises(ResearchError, match="API Error"):
         asyncio.run(handle_search(args, agent, parser))
 
-    agent.run_search.assert_called_once()
+    agent.run_search.assert_called_once_with(
+        "test query",
+        "test-model",
+        parent_id=None,
+        verbose=False
+    )
 
 def test_handle_search_success_no_save():
     # Setup
