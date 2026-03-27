@@ -57,7 +57,7 @@ def test_handle_search_with_output():
     args = argparse.Namespace(
         query="test query",
         model="test-model",
-        parent=None,
+        parent="parent-id",
         verbose=False,
         output="search_output.md",
         force=True
@@ -69,7 +69,12 @@ def test_handle_search_with_output():
         asyncio.run(handle_search(args, agent, parser))
 
         # Verify
-        agent.run_search.assert_called_once()
+        agent.run_search.assert_called_once_with(
+            "test query",
+            "test-model",
+            parent_id="parent-id",
+            verbose=False
+        )
         mock_save.assert_called_once_with("Search content", "search_output.md", True)
 
 def test_handle_search_failure():
@@ -81,13 +86,57 @@ def test_handle_search_failure():
         model="test-model",
         parent=None,
         verbose=False,
+        output="wont_save.md",
+        force=False
+    )
+    parser = MagicMock()
+
+    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+        # Execute and Verify
+        with pytest.raises(ResearchError, match="Search failed"):
+            asyncio.run(handle_search(args, agent, parser))
+
+        agent.run_search.assert_called_once()
+        mock_save.assert_not_called()
+
+def test_handle_search_exception():
+    # Setup
+    agent = MagicMock()
+    agent.run_search = AsyncMock(side_effect=ResearchError("API Error"))
+    args = argparse.Namespace(
+        query="test query",
+        model="test-model",
+        parent=None,
+        verbose=False,
         output=None,
         force=False
     )
     parser = MagicMock()
 
     # Execute and Verify
-    with pytest.raises(ResearchError, match="Search failed"):
+    with pytest.raises(ResearchError, match="API Error"):
         asyncio.run(handle_search(args, agent, parser))
 
     agent.run_search.assert_called_once()
+
+def test_handle_search_success_no_save():
+    # Setup
+    agent = MagicMock()
+    agent.run_search = AsyncMock(return_value="Search content")
+    args = argparse.Namespace(
+        query="test query",
+        model="test-model",
+        parent=None,
+        verbose=False,
+        output=None,
+        force=False
+    )
+    parser = MagicMock()
+
+    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+        # Execute
+        asyncio.run(handle_search(args, agent, parser))
+
+        # Verify
+        agent.run_search.assert_called_once()
+        mock_save.assert_not_called()
