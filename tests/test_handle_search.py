@@ -148,5 +148,10 @@ def test_handle_search_success_no_save():
         asyncio.run(handle_search(args, agent, parser))
 
         # Verify
-        agent.run_search.assert_called_once()
+        agent.run_search.assert_called_once_with(
+            "test query",
+            "test-model",
+            parent_id=None,
+            verbose=False
+        )
         mock_save.assert_not_called()
