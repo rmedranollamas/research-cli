@@ -96,7 +96,12 @@ def test_handle_search_failure():
         with pytest.raises(ResearchError, match="Search failed"):
             asyncio.run(handle_search(args, agent, parser))
 
-        agent.run_search.assert_called_once()
+        agent.run_search.assert_called_once_with(
+            "test query",
+            "test-model",
+            parent_id=None,
+            verbose=False
+        )
         mock_save.assert_not_called()
 
 def test_handle_search_exception():
