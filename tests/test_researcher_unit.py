@@ -45,7 +45,7 @@ def test_generate_image_client_init_failure():
         "get_client",
         side_effect=ResearchError("Client initialization failed"),
     ):
-        with patch("asyncio.to_thread", return_value=False):
+        with patch("asyncio.to_thread", side_effect=["out.png", ResearchError("Client initialization failed")]):
             with pytest.raises(ResearchError, match="Client initialization failed"):
                 asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
@@ -87,7 +87,7 @@ def test_generate_image_error_handling():
     mock_client.aio.interactions.create.side_effect = Exception(error_msg)
 
     with patch.object(ResearchAgent, "get_client", return_value=mock_client):
-        with patch("asyncio.to_thread", side_effect=["out.png", False]):
+        with patch("asyncio.to_thread", side_effect=["out.png", mock_client]):
             with pytest.raises(ResearchError, match=f"Error generating image: {error_msg}"):
                 asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 

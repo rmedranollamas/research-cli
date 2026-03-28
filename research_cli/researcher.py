@@ -512,11 +512,20 @@ class ResearchAgent:
     async def get_status(self, interaction_id: str) -> Optional[str]:
         """Polls for the status and result of an existing interaction."""
         try:
-            client = self.get_client()
+            client = await asyncio.to_thread(self.get_client)
         except Exception as e:
             raise ResearchError(f"Client initialization failed: {e}")
         report_parts: List[str] = []
         return await self._poll_interaction(client, interaction_id, report_parts)
+
+    def _prepare_output_path(self, output_path: str, force: bool) -> str:
+        """Validates path and checks for existence, intended to be run in a thread."""
+        output_path = validate_path(output_path)
+        if os.path.exists(output_path) and not force:
+            raise ResearchError(
+                f"Output file {output_path} already exists. Use --force to overwrite."
+            )
+        return output_path
 
     async def generate_image(
         self, prompt: str, output_path: str, model_id: str, force: bool
@@ -525,15 +534,10 @@ class ResearchAgent:
         from rich.progress import Progress, SpinnerColumn, TextColumn
         from rich.text import Text
 
-        output_path = await asyncio.to_thread(validate_path, output_path)
-
-        if await asyncio.to_thread(os.path.exists, output_path) and not force:
-            raise ResearchError(
-                f"Output file {output_path} already exists. Use --force to overwrite."
-            )
+        output_path = await asyncio.to_thread(self._prepare_output_path, output_path, force)
 
         try:
-            client = self.get_client()
+            client = await asyncio.to_thread(self.get_client)
         except Exception as e:
             raise ResearchError(f"Client initialization failed: {e}")
 
@@ -557,8 +561,9 @@ class ResearchAgent:
                     if get_val(output, "type") == "image":
                         data = get_val(output, "data")
                         if data:
+                            decoded_data = await asyncio.to_thread(base64.b64decode, data)
                             await async_save_binary_to_file(
-                                base64.b64decode(data),
+                                decoded_data,
                                 output_path,
                                 force,
                                 success_prefix="Image saved to",
