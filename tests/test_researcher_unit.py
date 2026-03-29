@@ -230,7 +230,7 @@ def test_poll_interaction_status_progression():
 
 def test_get_tools_default():
     agent = ResearchAgent(api_key="fake-key")
-    with patch("research_cli.researcher._MCP_TOOLS", []):
+    with patch("research_cli.researcher._MCP_TOOLS", ()):
         tools = agent._get_tools(use_search=False, urls=None)
         assert tools == []
 
