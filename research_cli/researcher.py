@@ -13,6 +13,12 @@ from .utils import (
 )
 from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 
+# Pre-calculated list of MCP server tools for performance
+_MCP_TOOLS: List[Dict[str, Any]] = [
+    {"type": "mcp_server", "name": f"mcp_server_{i}", "url": mcp_url}
+    for i, mcp_url in enumerate(RESEARCH_MCP_SERVERS)
+]
+
 
 class ResearchAgent:
     """Agent for running deep research, search, and image generation using Gemini Interactions API."""
@@ -146,10 +152,7 @@ class ResearchAgent:
         if urls:
             tools.append({"type": "url_context"})
 
-        for i, mcp_url in enumerate(RESEARCH_MCP_SERVERS):
-            tools.append(
-                {"type": "mcp_server", "name": f"mcp_server_{i}", "url": mcp_url}
-            )
+        tools.extend(_MCP_TOOLS)
         return tools
 
     async def _upload_single_file(

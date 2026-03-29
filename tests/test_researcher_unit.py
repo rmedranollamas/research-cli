@@ -230,14 +230,14 @@ def test_poll_interaction_status_progression():
 
 def test_get_tools_default():
     agent = ResearchAgent(api_key="fake-key")
-    with patch("research_cli.researcher.RESEARCH_MCP_SERVERS", []):
+    with patch("research_cli.researcher._MCP_TOOLS", []):
         tools = agent._get_tools(use_search=False, urls=None)
         assert tools == []
 
 
 def test_get_tools_search_and_urls():
     agent = ResearchAgent(api_key="fake-key")
-    with patch("research_cli.researcher.RESEARCH_MCP_SERVERS", []):
+    with patch("research_cli.researcher._MCP_TOOLS", []):
         tools = agent._get_tools(use_search=True, urls=["http://example.com"])
         assert len(tools) == 2
         assert {"type": "google_search"} in tools
@@ -246,8 +246,11 @@ def test_get_tools_search_and_urls():
 
 def test_get_tools_mcp():
     agent = ResearchAgent(api_key="fake-key")
-    mcp_servers = ["http://mcp1.local", "http://mcp2.local"]
-    with patch("research_cli.researcher.RESEARCH_MCP_SERVERS", mcp_servers):
+    mcp_tools = [
+        {"type": "mcp_server", "name": "mcp_server_0", "url": "http://mcp1.local"},
+        {"type": "mcp_server", "name": "mcp_server_1", "url": "http://mcp2.local"},
+    ]
+    with patch("research_cli.researcher._MCP_TOOLS", mcp_tools):
         tools = agent._get_tools(use_search=False, urls=None)
         assert len(tools) == 2
         assert tools[0] == {
