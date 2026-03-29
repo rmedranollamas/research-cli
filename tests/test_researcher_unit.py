@@ -246,10 +246,10 @@ def test_get_tools_search_and_urls():
 
 def test_get_tools_mcp():
     agent = ResearchAgent(api_key="fake-key")
-    mcp_tools = [
+    mcp_tools = (
         {"type": "mcp_server", "name": "mcp_server_0", "url": "http://mcp1.local"},
         {"type": "mcp_server", "name": "mcp_server_1", "url": "http://mcp2.local"},
-    ]
+    )
     with patch("research_cli.researcher._MCP_TOOLS", mcp_tools):
         tools = agent._get_tools(use_search=False, urls=None)
         assert len(tools) == 2
