@@ -237,7 +237,7 @@ def test_get_tools_default():
 
 def test_get_tools_search_and_urls():
     agent = ResearchAgent(api_key="fake-key")
-    with patch("research_cli.researcher._MCP_TOOLS", []):
+    with patch("research_cli.researcher._MCP_TOOLS", ()):
         tools = agent._get_tools(use_search=True, urls=["http://example.com"])
         assert len(tools) == 2
         assert {"type": "google_search"} in tools
