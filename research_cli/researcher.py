@@ -1,7 +1,7 @@
 import asyncio
 import os
 import base64
-from typing import List, Optional, Set, Any, Dict, cast
+from typing import List, Optional, Set, Any, Dict, cast, Tuple
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import (
@@ -535,7 +535,6 @@ class ResearchAgent:
     ):
         """Generates an image from a prompt and saves it."""
         from rich.progress import Progress, SpinnerColumn, TextColumn
-        from rich.text import Text
 
         output_path = await asyncio.to_thread(self._prepare_output_path, output_path, force)
 
