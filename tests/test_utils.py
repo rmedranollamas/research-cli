@@ -1,5 +1,18 @@
+import os
+import pytest
+from unittest.mock import patch
 import research_cli.utils
-from research_cli import get_val, get_console
+from research_cli import get_val, get_console, get_api_key, ResearchError, RESEARCH_API_KEY_VAR
+
+
+def test_get_api_key_not_set(capsys):
+    """Test get_api_key when the environment variable is not set."""
+    with patch("os.getenv", return_value=None):
+        with pytest.raises(ResearchError, match=f"{RESEARCH_API_KEY_VAR} environment variable not set."):
+            get_api_key()
+
+    captured = capsys.readouterr()
+    assert f"Error: {RESEARCH_API_KEY_VAR} environment variable not set." in captured.out
 
 
 def test_get_console_singleton():
