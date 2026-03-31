@@ -10,6 +10,7 @@ from .utils import (
     async_save_report_to_file,
     print_report,
     get_api_key,
+    escape_markup,
 )
 from .researcher import ResearchAgent
 from importlib import metadata
@@ -205,7 +206,6 @@ async def handle_generate_image(args, agent: ResearchAgent):
 async def handle_list():
     from rich.table import Table
 
-    from rich.markup import escape
     tasks = await async_get_recent_tasks(20)
     console = get_console()
     if not tasks:
@@ -221,18 +221,17 @@ async def handle_list():
 
     for tid, q, status, dt, iid in tasks:
         table.add_row(
-            escape(str(tid)),
-            escape(truncate_query(q)),
-            escape(status),
-            escape(dt),
-            escape(iid or "-"),
+            escape_markup(str(tid)),
+            escape_markup(truncate_query(q)),
+            escape_markup(status),
+            escape_markup(dt),
+            escape_markup(iid or "-"),
         )
     console.print(table)
 
 
 async def handle_show(args):
     from rich.panel import Panel
-    from rich.markup import escape
 
     task = await async_get_task(args.id)
     console = get_console()
@@ -243,7 +242,7 @@ async def handle_show(args):
     q, report, status = task
     console.print(
         Panel(
-            f"[bold blue]Query:[/bold blue] {escape(q)}\n[bold blue]Status:[/bold blue] {escape(status)}",
+            f"[bold blue]Query:[/bold blue] {escape_markup(q)}\n[bold blue]Status:[/bold blue] {escape_markup(status)}",
             title=f"Research Task {args.id}",
         )
     )

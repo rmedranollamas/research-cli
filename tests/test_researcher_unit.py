@@ -268,25 +268,8 @@ def test_get_tools_mcp():
 def test_prepare_output_path_success():
     agent = ResearchAgent(api_key="fake-key")
     with patch("research_cli.researcher.validate_path", return_value="/abs/path.png"):
-        with patch("os.path.exists", return_value=False):
-            result = agent._prepare_output_path("path.png", False)
-            assert result == "/abs/path.png"
-
-
-def test_prepare_output_path_exists_no_force():
-    agent = ResearchAgent(api_key="fake-key")
-    with patch("research_cli.researcher.validate_path", return_value="/abs/path.png"):
-        with patch("os.path.exists", return_value=True):
-            with pytest.raises(ResearchError, match="already exists"):
-                agent._prepare_output_path("path.png", False)
-
-
-def test_prepare_output_path_exists_with_force():
-    agent = ResearchAgent(api_key="fake-key")
-    with patch("research_cli.researcher.validate_path", return_value="/abs/path.png"):
-        with patch("os.path.exists", return_value=True):
-            result = agent._prepare_output_path("path.png", True)
-            assert result == "/abs/path.png"
+        result = agent._prepare_output_path("path.png", False)
+        assert result == "/abs/path.png"
 
 
 def test_get_status_success():

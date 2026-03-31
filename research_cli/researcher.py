@@ -522,13 +522,10 @@ class ResearchAgent:
         return await self._poll_interaction(client, interaction_id, report_parts)
 
     def _prepare_output_path(self, output_path: str, force: bool) -> str:
-        """Validates path and checks for existence, intended to be run in a thread."""
-        output_path = validate_path(output_path)
-        if os.path.exists(output_path) and not force:
-            raise ResearchError(
-                f"Output file {output_path} already exists. Use --force to overwrite."
-            )
-        return output_path
+        """Validates path, intended to be run in a thread."""
+        # Note: Existence check removed here to prevent TOCTOU.
+        # It is now handled atomically during the actual file write in utils._save_to_file.
+        return validate_path(output_path)
 
     async def generate_image(
         self, prompt: str, output_path: str, model_id: str, force: bool
@@ -564,12 +561,14 @@ class ResearchAgent:
                         data = get_val(output, "data")
                         if data:
                             decoded_data = await asyncio.to_thread(base64.b64decode, data)
-                            await async_save_binary_to_file(
+                            saved = await async_save_binary_to_file(
                                 decoded_data,
                                 output_path,
                                 force,
                                 success_prefix="Image saved to",
                             )
+                            if not saved:
+                                raise ResearchError(f"Failed to save image to {output_path}")
                             return
 
                 raise ResearchError("No image was generated.")
