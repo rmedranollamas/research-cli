@@ -180,7 +180,7 @@ def _save_to_file(
                 f"[red]Error: {escape_markup(output_file)} is a symlink. Overwriting symlinks is disallowed for security.[/red]"
             )
         else:
-            console.print(f"[red]Error saving to file {_escape(output_file)}: {_escape(str(e))}[/red]")
+            console.print(f"[red]Error saving to file {escape_markup(output_file)}: {escape_markup(str(e))}[/red]")
         return False
     except Exception as e:
         console.print(f"[red]Error saving to file {_escape(output_file)}: {_escape(str(e))}[/red]")
