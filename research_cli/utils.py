@@ -177,7 +177,7 @@ def _save_to_file(
         import errno
         if hasattr(errno, "ELOOP") and e.errno == errno.ELOOP:
             console.print(
-                f"[red]Error: {_escape(output_file)} is a symlink. Overwriting symlinks is disallowed for security.[/red]"
+                f"[red]Error: {escape_markup(output_file)} is a symlink. Overwriting symlinks is disallowed for security.[/red]"
             )
         else:
             console.print(f"[red]Error saving to file {_escape(output_file)}: {_escape(str(e))}[/red]")
