@@ -166,7 +166,7 @@ def _save_to_file(
 
     try:
         fd = os.open(output_file, flags)
-        with os.fdopen(fd, "wb" if binary else "w") as f:
+        with os.fdopen(fd, "wb" if binary else "w", encoding=None if binary else "utf-8") as f:
             f.write(data)
     except FileExistsError:
         console.print(
