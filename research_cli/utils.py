@@ -128,6 +128,15 @@ def print_report(report: str):
     console.print("\n" + "=" * 40 + "\n")
 
 
+def escape_markup(text: str) -> str:
+    """Safely escapes rich markup, handling missing dependency gracefully."""
+    try:
+        from rich.markup import escape
+        return escape(text)
+    except (ImportError, ModuleNotFoundError):
+        return text
+
+
 def _save_to_file(
     data: Union[str, bytes],
     output_file: str,
@@ -137,27 +146,44 @@ def _save_to_file(
 ) -> bool:
     """Internal helper to save data to a file with path validation."""
     console = get_console()
-    from rich.markup import escape
+
     try:
         output_file = validate_path(output_file)
     except ResearchError as e:
-        console.print(f"[red]{escape(str(e))}[/red]")
+        console.print(f"[red]{escape_markup(str(e))}[/red]")
         return False
 
-    mode = "wb" if binary else "w"
-    if not force:
-        mode = "xb" if binary else "x"
+    flags = os.O_WRONLY | os.O_CREAT
+    if force:
+        flags |= os.O_TRUNC
+        # O_NOFOLLOW prevents following symlinks for the last component.
+        # This is a security hardening to ensure we are not tricked into
+        # overwriting a file via a symlink created after path validation.
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+    else:
+        flags |= os.O_EXCL
 
     try:
-        with open(output_file, mode) as f:
+        fd = os.open(output_file, flags)
+        with os.fdopen(fd, "wb" if binary else "w") as f:
             f.write(data)
     except FileExistsError:
         console.print(
-            f"[red]Error: Output file {escape(output_file)} already exists. Use --force to overwrite.[/red]"
+            f"[red]Error: Output file {escape_markup(output_file)} already exists. Use --force to overwrite.[/red]"
         )
         return False
+    except OSError as e:
+        import errno
+        if hasattr(errno, "ELOOP") and e.errno == errno.ELOOP:
+            console.print(
+                f"[red]Error: {_escape(output_file)} is a symlink. Overwriting symlinks is disallowed for security.[/red]"
+            )
+        else:
+            console.print(f"[red]Error saving to file {_escape(output_file)}: {_escape(str(e))}[/red]")
+        return False
     except Exception as e:
-        console.print(f"[red]Error saving to file {escape(output_file)}: {escape(str(e))}[/red]")
+        console.print(f"[red]Error saving to file {_escape(output_file)}: {_escape(str(e))}[/red]")
         return False
 
     from rich.text import Text
