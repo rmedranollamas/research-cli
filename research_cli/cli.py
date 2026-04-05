@@ -15,22 +15,40 @@ from .utils import (
 from .researcher import ResearchAgent
 from importlib import metadata
 
-# Try to get version from package metadata or pyproject.toml
-try:
-    VERSION = metadata.version("research-cli")
-except metadata.PackageNotFoundError:
-    try:
-        import tomllib
-        from pathlib import Path
+_VERSION = None
 
-        pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
-        if pyproject_path.exists():
-            with open(pyproject_path, "rb") as f:
-                VERSION = tomllib.load(f)["project"]["version"]
-        else:
-            VERSION = "unknown"
-    except (ImportError, FileNotFoundError, KeyError):
-        VERSION = "unknown"
+
+def get_version():
+    """Get the version from package metadata or pyproject.toml (lazy loaded)."""
+    global _VERSION
+    if _VERSION is not None:
+        return _VERSION
+
+    # Try to get version from package metadata or pyproject.toml
+    try:
+        _VERSION = metadata.version("research-cli")
+    except metadata.PackageNotFoundError:
+        try:
+            import tomllib
+            from pathlib import Path
+
+            pyproject_path = (
+                Path(__file__).resolve().parent.parent / "pyproject.toml"
+            )
+            if pyproject_path.exists():
+                with open(pyproject_path, "rb") as f:
+                    _VERSION = tomllib.load(f)["project"]["version"]
+            else:
+                _VERSION = "unknown"
+        except (ImportError, FileNotFoundError, KeyError):
+            _VERSION = "unknown"
+    return _VERSION
+
+
+def __getattr__(name):
+    if name == "VERSION":
+        return get_version()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def create_parser():
@@ -38,7 +56,7 @@ def create_parser():
 
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
     parser.add_argument(
-        "--version", action="version", version=f"research-cli {VERSION}"
+        "--version", action="version", version=f"research-cli {get_version()}"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
