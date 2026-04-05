@@ -41,15 +41,15 @@ def _init_db(db_path: str):
                 # Only chmod if we own it and it is not a system directory
                 is_owner = hasattr(os, "getuid") and st.st_uid == os.getuid()
                 if is_owner and db_dir not in ["/tmp", "/var/tmp", "/"]:
-                    os.chmod(db_dir, 0o700)
-            except OSError:
+                    os.chmod(db_dir, 0o700, follow_symlinks=False)
+            except (OSError, NotImplementedError):
                 pass
 
         with sqlite3.connect(db_path) as conn:
             # Ensure database file has correct permissions
             try:
-                os.chmod(db_path, 0o600)
-            except OSError:
+                os.chmod(db_path, 0o600, follow_symlinks=False)
+            except (OSError, NotImplementedError):
                 pass
             _init_db_schema(conn)
     finally:
