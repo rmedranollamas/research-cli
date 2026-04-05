@@ -8,8 +8,8 @@ _DOTENV_PATH = os.path.join(CONFIG_DIR, ".env")
 if os.path.exists(_DOTENV_PATH):
     # Enforce secure permissions (0600) before loading
     try:
-        os.chmod(_DOTENV_PATH, 0o600)
-    except OSError:
+        os.chmod(_DOTENV_PATH, 0o600, follow_symlinks=False)
+    except (OSError, NotImplementedError):
         # Fallback if chmod is not supported or permitted
         pass
     load_dotenv(_DOTENV_PATH)
