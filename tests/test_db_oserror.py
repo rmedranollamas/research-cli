@@ -14,7 +14,7 @@ def test_init_db_dir_chmod_oserror(tmp_path):
 
     with mock.patch("os.chmod") as mock_chmod:
         # Side effect: raise OSError only when the path is db_dir
-        def side_effect(path, mode):
+        def side_effect(path, mode, follow_symlinks=True):
             if path == db_dir:
                 raise OSError("Mocked chmod directory error")
             return None
@@ -26,7 +26,7 @@ def test_init_db_dir_chmod_oserror(tmp_path):
 
         # Verify chmod was indeed called for the directory
         # (It might be called for the file too, depending on execution flow)
-        mock_chmod.assert_any_call(db_dir, 0o700)
+        mock_chmod.assert_any_call(db_dir, 0o700, follow_symlinks=False)
 
     # Verify the database was initialized anyway (schema created)
     with sqlite3.connect(str(test_db_path)) as conn:
@@ -42,7 +42,7 @@ def test_init_db_file_chmod_oserror(tmp_path):
 
     with mock.patch("os.chmod") as mock_chmod:
         # Side effect: raise OSError only when the path is test_db_path
-        def side_effect(path, mode):
+        def side_effect(path, mode, follow_symlinks=True):
             if path == test_db_path:
                 raise OSError("Mocked chmod file error")
             return None
@@ -53,7 +53,7 @@ def test_init_db_file_chmod_oserror(tmp_path):
         _init_db(test_db_path)
 
         # Verify chmod was called for the file
-        mock_chmod.assert_any_call(test_db_path, 0o600)
+        mock_chmod.assert_any_call(test_db_path, 0o600, follow_symlinks=False)
 
     # Verify the database was initialized anyway
     with sqlite3.connect(test_db_path) as conn:
