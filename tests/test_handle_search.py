@@ -65,6 +65,7 @@ def test_handle_search_with_output():
     parser = MagicMock()
 
     with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+        mock_save.return_value = True
         # Execute
         asyncio.run(handle_search(args, agent, parser))
 
@@ -76,6 +77,29 @@ def test_handle_search_with_output():
             verbose=False
         )
         mock_save.assert_called_once_with("Search content", "search_output.md", True)
+
+def test_handle_search_with_output_failure():
+    # Setup
+    agent = MagicMock()
+    agent.run_search = AsyncMock(return_value="Search content")
+    args = argparse.Namespace(
+        query="test query",
+        model="test-model",
+        parent=None,
+        verbose=False,
+        output="search_output.md",
+        force=False
+    )
+    parser = MagicMock()
+
+    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+        mock_save.return_value = False
+        # Execute and Verify
+        with pytest.raises(ResearchError, match="Failed to save search report"):
+            asyncio.run(handle_search(args, agent, parser))
+
+        agent.run_search.assert_called_once()
+        mock_save.assert_called_once_with("Search content", "search_output.md", False)
 
 def test_handle_search_failure():
     # Setup
