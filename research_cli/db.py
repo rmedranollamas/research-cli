@@ -126,12 +126,17 @@ async def async_update_task(*args, **kwargs):
 
 
 def get_task(task_id: int) -> Optional[Tuple]:
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT query, report, status FROM research_tasks WHERE id = ?", (task_id,)
-        )
-        return cursor.fetchone()
+    """Retrieves a task by ID."""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT query, report, status FROM research_tasks WHERE id = ?",
+                (task_id,),
+            )
+            return cursor.fetchone()
+    except sqlite3.Error:
+        return None
 
 
 def get_recent_tasks(limit: int) -> List[Tuple]:

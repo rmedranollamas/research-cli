@@ -52,11 +52,13 @@ def test_get_recent_tasks_all(temp_db):
     assert len(tasks) == 3
 
 
-@pytest.mark.asyncio
-async def test_async_get_recent_tasks(temp_db):
+import asyncio
+
+
+def test_async_get_recent_tasks(temp_db):
     """Test that the asynchronous version works as expected."""
     for i in range(3):
         save_task(f"query {i}", "model")
 
-    tasks = await async_get_recent_tasks(10)
+    tasks = asyncio.run(async_get_recent_tasks(10))
     assert len(tasks) == 3
