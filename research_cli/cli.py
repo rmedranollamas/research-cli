@@ -162,7 +162,8 @@ async def handle_run(args, agent: ResearchAgent, parser):
         raise ResearchError("Research failed")
 
     if report and args.output:
-        await async_save_report_to_file(report, args.output, args.force)
+        if not await async_save_report_to_file(report, args.output, args.force):
+            raise ResearchError("Failed to save research report")
 
 
 async def handle_search(args, agent: ResearchAgent, parser):
@@ -185,7 +186,8 @@ async def handle_search(args, agent: ResearchAgent, parser):
         raise ResearchError("Search failed")
 
     if report and args.output:
-        await async_save_report_to_file(report, args.output, args.force)
+        if not await async_save_report_to_file(report, args.output, args.force):
+            raise ResearchError("Failed to save search report")
 
 
 async def handle_status(args, agent: ResearchAgent):
@@ -194,7 +196,8 @@ async def handle_status(args, agent: ResearchAgent):
         raise ResearchError("Status check failed")
 
     if report and args.output:
-        await async_save_report_to_file(report, args.output, args.force)
+        if not await async_save_report_to_file(report, args.output, args.force):
+            raise ResearchError("Failed to save research status report")
 
 
 async def handle_generate_image(args, agent: ResearchAgent):
