@@ -10,6 +10,7 @@ from .utils import (
     print_report,
     validate_path,
     async_save_binary_to_file,
+    escape_markup,
 )
 from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 
@@ -59,8 +60,12 @@ class ResearchAgent:
         bg_tasks: Optional[Set[asyncio.Task]] = None,
     ):
         """Unified error handling for research tasks."""
-        self.console.print(f"[red]{prefix}:[/red]")
-        self.console.print_exception()
+        self.console.print(f"[red]{prefix}:[/red] {escape_markup(db_msg)}")
+
+        # Only print full traceback if debug is enabled
+        if os.getenv("RESEARCH_DEBUG") == "1":
+            self.console.print_exception()
+
         if bg_tasks:
             # Gather remaining background tasks if any
             await asyncio.gather(*bg_tasks, return_exceptions=True)
