@@ -37,11 +37,31 @@ def _init_db(db_path: str):
         elif db_dir:
             # Ensure existing directory has correct permissions if it is likely our own app dir
             try:
-                st = os.stat(db_dir)
-                # Only chmod if we own it and it is not a system directory
-                is_owner = hasattr(os, "getuid") and st.st_uid == os.getuid()
-                if is_owner and db_dir not in ["/tmp", "/var/tmp", "/"]:
-                    os.chmod(db_dir, 0o700, follow_symlinks=False)
+                # Use file descriptors to prevent TOCTOU race conditions where a symlink is created
+                # between stat and chmod.
+                flags = os.O_RDONLY
+                if hasattr(os, "O_DIRECTORY"):
+                    flags |= os.O_DIRECTORY
+                if hasattr(os, "O_NOFOLLOW"):
+                    flags |= os.O_NOFOLLOW
+
+                try:
+                    fd = os.open(db_dir, flags)
+                except OSError:
+                    fd = None
+
+                if fd is not None:
+                    try:
+                        st = os.fstat(fd)
+                        is_owner = hasattr(os, "getuid") and st.st_uid == os.getuid()
+                        if is_owner and db_dir not in ["/tmp", "/var/tmp", "/"]:
+                            if hasattr(os, "fchmod"):
+                                os.fchmod(fd, 0o700)
+                            else:
+                                # Fallback if fchmod is not available (less secure but handles platforms missing fchmod)
+                                os.chmod(db_dir, 0o700, follow_symlinks=False)
+                    finally:
+                        os.close(fd)
             except (OSError, NotImplementedError):
                 pass
 
