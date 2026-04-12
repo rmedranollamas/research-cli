@@ -1,7 +1,7 @@
 import asyncio
 import os
 import base64
-from typing import List, Optional, Set, Any, Dict, cast, Tuple
+from typing import List, Optional, Set, Any, Dict, cast
 from google import genai
 from .db import async_save_task, async_update_task
 from .utils import (
@@ -14,7 +14,7 @@ from .utils import (
 from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
 
 # Pre-calculated list of MCP server tools for performance
-_MCP_TOOLS: "Tuple[Dict[str, Any], ...]" = tuple(
+_MCP_TOOLS: tuple[Dict[str, Any], ...] = tuple(
     {"type": "mcp_server", "name": f"mcp_server_{i}", "url": mcp_url}
     for i, mcp_url in enumerate(RESEARCH_MCP_SERVERS)
 )
