@@ -54,7 +54,7 @@ def _init_db(db_path: str):
                     try:
                         st = os.fstat(fd)
                         is_owner = hasattr(os, "getuid") and st.st_uid == os.getuid()
-                        if is_owner and db_dir not in ["/tmp", "/var/tmp", "/"]:
+                        if is_owner and os.path.normpath(db_dir) not in ["/tmp", "/var/tmp", "/"]:
                             try:
                                 os.fchmod(fd, 0o700)
                             except (AttributeError, OSError):
