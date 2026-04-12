@@ -128,13 +128,17 @@ def print_report(report: str):
     console.print("\n" + "=" * 40 + "\n")
 
 
+try:
+    from rich.markup import escape as _rich_escape
+except ImportError:
+    _rich_escape = None
+
+
 def escape_markup(text: str) -> str:
     """Safely escapes rich markup, handling missing dependency gracefully."""
-    try:
-        from rich.markup import escape
-        return escape(text)
-    except (ImportError, ModuleNotFoundError):
-        return text
+    if _rich_escape:
+        return _rich_escape(text)
+    return text
 
 
 def _save_to_file(
