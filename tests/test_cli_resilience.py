@@ -52,7 +52,7 @@ def test_create_parser_without_dotenv():
 def cleanup_cli():
     yield
     # Restore original state
-    if "research_cli.cli" in sys.modules:
-        importlib.reload(sys.modules["research_cli.cli"])
     if "research_cli.config" in sys.modules:
         importlib.reload(sys.modules["research_cli.config"])
+    if "research_cli.cli" in sys.modules:
+        importlib.reload(sys.modules["research_cli.cli"])
