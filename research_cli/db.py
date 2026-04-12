@@ -55,11 +55,11 @@ def _init_db(db_path: str):
                         st = os.fstat(fd)
                         is_owner = hasattr(os, "getuid") and st.st_uid == os.getuid()
                         if is_owner and db_dir not in ["/tmp", "/var/tmp", "/"]:
-                            if hasattr(os, "fchmod"):
+                            try:
                                 os.fchmod(fd, 0o700)
-                            else:
-                                # Fallback if fchmod is not available (less secure but handles platforms missing fchmod)
-                                os.chmod(db_dir, 0o700, follow_symlinks=False)
+                            except (AttributeError, OSError):
+                                # Fallback using the file descriptor if fchmod is unavailable
+                                os.chmod(fd, 0o700)
                     finally:
                         os.close(fd)
             except (OSError, NotImplementedError):
