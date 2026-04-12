@@ -40,6 +40,8 @@ def test_create_parser_without_dotenv():
     # We need to mock the google modules because importing cli will import researcher
     with patch.dict(sys.modules, {"dotenv": None}):
         # Check if we can still call create_parser
+        if "research_cli.config" in sys.modules:
+            importlib.reload(sys.modules["research_cli.config"])
         if "research_cli.cli" in sys.modules:
             importlib.reload(sys.modules["research_cli.cli"])
         from research_cli.cli import create_parser
