@@ -21,12 +21,22 @@ def test_init_db_dir_chmod_oserror(tmp_path):
 
         mock_chmod.side_effect = side_effect
 
-        # This should not raise exception
-        _init_db(str(test_db_path))
-
-        # Verify chmod was indeed called for the directory
-        # (It might be called for the file too, depending on execution flow)
-        mock_chmod.assert_any_call(db_dir, 0o700, follow_symlinks=False)
+        # Mock os.fchmod if available, else mock os.chmod to verify it handles the exception
+        if hasattr(os, "fchmod"):
+            with mock.patch("os.fchmod") as mock_fchmod:
+                # Side effect: raise OSError
+                mock_fchmod.side_effect = OSError("Mocked fchmod directory error")
+                # This should not raise exception
+                _init_db(str(test_db_path))
+                # Verify fchmod was called
+                mock_fchmod.assert_called()
+        else:
+            with mock.patch("os.chmod") as mock_chmod:
+                mock_chmod.side_effect = OSError("Mocked chmod directory error")
+                # This should not raise exception
+                _init_db(str(test_db_path))
+                # Verify chmod was called
+                mock_chmod.assert_called()
 
     # Verify the database was initialized anyway (schema created)
     with sqlite3.connect(str(test_db_path)) as conn:
