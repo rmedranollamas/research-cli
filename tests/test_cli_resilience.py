@@ -25,12 +25,13 @@ def test_get_version_unexpected_error():
     with patch("importlib.metadata.version", side_effect=metadata.PackageNotFoundError):
         with patch("pathlib.Path.exists", return_value=True):
             # Mock tomllib.load to raise KeyError
+            if "research_cli.cli" in sys.modules:
+                importlib.reload(sys.modules["research_cli.cli"])
+            from research_cli.cli import get_version
+
+            # Mock tomllib.load to raise KeyError
             with patch("builtins.open", mock_open(read_data=b"[invalid]\n")):
                 with patch("tomllib.load", side_effect=KeyError("project")):
-                    if "research_cli.cli" in sys.modules:
-                        importlib.reload(sys.modules["research_cli.cli"])
-                    from research_cli.cli import get_version
-
                     assert get_version() == "unknown"
 
 
