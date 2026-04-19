@@ -33,6 +33,8 @@ class ResearchAgent:
         self.api_key = api_key
         self.base_url = base_url
         self.console = console or get_console()
+        self._client: Optional[genai.Client] = None
+        self._client_params: Optional[Dict[str, Any]] = None
 
     def get_client(
         self,
@@ -40,6 +42,15 @@ class ResearchAgent:
         timeout: Optional[int] = None,
     ) -> genai.Client:
         """Initializes and returns the Gemini client."""
+        current_params = {
+            "api_version": api_version,
+            "timeout": timeout,
+            "api_key": self.api_key,
+            "base_url": self.base_url,
+        }
+        if self._client and self._client_params == current_params:
+            return self._client
+
         http_options: Dict[str, Any] = {"api_version": api_version}
         if timeout is not None:
             http_options["timeout"] = timeout
@@ -47,7 +58,10 @@ class ResearchAgent:
             http_options["base_url"] = self.base_url
 
         try:
-            return genai.Client(api_key=self.api_key, http_options=http_options)  # type: ignore
+            client = genai.Client(api_key=self.api_key, http_options=http_options)  # type: ignore
+            self._client = client
+            self._client_params = current_params
+            return client
         except Exception as e:
             raise ResearchError(f"Client initialization failed: {e}")
 
