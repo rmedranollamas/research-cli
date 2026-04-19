@@ -1,20 +1,47 @@
 import os
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import research_cli.utils
 from research_cli import get_val, get_console, get_api_key, ResearchError, RESEARCH_API_KEY_VAR
+from research_cli.utils import set_console
 
 
 def test_get_api_key_not_set():
     """Test get_api_key when the environment variable is not set."""
-    research_cli.utils._console = None
-    with patch("os.getenv", return_value=None):
-        with pytest.raises(ResearchError, match=f"{RESEARCH_API_KEY_VAR} environment variable not set."):
-            get_api_key()
+    mock_console = MagicMock()
+    set_console(mock_console)
+    try:
+        with patch("os.getenv", return_value=None):
+            with pytest.raises(ResearchError, match=f"{RESEARCH_API_KEY_VAR} environment variable not set."):
+                get_api_key()
 
-    get_console().print.assert_called_with(
-        f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
-    )
+        mock_console.print.assert_called_with(
+            f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
+        )
+    finally:
+        set_console(None)
+
+
+def test_get_api_key_empty():
+    """Test get_api_key when the environment variable is an empty string."""
+    mock_console = MagicMock()
+    set_console(mock_console)
+    try:
+        with patch("os.getenv", return_value=""):
+            with pytest.raises(ResearchError, match=f"{RESEARCH_API_KEY_VAR} environment variable not set."):
+                get_api_key()
+
+        mock_console.print.assert_called_with(
+            f"[red]Error: {RESEARCH_API_KEY_VAR} environment variable not set.[/red]"
+        )
+    finally:
+        set_console(None)
+
+
+def test_get_api_key_success():
+    """Test get_api_key when the environment variable is set."""
+    with patch("os.getenv", return_value="test-key"):
+        assert get_api_key() == "test-key"
 
 
 def test_get_console_singleton():
