@@ -141,6 +141,49 @@ def escape_markup(text: str) -> str:
     return text
 
 
+def sanitize_path(path: str) -> str:
+    """
+    Sanitizes a path for display by making it relative to WORKSPACE_DIR
+    if possible, or returning only the basename.
+    """
+    if not path:
+        return ""
+
+    abs_workspace = os.path.realpath(WORKSPACE_DIR)
+    abs_path = os.path.realpath(path)
+
+    try:
+        rel_path = os.path.relpath(abs_path, abs_workspace)
+        if not rel_path.startswith(".."):
+            return rel_path
+    except (ValueError, OSError):
+        pass
+
+    return os.path.basename(path)
+
+
+def sanitize_error(error_msg: str, original_path: str) -> str:
+    """
+    Sanitizes an error message by replacing occurrences of the absolute
+    original path with its sanitized version.
+    """
+    if not error_msg:
+        return ""
+
+    sanitized = sanitize_path(original_path)
+    # Also try with the realpath of original_path as exceptions might use it
+    abs_path = os.path.realpath(original_path)
+
+    error_msg = error_msg.replace(abs_path, sanitized)
+    error_msg = error_msg.replace(original_path, sanitized)
+
+    # Security enhancement: also sanitize WORKSPACE_DIR to avoid leaking it
+    abs_workspace = os.path.realpath(WORKSPACE_DIR)
+    error_msg = error_msg.replace(abs_workspace, ".")
+
+    return error_msg
+
+
 def _save_to_file(
     data: Union[str, bytes],
     output_file: str,
@@ -154,7 +197,7 @@ def _save_to_file(
     try:
         output_file = validate_path(output_file)
     except ResearchError as e:
-        console.print(f"[red]{escape_markup(str(e))}[/red]")
+        console.print(f"[red]{escape_markup(sanitize_error(str(e), output_file))}[/red]")
         return False
 
     flags = os.O_WRONLY | os.O_CREAT
@@ -174,20 +217,24 @@ def _save_to_file(
             f.write(data)
     except FileExistsError:
         console.print(
-            f"[red]Error: Output file {escape_markup(output_file)} already exists. Use --force to overwrite.[/red]"
+            f"[red]Error: Output file {escape_markup(sanitize_path(output_file))} already exists. Use --force to overwrite.[/red]"
         )
         return False
     except OSError as e:
         import errno
         if hasattr(errno, "ELOOP") and e.errno == errno.ELOOP:
             console.print(
-                f"[red]Error: {escape_markup(output_file)} is a symlink. Overwriting symlinks is disallowed for security.[/red]"
+                f"[red]Error: {escape_markup(sanitize_path(output_file))} is a symlink. Overwriting symlinks is disallowed for security.[/red]"
             )
         else:
-            console.print(f"[red]Error saving to file {escape_markup(output_file)}: {escape_markup(str(e))}[/red]")
+            console.print(
+                f"[red]Error saving to file {escape_markup(sanitize_path(output_file))}: {escape_markup(sanitize_error(str(e), output_file))}[/red]"
+            )
         return False
     except Exception as e:
-        console.print(f"[red]Error saving to file {escape_markup(output_file)}: {escape_markup(str(e))}[/red]")
+        console.print(
+            f"[red]Error saving to file {escape_markup(sanitize_path(output_file))}: {escape_markup(sanitize_error(str(e), output_file))}[/red]"
+        )
         return False
 
     from rich.text import Text
@@ -195,7 +242,7 @@ def _save_to_file(
     console.print(
         Text.assemble(
             (f"{success_prefix} ", "green"),
-            (output_file, "bold green"),
+            (sanitize_path(output_file), "bold green"),
         )
     )
     return True

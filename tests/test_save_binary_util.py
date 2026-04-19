@@ -24,12 +24,12 @@ def test_save_binary_to_file_exists_no_force(tmp_path):
         assert output_file.read_bytes() == existing
 
 
-@pytest.mark.asyncio
-async def test_async_save_binary_to_file(tmp_path):
+def test_async_save_binary_to_file(tmp_path):
+    import asyncio
     data = b"async binary data"
     output_file = tmp_path / "async_test.bin"
     with patch("research_cli.utils.WORKSPACE_DIR", str(tmp_path)):
-        result = await async_save_binary_to_file(data, str(output_file), force=False)
+        result = asyncio.run(async_save_binary_to_file(data, str(output_file), force=False))
         assert result is True
         assert output_file.exists()
         assert output_file.read_bytes() == data

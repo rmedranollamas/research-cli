@@ -9,8 +9,8 @@ def test_save_report_to_file_exception(tmp_path, capsys):
 
     # Mock WORKSPACE_DIR to allow saving to tmp_path
     with patch("research_cli.utils.WORKSPACE_DIR", str(tmp_path)):
-        # Mock builtins.open to raise an exception
-        with patch("builtins.open", side_effect=PermissionError("Permission denied")):
+        # Mock os.open to raise an exception
+        with patch("os.open", side_effect=PermissionError("Permission denied")):
             result = save_report_to_file(report, str(output_file), force=False)
 
             assert result is False
@@ -25,8 +25,8 @@ def test_save_binary_to_file_exception(tmp_path, capsys):
 
     # Mock WORKSPACE_DIR to allow saving to tmp_path
     with patch("research_cli.utils.WORKSPACE_DIR", str(tmp_path)):
-        # Mock builtins.open to raise an exception
-        with patch("builtins.open", side_effect=OSError("Disk full")):
+        # Mock os.open to raise an exception
+        with patch("os.open", side_effect=OSError("Disk full")):
             result = save_binary_to_file(data, str(output_file), force=False)
 
             assert result is False
