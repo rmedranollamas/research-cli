@@ -19,7 +19,7 @@ def test_run_research_client_init_error(temp_db, capsys):
     # Verify console output
     captured = capsys.readouterr()
     assert "Error initializing Gemini client:" in captured.out
-    assert "Exception occurred" in captured.out
+    assert "Client initialization failed" in captured.out
 
     # Verify DB state
     with get_db() as conn:
@@ -50,7 +50,7 @@ def test_cli_run_client_init_error(temp_db, capsys):
 
     captured = capsys.readouterr()
     assert "Error initializing Gemini client:" in captured.out
-    assert "Exception occurred" in captured.out
+    assert "Client initialization failed" in captured.out
 
     # Verify DB state
     with get_db() as conn:
