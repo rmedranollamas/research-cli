@@ -174,6 +174,16 @@ class ResearchAgent:
         tools.extend(_MCP_TOOLS)
         return tools
 
+    def _get_progress(self) -> Any:
+        """Returns a configured Progress instance."""
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+
+        return Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console,
+        )
+
     async def _upload_single_file(
         self,
         client: genai.Client,
@@ -253,13 +263,8 @@ class ResearchAgent:
         self, client: genai.Client, file_paths: List[str]
     ) -> List[str]:
         """Uploads files to the Gemini Files API concurrently and returns their URIs."""
-        from rich.progress import Progress, SpinnerColumn, TextColumn
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
+        with self._get_progress() as progress:
             tasks = [
                 self._upload_single_file(client, path, progress) for path in file_paths
             ]
@@ -277,7 +282,6 @@ class ResearchAgent:
     ) -> Optional[str]:
         """Internal helper to run and stream an interaction."""
         from rich.text import Text
-        from rich.progress import Progress, SpinnerColumn, TextColumn
 
         try:
             client = self.get_client()
@@ -300,11 +304,7 @@ class ResearchAgent:
                 **interaction_params
             )
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=self.console,
-            ) as progress:
+            with self._get_progress() as progress:
                 progress_task = progress.add_task("Initializing...", total=None)
                 async for event in stream:
                     # Update interaction ID and DB status
@@ -550,7 +550,6 @@ class ResearchAgent:
         self, prompt: str, output_path: str, model_id: str, force: bool
     ):
         """Generates an image from a prompt and saves it."""
-        from rich.progress import Progress, SpinnerColumn, TextColumn
 
         output_path = await asyncio.to_thread(self._prepare_output_path, output_path, force)
 
@@ -559,11 +558,7 @@ class ResearchAgent:
         except Exception as e:
             raise ResearchError(f"Client initialization failed: {e}")
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
+        with self._get_progress() as progress:
             progress.add_task(f"Generating image with {model_id}...", total=None)
 
             try:
