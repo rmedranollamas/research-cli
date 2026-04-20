@@ -11,8 +11,9 @@ from .utils import (
     validate_path,
     async_save_binary_to_file,
     escape_markup,
+    sanitize_error,
 )
-from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS
+from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS, DB_PATH
 
 # Pre-calculated list of MCP server tools for performance
 _MCP_TOOLS: tuple[dict[str, Any], ...] = tuple(
@@ -74,7 +75,8 @@ class ResearchAgent:
         bg_tasks: Optional[Set[asyncio.Task]] = None,
     ):
         """Unified error handling for research tasks."""
-        self.console.print(f"[red]{prefix}:[/red] {escape_markup(db_msg)}")
+        sanitized_msg = sanitize_error(db_msg, DB_PATH)
+        self.console.print(f"[red]{prefix}:[/red] {escape_markup(sanitized_msg)}")
 
         # Only print full traceback if debug is enabled
         if os.getenv("RESEARCH_DEBUG") == "1":
@@ -83,7 +85,7 @@ class ResearchAgent:
         if bg_tasks:
             # Gather remaining background tasks if any
             await asyncio.gather(*bg_tasks, return_exceptions=True)
-        await async_update_task(task_id, "ERROR", db_msg, interaction_id=inter_id)
+        await async_update_task(task_id, "ERROR", sanitized_msg, interaction_id=inter_id)
 
     async def _poll_interaction(
         self, client: genai.Client, interaction_id: str, report_parts: List[str]
