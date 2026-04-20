@@ -12,6 +12,7 @@ from .utils import (
     async_save_binary_to_file,
     escape_markup,
     sanitize_error,
+    sanitize_path,
 )
 from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS, DB_PATH
 
@@ -198,14 +199,14 @@ class ResearchAgent:
         try:
             path = await asyncio.to_thread(validate_path, path)
         except ResearchError as e:
-            self.console.print(Text(str(e), style="red"))
+            self.console.print(Text(sanitize_error(str(e), path), style="red"))
             return None
 
         if not await asyncio.to_thread(os.path.exists, path):
             self.console.print(
                 Text.assemble(
                     ("Error: File ", "red"),
-                    (path, "bold red"),
+                    (sanitize_path(path), "bold red"),
                     (" not found.", "red"),
                 )
             )
@@ -233,7 +234,7 @@ class ResearchAgent:
                     self.console.print(
                         Text.assemble(
                             ("Error: File ", "red"),
-                            (path, "bold red"),
+                            (sanitize_path(path), "bold red"),
                             (" failed to process.", "red"),
                         )
                     )
@@ -254,8 +255,8 @@ class ResearchAgent:
             self.console.print(
                 Text.assemble(
                     ("Error uploading ", "red"),
-                    (path, "bold red"),
-                    (f": {e}", "red"),
+                    (sanitize_path(path), "bold red"),
+                    (f": {sanitize_error(str(e), path)}", "red"),
                 )
             )
             progress.remove_task(task)
@@ -420,7 +421,7 @@ class ResearchAgent:
             info_text.append(f"{', '.join(urls)}\n", style="white")
         if files:
             info_text.append("Files: ", style="bold blue")
-            info_text.append(f"{', '.join(files)}\n", style="white")
+            info_text.append(f"{', '.join(sanitize_path(f) for f in files)}\n", style="white")
 
         self.console.print(
             Panel(
@@ -584,7 +585,7 @@ class ResearchAgent:
                                 success_prefix="Image saved to",
                             )
                             if not saved:
-                                raise ResearchError(f"Failed to save image to {output_path}")
+                                raise ResearchError(f"Failed to save image to {sanitize_path(output_path)}")
                             return
 
                 raise ResearchError("No image was generated.")
