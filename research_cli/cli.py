@@ -18,30 +18,38 @@ from importlib import metadata
 _VERSION = None
 
 
+def _get_version_from_metadata():
+    """Try to get version from package metadata."""
+    try:
+        return metadata.version("research-cli")
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def _get_version_from_pyproject():
+    """Try to get version from pyproject.toml."""
+    try:
+        import tomllib
+        from pathlib import Path
+
+        pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        if pyproject_path.exists():
+            with open(pyproject_path, "rb") as f:
+                return tomllib.load(f)["project"]["version"]
+    except Exception:
+        pass
+    return None
+
+
 def get_version():
     """Get the version from package metadata or pyproject.toml (lazy loaded)."""
     global _VERSION
     if _VERSION is not None:
         return _VERSION
 
-    # Try to get version from package metadata or pyproject.toml
-    try:
-        _VERSION = metadata.version("research-cli")
-    except metadata.PackageNotFoundError:
-        try:
-            import tomllib
-            from pathlib import Path
-
-            pyproject_path = (
-                Path(__file__).resolve().parent.parent / "pyproject.toml"
-            )
-            if pyproject_path.exists():
-                with open(pyproject_path, "rb") as f:
-                    _VERSION = tomllib.load(f)["project"]["version"]
-            else:
-                _VERSION = "unknown"
-        except (ImportError, FileNotFoundError, KeyError):
-            _VERSION = "unknown"
+    _VERSION = (
+        _get_version_from_metadata() or _get_version_from_pyproject() or "unknown"
+    )
     return _VERSION
 
 
