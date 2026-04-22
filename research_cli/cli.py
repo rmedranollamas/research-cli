@@ -36,7 +36,7 @@ def _get_version_from_pyproject():
         if pyproject_path.exists():
             with open(pyproject_path, "rb") as f:
                 return tomllib.load(f)["project"]["version"]
-    except (ImportError, FileNotFoundError, KeyError):
+    except Exception:
         pass
     return None
 
