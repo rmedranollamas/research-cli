@@ -300,7 +300,16 @@ class ResearchAgent:
         error_prefix: str = "Error during interaction",
         error_msg: str = "Execution failed",
     ) -> Optional[str]:
-        """Internal helper to run and stream an interaction."""
+        """Internal helper to run and stream an interaction.
+
+        Args:
+            task_id: The ID of the research task.
+            interaction_params: Parameters for the interaction creation.
+            client: Optional pre-initialized Gemini client.
+            verbose: Whether to print reasoning thoughts.
+            error_prefix: Prefix for console error messages.
+            error_msg: Message for database error reporting.
+        """
         from rich.text import Text
 
         if client is None:
