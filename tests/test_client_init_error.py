@@ -32,7 +32,7 @@ def test_run_research_client_init_error(temp_db, capsys):
         assert row[0] == "ERROR"
         # Updated message format
         assert (
-            "Client initialization failed: Client initialization failed: Init failed"
+            "Client initialization failed: Init failed"
             in row[1]
         )
 
@@ -62,6 +62,6 @@ def test_cli_run_client_init_error(temp_db, capsys):
         assert row is not None
         assert row[0] == "ERROR"
         assert (
-            "Client initialization failed: Client initialization failed: Init failed"
+            "Client initialization failed: Init failed"
             in row[1]
         )
