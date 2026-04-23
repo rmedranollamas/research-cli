@@ -187,6 +187,22 @@ class ResearchAgent:
             console=self.console,
         )
 
+    async def _get_client_async(self) -> genai.Client:
+        """Helper to get client in a thread-safe way for async callers."""
+        return await asyncio.to_thread(self.get_client)
+
+    async def _get_client_for_task(self, task_id: int) -> Optional[genai.Client]:
+        """Gets a client and handles task error reporting on failure."""
+        try:
+            return await self._get_client_async()
+        except Exception as e:
+            await self._handle_error(
+                task_id,
+                "Error initializing Gemini client",
+                str(e),
+            )
+            return None
+
     async def _upload_single_file(
         self,
         client: genai.Client,
@@ -279,6 +295,7 @@ class ResearchAgent:
         self,
         task_id: int,
         interaction_params: Dict[str, Any],
+        client: Optional[genai.Client] = None,
         verbose: bool = False,
         error_prefix: str = "Error during interaction",
         error_msg: str = "Execution failed",
@@ -286,15 +303,10 @@ class ResearchAgent:
         """Internal helper to run and stream an interaction."""
         from rich.text import Text
 
-        try:
-            client = self.get_client()
-        except Exception as e:
-            await self._handle_error(
-                task_id,
-                "Error initializing Gemini client",
-                f"Client initialization failed: {e}",
-            )
-            return None
+        if client is None:
+            client = await self._get_client_for_task(task_id)
+            if client is None:
+                return None
 
         report_parts: List[str] = []
         interaction_id: Optional[str] = None
@@ -430,14 +442,8 @@ class ResearchAgent:
             )
         )
 
-        try:
-            client = self.get_client()
-        except Exception as e:
-            await self._handle_error(
-                task_id,
-                "Error initializing Gemini client",
-                f"Client initialization failed: {e}",
-            )
+        client = await self._get_client_for_task(task_id)
+        if client is None:
             return None
 
         # Handle file uploads
@@ -483,6 +489,7 @@ class ResearchAgent:
         return await self._run_interaction(
             task_id,
             params,
+            client=client,
             verbose=verbose,
             error_prefix="Error during research",
             error_msg="Research execution failed",
@@ -536,10 +543,7 @@ class ResearchAgent:
 
     async def get_status(self, interaction_id: str) -> Optional[str]:
         """Polls for the status and result of an existing interaction."""
-        try:
-            client = await asyncio.to_thread(self.get_client)
-        except Exception as e:
-            raise ResearchError(f"Client initialization failed: {e}")
+        client = await self._get_client_async()
         report_parts: List[str] = []
         return await self._poll_interaction(client, interaction_id, report_parts)
 
@@ -556,10 +560,7 @@ class ResearchAgent:
 
         output_path = await asyncio.to_thread(self._prepare_output_path, output_path, force)
 
-        try:
-            client = await asyncio.to_thread(self.get_client)
-        except Exception as e:
-            raise ResearchError(f"Client initialization failed: {e}")
+        client = await self._get_client_async()
 
         with self._get_progress() as progress:
             progress.add_task(f"Generating image with {model_id}...", total=None)
