@@ -1,6 +1,7 @@
 import sys
 from unittest.mock import patch
-from research_cli import main, save_task
+from research_cli import main
+from research_cli.db import save_task
 
 
 def test_cli_list_empty(temp_db, capsys):
@@ -35,7 +36,7 @@ def test_cli_show_not_found(temp_db, capsys):
 
 def test_cli_show_success(temp_db, capsys):
     """Test 'show' command with an existing ID."""
-    from research_cli import update_task
+    from research_cli.db import update_task
 
     task_id = save_task("test query", "model-x")
     update_task(task_id, "COMPLETED", report="# Rocket Science\nIt is hard.")

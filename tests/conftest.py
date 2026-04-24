@@ -204,12 +204,12 @@ def temp_db(monkeypatch):
     monkeypatch.setenv("RESEARCH_DB_PATH", db_path)
     monkeypatch.setenv("RESEARCH_GEMINI_API_KEY", "fake-key")
 
-    import research_cli
+    import research_cli.db
     import research_cli.config
 
     # Ensure the module uses the new path from env var
     research_cli.config.DB_PATH = db_path
-    research_cli.init_db()
+    research_cli.db.init_db()
 
     yield db_path
 
