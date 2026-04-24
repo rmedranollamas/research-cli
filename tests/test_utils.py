@@ -2,8 +2,8 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 import research_cli.utils
-from research_cli import get_val, get_console, get_api_key, ResearchError, RESEARCH_API_KEY_VAR
-from research_cli.utils import set_console
+from research_cli.utils import get_val, get_console, get_api_key, set_console
+from research_cli.config import ResearchError, RESEARCH_API_KEY_VAR
 
 
 def test_get_api_key_not_set():

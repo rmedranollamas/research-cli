@@ -6,11 +6,10 @@ from unittest.mock import patch
 from research_cli import (
     get_api_key,
     run_research,
-    ResearchError,
     main,
     get_gemini_client,
-    RESEARCH_API_KEY_VAR,
 )
+from research_cli.config import ResearchError, RESEARCH_API_KEY_VAR
 
 
 def test_get_api_key_missing(capsys):

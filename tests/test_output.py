@@ -1,8 +1,10 @@
 import os
 import sys
 import tempfile
+import pytest
 from unittest.mock import patch, AsyncMock
-from research_cli import main, save_task, update_task
+from research_cli import main
+from research_cli.db import save_task, update_task
 
 
 def test_run_research_output(temp_db):
@@ -69,7 +71,9 @@ def test_run_research_no_overwrite(temp_db):
                     "argv",
                     ["research", "run", "test query", "--output", output_file],
                 ):
-                    main()
+                    with pytest.raises(SystemExit) as excinfo:
+                        main()
+                    assert excinfo.value.code == 1
 
                 with open(output_file, "r") as f:
                     content = f.read()

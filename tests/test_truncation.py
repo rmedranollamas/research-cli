@@ -1,6 +1,8 @@
 import sys
 from unittest.mock import patch
-from research_cli import truncate_query, save_task, main
+from research_cli import main
+from research_cli.utils import truncate_query
+from research_cli.db import save_task
 from research_cli.config import QUERY_TRUNCATION_LENGTH
 
 

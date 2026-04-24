@@ -1,6 +1,7 @@
 import pytest
 from research_cli.utils import get_console, set_console
-from research_cli import get_api_key, ResearchError
+from research_cli import get_api_key
+from research_cli.config import ResearchError
 
 
 def test_mock_console_capsys(capsys):
