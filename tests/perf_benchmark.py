@@ -4,7 +4,6 @@ import base64
 import os
 from unittest.mock import MagicMock, AsyncMock, patch
 from research_cli.researcher import ResearchAgent
-from research_cli.config import ResearchError
 
 async def monitor_loop():
     latencies = []

@@ -1,23 +1,20 @@
 import os
+from research_cli.exceptions import ResearchError
 
 try:
     from dotenv import load_dotenv
 except ImportError:
-
     def load_dotenv(*args, **kwargs):
         pass
-
 
 _DEFAULT_CONFIG_DIR = os.path.expanduser("~/.research-cli")
 CONFIG_DIR = os.getenv("RESEARCH_CONFIG_DIR", _DEFAULT_CONFIG_DIR)
 
 _DOTENV_PATH = os.path.join(CONFIG_DIR, ".env")
 if os.path.exists(_DOTENV_PATH):
-    # Enforce secure permissions (0600) before loading
     try:
         os.chmod(_DOTENV_PATH, 0o600, follow_symlinks=False)
     except (OSError, NotImplementedError):
-        # Fallback if chmod is not supported or permitted
         pass
     load_dotenv(_DOTENV_PATH)
 
@@ -30,9 +27,3 @@ QUERY_TRUNCATION_LENGTH = 50
 RECENT_TASKS_LIMIT = 20
 POLL_INTERVAL_DEFAULT = 10.0
 WORKSPACE_DIR = os.getenv("RESEARCH_WORKSPACE", os.getcwd())
-
-
-class ResearchError(Exception):
-    """Custom exception for research-related errors."""
-
-    pass

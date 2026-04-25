@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 from research_cli.utils import save_report_to_file, save_binary_to_file
 

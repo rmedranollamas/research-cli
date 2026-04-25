@@ -26,17 +26,13 @@ async def test_generate_image_path_traversal_vulnerability():
         # Path traversal payload
         traversal_path = "../../tmp/evil.png"
 
-        # We want to check if open is NOT called with the traversal path
-        with patch("builtins.open", mock_open()) as mocked_file:
+        # The vulnerability should be caught by validate_path and raise ResearchError
+        from research_cli.config import ResearchError
+
+        with pytest.raises(ResearchError, match="Path traversal detected"):
             await agent.generate_image(
                 "a prompt", traversal_path, "model-id", force=True
             )
-
-            # Verify if open was NOT called with the traversal path (because it should be blocked)
-            for call in mocked_file.call_args_list:
-                # Extract filename from call arguments
-                if call[0]:
-                    assert traversal_path not in call[0][0]
 
 
 def test_save_report_path_traversal_vulnerability():
@@ -62,14 +58,9 @@ async def test_upload_files_path_traversal_vulnerability():
     traversal_path = "../../etc/passwd"
 
     # We want to check if files.upload is NOT called with the traversal path
-    # Files API upload is synchronous and run in a thread
-    # The vulnerability should be caught by validate_path BEFORE asyncio.to_thread is called
-    with patch("asyncio.to_thread") as mock_thread:
-        # Mocking to_thread avoids the while True loop spinning indefinitely
-        # But here, validate_path should catch it before even calling to_thread.
-        await agent._upload_files(mock_client, [traversal_path])
+    # validate_path should catch it and _upload_single_file will return None
+    uris = await agent._upload_files(mock_client, [traversal_path])
 
-        # Verify that upload was NOT called with traversal path
-        # Since it's blocked by validate_path before calling upload
-        assert not mock_client.files.upload.called
-        assert not mock_thread.called
+    # Verify that upload was NOT called and result is empty
+    assert uris == []
+    assert not mock_client.files.upload.called

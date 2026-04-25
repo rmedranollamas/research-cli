@@ -1,4 +1,4 @@
-import pytest
+import asyncio
 from research_cli.db import get_recent_tasks, async_get_recent_tasks, get_db, save_task
 
 
@@ -50,9 +50,6 @@ def test_get_recent_tasks_all(temp_db):
 
     tasks = get_recent_tasks(10)
     assert len(tasks) == 3
-
-
-import asyncio
 
 
 def test_async_get_recent_tasks(temp_db):

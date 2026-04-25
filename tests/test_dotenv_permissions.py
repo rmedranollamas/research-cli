@@ -1,6 +1,5 @@
 import os
 import importlib
-import pytest
 from unittest.mock import patch
 
 def test_dotenv_permissions_enforced(tmp_path):

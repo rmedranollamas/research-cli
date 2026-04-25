@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 from research_cli.utils import save_binary_to_file, async_save_binary_to_file
 
