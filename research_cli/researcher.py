@@ -220,7 +220,8 @@ class ResearchAgent:
             Panel(
                 info_text,
                 title=title,
-            )
+            ),
+            markup=False,
         )
 
     async def _get_client_async(self) -> genai.Client:
