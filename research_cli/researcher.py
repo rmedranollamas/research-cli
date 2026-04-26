@@ -187,6 +187,42 @@ class ResearchAgent:
             console=self.console,
         )
 
+    def _print_start_panel(
+        self,
+        title: str,
+        query: str,
+        model_id: str,
+        parent_id: Optional[str] = None,
+        urls: Optional[List[str]] = None,
+        files: Optional[List[str]] = None,
+    ) -> None:
+        """Prints a starting panel with task information."""
+        from rich.panel import Panel
+        from rich.text import Text
+
+        info_text = Text.assemble(
+            ("Query: ", "bold blue"),
+            (f"{query}\n", "white"),
+            ("Model: ", "bold blue"),
+            (f"{model_id}\n", "white"),
+        )
+        if parent_id:
+            info_text.append("Parent ID: ", style="bold blue")
+            info_text.append(f"{parent_id}\n", style="white")
+        if urls:
+            info_text.append("URLs: ", style="bold blue")
+            info_text.append(f"{', '.join(urls)}\n", style="white")
+        if files:
+            info_text.append("Files: ", style="bold blue")
+            info_text.append(f"{', '.join(sanitize_path(f) for f in files)}\n", style="white")
+
+        self.console.print(
+            Panel(
+                info_text,
+                title=title,
+            )
+        )
+
     async def _get_client_async(self) -> genai.Client:
         """Helper to get client in a thread-safe way for async callers."""
         return await asyncio.to_thread(self.get_client)
@@ -423,32 +459,15 @@ class ResearchAgent:
         verbose: bool = False,
     ) -> Optional[str]:
         """Runs a deep research task."""
-        from rich.panel import Panel
-        from rich.text import Text
-
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
-        info_text = Text.assemble(
-            ("Query: ", "bold blue"),
-            (f"{query}\n", "white"),
-            ("Model: ", "bold blue"),
-            (f"{model_id}\n", "white"),
-        )
-        if parent_id:
-            info_text.append("Parent ID: ", style="bold blue")
-            info_text.append(f"{parent_id}\n", style="white")
-        if urls:
-            info_text.append("URLs: ", style="bold blue")
-            info_text.append(f"{', '.join(urls)}\n", style="white")
-        if files:
-            info_text.append("Files: ", style="bold blue")
-            info_text.append(f"{', '.join(sanitize_path(f) for f in files)}\n", style="white")
-
-        self.console.print(
-            Panel(
-                info_text,
-                title="Deep Research Starting",
-            )
+        self._print_start_panel(
+            title="Deep Research Starting",
+            query=query,
+            model_id=model_id,
+            parent_id=parent_id,
+            urls=urls,
+            files=files,
         )
 
         client = await self._get_client_for_task(task_id)
@@ -512,26 +531,13 @@ class ResearchAgent:
         verbose: bool = False,
     ) -> Optional[str]:
         """Runs a fast grounded search interaction."""
-        from rich.panel import Panel
-        from rich.text import Text
-
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
 
-        info_text = Text.assemble(
-            ("Query: ", "bold blue"),
-            (f"{query}\n", "white"),
-            ("Model: ", "bold blue"),
-            (f"{model_id}\n", "white"),
-        )
-        if parent_id:
-            info_text.append("Parent ID: ", style="bold blue")
-            info_text.append(f"{parent_id}\n", style="white")
-
-        self.console.print(
-            Panel(
-                info_text,
-                title="Fast Search Starting",
-            )
+        self._print_start_panel(
+            title="Fast Search Starting",
+            query=query,
+            model_id=model_id,
+            parent_id=parent_id,
         )
 
         params: Dict[str, Any] = {
