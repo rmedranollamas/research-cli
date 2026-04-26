@@ -30,7 +30,14 @@ def get_db():
         _local.conn = sqlite3.connect(config.DB_PATH)
         _local.path = config.DB_PATH
 
-    yield _local.conn
+    try:
+        yield _local.conn
+    except Exception:
+        try:
+            _local.conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise
 
 
 def _init_db(db_path: str):
