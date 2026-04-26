@@ -7,24 +7,46 @@ from research_cli import config
 
 @pytest.fixture(autouse=True)
 def reset_db_state():
-    """Reset the global _last_db_path before each test."""
+    """Reset the global _last_db_path and thread-local state before each test."""
     db_module._last_db_path = None
+    if hasattr(db_module._local, "conn"):
+        try:
+            db_module._local.conn.close()
+        except sqlite3.Error:
+            pass
+        del db_module._local.conn
+    if hasattr(db_module._local, "path"):
+        del db_module._local.path
     yield
     db_module._last_db_path = None
+    if hasattr(db_module._local, "conn"):
+        try:
+            db_module._local.conn.close()
+        except sqlite3.Error:
+            pass
+        del db_module._local.conn
+    if hasattr(db_module._local, "path"):
+        del db_module._local.path
 
-def test_get_db_yields_connection_and_closes():
-    """Test that get_db yields a connection and closes it."""
+
+def test_get_db_yields_connection_and_reuses():
+    """Test that get_db yields a connection and reuses it."""
     # Set _last_db_path to avoid calling _init_db and its sqlite3.connect call
     db_module._last_db_path = config.DB_PATH
 
     mock_conn = mock.MagicMock(spec=sqlite3.Connection)
     with mock.patch("sqlite3.connect", return_value=mock_conn) as mock_connect:
-        with get_db() as conn:
-            assert conn == mock_conn
+        with get_db() as conn1:
+            assert conn1 == mock_conn
             mock_connect.assert_called_once_with(config.DB_PATH)
 
-        # Verify close was called
-        mock_conn.close.assert_called_once()
+        with get_db() as conn2:
+            assert conn2 == mock_conn
+            # Still called only once
+            mock_connect.assert_called_once()
+
+        # Verify close was NOT called
+        mock_conn.close.assert_not_called()
 
 def test_get_db_initializes_on_first_call():
     """Test that _init_db is called on the first call to get_db."""
@@ -81,6 +103,7 @@ def test_get_db_initializes_before_connect():
             manager.attach_mock(mock_init, 'init')
             manager.attach_mock(mock_connect, 'connect')
 
+            # First call should initialize and connect
             with get_db():
                 pass
 

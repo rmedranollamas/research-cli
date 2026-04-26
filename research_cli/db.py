@@ -8,6 +8,7 @@ from . import config
 
 _db_lock = threading.Lock()
 _last_db_path: Optional[str] = None
+_local = threading.local()
 
 
 @contextmanager
@@ -20,11 +21,16 @@ def get_db():
                 _init_db(config.DB_PATH)
                 _last_db_path = config.DB_PATH
 
-    conn = sqlite3.connect(config.DB_PATH)
-    try:
-        yield conn
-    finally:
-        conn.close()
+    if not hasattr(_local, "conn") or getattr(_local, "path", None) != config.DB_PATH:
+        if hasattr(_local, "conn"):
+            try:
+                _local.conn.close()
+            except sqlite3.Error:
+                pass
+        _local.conn = sqlite3.connect(config.DB_PATH)
+        _local.path = config.DB_PATH
+
+    yield _local.conn
 
 
 def _init_db(db_path: str):
