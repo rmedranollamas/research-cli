@@ -166,6 +166,7 @@ class ResearchAgent:
         self,
         use_search: bool = False,
         urls: Optional[List[str]] = None,
+        use_code_execution: bool = True,
     ) -> List[Dict[str, Any]]:
         """Constructs and returns the list of tools for an interaction."""
         tools: List[Dict[str, Any]] = []
@@ -173,6 +174,8 @@ class ResearchAgent:
             tools.append({"type": "google_search"})
         if urls:
             tools.append({"type": "url_context"})
+        if use_code_execution:
+            tools.append({"type": "code_execution"})
 
         tools.extend(_MCP_TOOLS)
         return tools
@@ -328,6 +331,26 @@ class ResearchAgent:
 
         return [uri for uri in results if uri is not None]
 
+    async def _handle_inline_image(self, base64_data: str, task_id: int):
+        """Saves an inline image generated during research."""
+        try:
+            image_bytes = await asyncio.to_thread(base64.b64decode, base64_data)
+            # Use a timestamp to avoid name collisions
+            import time
+
+            timestamp = int(time.time() * 1000)
+            filename = f"research_task_{task_id}_{timestamp}.png"
+            output_path = os.path.join(WORKSPACE_DIR, filename)
+
+            await async_save_binary_to_file(
+                image_bytes,
+                output_path,
+                force=True,
+                success_prefix="Visualization saved to",
+            )
+        except Exception as e:
+            self.console.print(f"[yellow]Failed to save inline image: {e}[/yellow]")
+
     async def _run_interaction(
         self,
         task_id: int,
@@ -387,24 +410,33 @@ class ResearchAgent:
                                 description=f"Processing (ID: {interaction_id})...",
                             )
 
-                    # Handle thought blocks
+                    # Handle thought blocks (Legacy and New)
                     thought = get_val(event, "thought")
-                    if thought:
-                        summary = get_val(thought, "summary") or get_val(
-                            thought,
-                            "text",
-                        )
-                        if verbose and summary:
-                            self.console.print("> ", end="")
-                            self.console.print(Text(summary, style="italic grey"))
+                    delta = get_val(event, "delta")
 
-                        desc_text = summary if summary else "Thinking..."
+                    thought_summary = None
+                    if thought:
+                        thought_summary = get_val(thought, "summary") or get_val(
+                            thought, "text"
+                        )
+                    elif delta and get_val(delta, "type") == "thought_summary":
+                        thought_content = get_val(delta, "content")
+                        thought_summary = get_val(thought_content, "text")
+
+                    if thought_summary:
+                        if verbose:
+                            self.console.print("> ", end="")
+                            self.console.print(
+                                Text(thought_summary, style="italic grey")
+                            )
+
+                        desc_text = thought_summary if thought_summary else "Thinking..."
                         progress.update(
                             progress_task,
                             description=f"[italic grey]{desc_text}[/italic grey]",
                         )
 
-                    # Handle content blocks
+                    # Handle content blocks (Legacy and New)
                     content = get_val(event, "content")
                     if content:
                         parts = get_val(content, "parts", [])
@@ -412,6 +444,17 @@ class ResearchAgent:
                             text = get_val(part, "text")
                             if text:
                                 report_parts.append(text)
+
+                    if delta:
+                        delta_type = get_val(delta, "type")
+                        if delta_type == "text":
+                            text = get_val(delta, "text")
+                            if text:
+                                report_parts.append(text)
+                        elif delta_type == "image":
+                            image_data = get_val(delta, "data")
+                            if image_data:
+                                await self._handle_inline_image(image_data, task_id)
 
                 progress.update(
                     progress_task, description="Stream finished.", completed=True
@@ -458,6 +501,8 @@ class ResearchAgent:
         use_search: bool = True,
         thinking_level: Optional[str] = None,
         verbose: bool = False,
+        collaborative_planning: bool = False,
+        visualization: bool = False,
     ) -> Optional[str]:
         """Runs a deep research task."""
         task_id = await async_save_task(query, model_id, parent_id=parent_id)
@@ -483,25 +528,28 @@ class ResearchAgent:
         agent_config: Dict[str, Any] = {
             "type": "deep-research",
             "thinking_summaries": "auto",
+            "collaborative_planning": collaborative_planning,
         }
+        if visualization:
+            agent_config["visualization"] = "auto"
 
-        # Workaround for Interactions API current limitations with direct URL/File context:
-        # We append them to the query so the model can fetch them via tools if enabled.
-        modified_query = query
+        interaction_content: List[Dict[str, Any]] = [{"type": "text", "text": query}]
+
         if urls:
-            modified_query += (
-                "\n\nPlease use the following URLs as context:\n" + "\n".join(urls)
-            )
+            for url in urls:
+                interaction_content.append(
+                    {"type": "document", "uri": url, "mime_type": "text/html"}
+                )
         if file_uris:
-            modified_query += (
-                "\n\nPlease use the following uploaded files as context:\n"
-                + "\n".join(file_uris)
-            )
+            for uri in file_uris:
+                # We don't know the exact mime type, but 'application/pdf' or
+                # 'text/plain' are common. The API often infers from URI or metadata.
+                interaction_content.append({"type": "document", "uri": uri})
 
         interaction_input: List[Dict[str, Any]] = [
             {
                 "role": "user",
-                "content": [{"type": "text", "text": modified_query}],
+                "content": interaction_content,
             }
         ]
 

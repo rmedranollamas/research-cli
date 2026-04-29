@@ -108,6 +108,17 @@ def create_parser():
     run_parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show reasoning thoughts"
     )
+    run_parser.add_argument(
+        "--plan",
+        action="store_true",
+        help="Enable collaborative planning mode",
+    )
+    run_parser.add_argument(
+        "--visualization",
+        "--vis",
+        action="store_true",
+        help="Enable automatic visualizations (charts/infographics)",
+    )
     run_parser.set_defaults(use_search=True)
 
     # Search command (Fast grounding)
@@ -179,6 +190,8 @@ async def handle_run(args, agent: ResearchAgent, parser):
         use_search=args.use_search,
         thinking_level=args.thinking,
         verbose=args.verbose,
+        collaborative_planning=args.plan,
+        visualization=args.visualization,
     )
     if report is None:
         # Check if research failed. agent.run_research returns None on failure after handling it.
@@ -320,6 +333,8 @@ async def main_async():
                         thinking=None,
                         use_search=True,
                         verbose=False,
+                        plan=False,
+                        visualization=False,
                     ),
                     agent,
                     parser,
