@@ -48,6 +48,77 @@ def test_sanitize_path_exactly_workspace(tmp_path):
         result = sanitize_path(real_workspace)
         assert result == "."
 
+def test_sanitize_path_relpath_value_error(tmp_path):
+    """Test sanitize_path when os.path.relpath raises ValueError."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    real_workspace = os.path.realpath(str(workspace))
+    file_path = "/abs/path/test.txt"
+
+    with patch("research_cli.utils.WORKSPACE_DIR", real_workspace):
+        with patch("os.path.relpath", side_effect=ValueError("Different drives")):
+            result = sanitize_path(file_path)
+            assert result == "test.txt"
+
+def test_sanitize_path_relpath_os_error(tmp_path):
+    """Test sanitize_path when os.path.relpath raises OSError."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    real_workspace = os.path.realpath(str(workspace))
+    file_path = "/abs/path/test.txt"
+
+    with patch("research_cli.utils.WORKSPACE_DIR", real_workspace):
+        with patch("os.path.relpath", side_effect=OSError("Generic error")):
+            result = sanitize_path(file_path)
+            assert result == "test.txt"
+
+def test_sanitize_path_with_symlinks(tmp_path):
+    """Test sanitize_path with symlinks."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    real_workspace = os.path.realpath(str(workspace))
+
+    # File inside workspace
+    target_file = workspace / "target.txt"
+    target_file.touch()
+
+    # Symlink inside workspace pointing to file inside workspace
+    link_inside = workspace / "link_inside.txt"
+    link_inside.symlink_to(target_file)
+
+    # File outside workspace
+    outside_file = tmp_path / "outside.txt"
+    outside_file.touch()
+
+    # Symlink inside workspace pointing to file outside workspace
+    link_outside = workspace / "link_outside.txt"
+    link_outside.symlink_to(outside_file)
+
+    with patch("research_cli.utils.WORKSPACE_DIR", real_workspace):
+        # link_inside should resolve to target.txt relative to workspace
+        # because realpath resolves the link
+        assert sanitize_path(str(link_inside)) == "target.txt"
+
+        # link_outside should resolve to link_outside.txt (basename of input)
+        # because its realpath is outside workspace
+        assert sanitize_path(str(link_outside)) == "link_outside.txt"
+
+def test_sanitize_path_with_traversal(tmp_path):
+    """Test sanitize_path with path traversal components."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    real_workspace = os.path.realpath(str(workspace))
+
+    outside_file = tmp_path / "outside.txt"
+    outside_file.touch()
+
+    traversal_path = os.path.join(real_workspace, "..", "outside.txt")
+
+    with patch("research_cli.utils.WORKSPACE_DIR", real_workspace):
+        # realpath should resolve workspace/../outside.txt to outside.txt
+        # and since it is outside workspace, it should return basename
+        assert sanitize_path(traversal_path) == "outside.txt"
+
 def test_sanitize_error_basic(tmp_path):
     """Test sanitize_error replaces the original path with the sanitized version."""
     workspace = tmp_path / "workspace"
