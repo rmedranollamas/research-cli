@@ -38,6 +38,8 @@ def test_handle_run_success():
         use_search=True,
         thinking="medium",
         verbose=True,
+        plan=False,
+        visualization=False,
         output=None,
         force=False
     )
@@ -55,7 +57,9 @@ def test_handle_run_success():
         files=["file1"],
         use_search=True,
         thinking_level="medium",
-        verbose=True
+        verbose=True,
+        collaborative_planning=False,
+        visualization=False
     )
 
 def test_handle_run_with_output():
@@ -71,6 +75,8 @@ def test_handle_run_with_output():
         use_search=True,
         thinking=None,
         verbose=False,
+        plan=False,
+        visualization=False,
         output="output.md",
         force=True
     )
@@ -98,6 +104,8 @@ def test_handle_run_with_output_failure():
         use_search=True,
         thinking=None,
         verbose=False,
+        plan=False,
+        visualization=False,
         output="output.md",
         force=False
     )
@@ -125,6 +133,8 @@ def test_handle_run_failure():
         use_search=True,
         thinking=None,
         verbose=False,
+        plan=False,
+        visualization=False,
         output=None,
         force=False
     )
@@ -149,6 +159,8 @@ def test_handle_run_failure_no_save():
         use_search=True,
         thinking=None,
         verbose=False,
+        plan=False,
+        visualization=False,
         output="output.md",
         force=False
     )
@@ -175,6 +187,8 @@ def test_handle_run_exception():
         use_search=True,
         thinking=None,
         verbose=False,
+        plan=False,
+        visualization=False,
         output=None,
         force=False
     )
@@ -199,6 +213,8 @@ def test_handle_run_empty_report():
         use_search=True,
         thinking=None,
         verbose=False,
+        plan=False,
+        visualization=False,
         output="output.md",
         force=False
     )
