@@ -171,6 +171,18 @@ def create_parser():
     return parser, script_name
 
 
+async def _save_report_if_requested(
+    report: str | None, args: argparse.Namespace, error_message: str | None = None
+) -> bool:
+    """Helper to save report to file if output path is provided in args."""
+    if report and args.output:
+        if not await async_save_report_to_file(report, args.output, args.force):
+            if error_message:
+                raise ResearchError(error_message)
+            return False
+    return True
+
+
 async def handle_run(args, agent: ResearchAgent, parser):
     if not args.query:
         subparsers_action = next(
@@ -200,9 +212,7 @@ async def handle_run(args, agent: ResearchAgent, parser):
         # If run_research handles the error and returns None, we need to raise to trigger sys.exit(1) in main_async.
         raise ResearchError("Research failed")
 
-    if report and args.output:
-        if not await async_save_report_to_file(report, args.output, args.force):
-            raise ResearchError("Failed to save research report")
+    await _save_report_if_requested(report, args, "Failed to save research report")
 
 
 async def handle_search(args, agent: ResearchAgent, parser):
@@ -224,9 +234,7 @@ async def handle_search(args, agent: ResearchAgent, parser):
     if report is None:
         raise ResearchError("Search failed")
 
-    if report and args.output:
-        if not await async_save_report_to_file(report, args.output, args.force):
-            raise ResearchError("Failed to save search report")
+    await _save_report_if_requested(report, args, "Failed to save search report")
 
 
 async def handle_status(args, agent: ResearchAgent):
@@ -234,9 +242,7 @@ async def handle_status(args, agent: ResearchAgent):
     if report is None:
         raise ResearchError("Status check failed")
 
-    if report and args.output:
-        if not await async_save_report_to_file(report, args.output, args.force):
-            raise ResearchError("Failed to save research status report")
+    await _save_report_if_requested(report, args, "Failed to save research status report")
 
 
 async def handle_generate_image(args, agent: ResearchAgent):
@@ -290,8 +296,7 @@ async def handle_show(args):
     )
     if report:
         print_report(report)
-        if args.output:
-            await async_save_report_to_file(report, args.output, args.force)
+        await _save_report_if_requested(report, args)
     else:
         console.print("[yellow]No report content available for this task.[/yellow]")
 
