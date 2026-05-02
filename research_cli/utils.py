@@ -1,6 +1,7 @@
 import os
 import asyncio
-from typing import Union, Optional, Any
+import functools
+from typing import Union, Optional, Any, Callable
 from .config import (
     QUERY_TRUNCATION_LENGTH,
     WORKSPACE_DIR,
@@ -162,6 +163,19 @@ def sanitize_path(path: str) -> str:
     return os.path.basename(path)
 
 
+def async_thread_wrapper(func: Callable) -> Callable:
+    """
+    Decorator/wrapper that converts a synchronous function into an
+    asynchronous one by running it in a separate thread.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return await asyncio.to_thread(func, *args, **kwargs)
+
+    return wrapper
+
+
 def sanitize_error(error_msg: str, original_path: str) -> str:
     """
     Sanitizes an error message by replacing occurrences of the absolute
@@ -258,9 +272,7 @@ def save_report_to_file(
     return _save_to_file(report, output_file, force, success_prefix, binary=False)
 
 
-async def async_save_report_to_file(*args, **kwargs) -> bool:
-    """Asynchronous wrapper for save_report_to_file."""
-    return await asyncio.to_thread(save_report_to_file, *args, **kwargs)
+async_save_report_to_file = async_thread_wrapper(save_report_to_file)
 
 
 def save_binary_to_file(
@@ -273,6 +285,4 @@ def save_binary_to_file(
     return _save_to_file(data, output_file, force, success_prefix, binary=True)
 
 
-async def async_save_binary_to_file(*args, **kwargs) -> bool:
-    """Asynchronous wrapper for save_binary_to_file."""
-    return await asyncio.to_thread(save_binary_to_file, *args, **kwargs)
+async_save_binary_to_file = async_thread_wrapper(save_binary_to_file)
