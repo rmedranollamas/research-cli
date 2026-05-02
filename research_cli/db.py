@@ -1,7 +1,7 @@
 import os
+import asyncio
 import sqlite3
 import threading
-import asyncio
 from contextlib import contextmanager
 from typing import Optional, List, Tuple
 from . import config
