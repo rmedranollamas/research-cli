@@ -59,3 +59,12 @@ def test_async_thread_wrapper_metadata():
 
     assert async_func.__name__ == "sync_func"
     assert async_func.__doc__ == "This is a docstring."
+
+def test_async_thread_wrapper_as_decorator():
+    """Test that the wrapper works correctly when used as a decorator."""
+    @async_thread_wrapper
+    def decorated_func(x):
+        return x * 2
+
+    result = asyncio.run(decorated_func(5))
+    assert result == 10
