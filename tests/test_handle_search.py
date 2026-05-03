@@ -3,7 +3,7 @@ import pytest
 import argparse
 from unittest.mock import AsyncMock, MagicMock, patch
 from research_cli.cli import handle_search
-from research_cli.config import ResearchError
+from research_cli.exceptions import ResearchError
 
 def test_handle_search_no_query():
     # Setup

@@ -1,6 +1,6 @@
 import os
 from typing import Optional
-from .config import ResearchError as ResearchError
+from .exceptions import ResearchError as ResearchError
 from .utils import get_api_key
 from .researcher import ResearchAgent
 from .cli import main as main

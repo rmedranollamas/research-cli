@@ -1,5 +1,4 @@
 import os
-from research_cli.exceptions import ResearchError
 
 try:
     from dotenv import load_dotenv

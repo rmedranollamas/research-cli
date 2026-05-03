@@ -3,7 +3,7 @@ import asyncio
 import base64
 from unittest.mock import patch, MagicMock, AsyncMock
 from research_cli.researcher import ResearchAgent
-from research_cli.config import ResearchError
+from research_cli.exceptions import ResearchError
 
 
 def test_get_client_success():

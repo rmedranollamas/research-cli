@@ -2,7 +2,7 @@ import os
 import pytest
 from unittest.mock import patch
 from research_cli.utils import validate_path
-from research_cli.config import ResearchError
+from research_cli.exceptions import ResearchError
 
 def test_validate_path_success(tmp_path):
     """Test validate_path with a valid path within the workspace."""

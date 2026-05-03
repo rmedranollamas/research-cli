@@ -5,9 +5,9 @@ from typing import Union, Optional, Any, Callable
 from .config import (
     QUERY_TRUNCATION_LENGTH,
     WORKSPACE_DIR,
-    ResearchError,
     RESEARCH_API_KEY_VAR,
 )
+from .exceptions import ResearchError
 
 _console: Optional[Any] = None
 

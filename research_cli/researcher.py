@@ -14,7 +14,13 @@ from .utils import (
     sanitize_error,
     sanitize_path,
 )
-from .config import POLL_INTERVAL_DEFAULT, ResearchError, RESEARCH_MCP_SERVERS, DB_PATH
+from .config import (
+    POLL_INTERVAL_DEFAULT,
+    RESEARCH_MCP_SERVERS,
+    DB_PATH,
+    WORKSPACE_DIR,
+)
+from .exceptions import ResearchError
 
 # Pre-calculated list of MCP server tools for performance
 _MCP_TOOLS: tuple[dict[str, Any], ...] = tuple(

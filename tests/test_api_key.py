@@ -9,7 +9,8 @@ from research_cli import (
     main,
     get_gemini_client,
 )
-from research_cli.config import ResearchError, RESEARCH_API_KEY_VAR
+from research_cli.config import RESEARCH_API_KEY_VAR
+from research_cli.exceptions import ResearchError
 
 
 def test_get_api_key_missing(capsys):
