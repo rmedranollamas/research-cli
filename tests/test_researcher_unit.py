@@ -7,7 +7,7 @@ from research_cli.config import ResearchError
 
 
 def test_get_client_success():
-    agent = ResearchAgent(api_key="fake-key", base_url="http://fake-url")
+    agent = ResearchAgent(api_key="fake-key", base_url="https://fake-url")
     with patch("research_cli.researcher.genai.Client") as mock_client:
         client = agent.get_client(api_version="v1beta", timeout=30)
         assert client == mock_client.return_value
@@ -16,7 +16,7 @@ def test_get_client_success():
             http_options={
                 "api_version": "v1beta",
                 "timeout": 30,
-                "base_url": "http://fake-url",
+                "base_url": "https://fake-url",
             },
         )
 
