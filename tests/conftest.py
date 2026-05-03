@@ -185,10 +185,10 @@ def fake_server():
         log_file.close()
         raise RuntimeError("Fake server failed to start")
 
-    os.environ["GEMINI_API_BASE_URL"] = "http://127.0.0.1:8001"
+    os.environ["GEMINI_API_BASE_URL"] = "https://127.0.0.1:8001"
     os.environ["RESEARCH_GEMINI_API_KEY"] = "fake-key"
 
-    yield "http://127.0.0.1:8001"
+    yield "https://127.0.0.1:8001"
 
     proc.terminate()
     proc.wait()
