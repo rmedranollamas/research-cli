@@ -4,8 +4,8 @@ from research_cli.researcher import ResearchAgent
 from research_cli.utils import save_report_to_file
 
 
-@pytest.mark.asyncio
-async def test_generate_image_path_traversal_vulnerability():
+def test_generate_image_path_traversal_vulnerability():
+    import asyncio
     # Setup
     agent = ResearchAgent("fake-key")
     mock_client = MagicMock()
@@ -27,12 +27,12 @@ async def test_generate_image_path_traversal_vulnerability():
         traversal_path = "../../tmp/evil.png"
 
         # The vulnerability should be caught by validate_path and raise ResearchError
-        from research_cli.config import ResearchError
+        from research_cli.exceptions import ResearchError
 
         with pytest.raises(ResearchError, match="Path traversal detected"):
-            await agent.generate_image(
+            asyncio.run(agent.generate_image(
                 "a prompt", traversal_path, "model-id", force=True
-            )
+            ))
 
 
 def test_save_report_path_traversal_vulnerability():
@@ -49,8 +49,8 @@ def test_save_report_path_traversal_vulnerability():
                 assert traversal_path not in call[0][0]
 
 
-@pytest.mark.asyncio
-async def test_upload_files_path_traversal_vulnerability():
+def test_upload_files_path_traversal_vulnerability():
+    import asyncio
     agent = ResearchAgent("fake-key")
     mock_client = MagicMock()
 
@@ -59,7 +59,7 @@ async def test_upload_files_path_traversal_vulnerability():
 
     # We want to check if files.upload is NOT called with the traversal path
     # validate_path should catch it and _upload_single_file will return None
-    uris = await agent._upload_files(mock_client, [traversal_path])
+    uris = asyncio.run(agent._upload_files(mock_client, [traversal_path]))
 
     # Verify that upload was NOT called and result is empty
     assert uris == []

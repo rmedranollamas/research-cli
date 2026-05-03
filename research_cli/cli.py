@@ -2,7 +2,8 @@ import argparse
 import sys
 import os
 import asyncio
-from .config import DEFAULT_MODEL, ResearchError
+from .config import DEFAULT_MODEL
+from .exceptions import ResearchError
 from .db import async_get_task, async_get_recent_tasks
 from .utils import (
     get_console,

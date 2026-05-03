@@ -1,5 +1,4 @@
 import os
-import pytest
 from unittest.mock import patch
 from research_cli.utils import sanitize_path, sanitize_error
 
