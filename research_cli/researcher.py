@@ -63,6 +63,10 @@ class ResearchAgent:
         if timeout is not None:
             http_options["timeout"] = timeout
         if self.base_url:
+            if not self.base_url.startswith("https://"):
+                raise ResearchError(
+                    "Insecure base_url: custom base_url must use HTTPS to prevent API key exposure."
+                )
             http_options["base_url"] = self.base_url
 
         try:
