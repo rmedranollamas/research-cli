@@ -30,11 +30,17 @@ def _get_version_from_metadata():
 def _get_version_from_pyproject():
     """Try to get version from pyproject.toml."""
     try:
-        import tomllib
-        from pathlib import Path
+        if sys.version_info >= (3, 11):
+            import tomllib
+        else:
+            import tomli as tomllib
 
-        pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
-        if pyproject_path.exists():
+        # Use a faster path lookup than Path.resolve()
+        # __file__ is research_cli/cli.py, we want pyproject.toml in the root
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pyproject_path = os.path.join(base_dir, "pyproject.toml")
+
+        if os.path.exists(pyproject_path):
             with open(pyproject_path, "rb") as f:
                 return tomllib.load(f)["project"]["version"]
     except Exception:
@@ -60,13 +66,32 @@ def __getattr__(name):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
+class VersionAction(argparse.Action):
+    def __init__(
+        self,
+        option_strings,
+        dest=argparse.SUPPRESS,
+        default=argparse.SUPPRESS,
+        help="show program's version number and exit",
+    ):
+        super().__init__(
+            option_strings=option_strings,
+            dest=dest,
+            default=default,
+            nargs=0,
+            help=help,
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(f"research-cli {get_version()}")
+        parser.exit()
+
+
 def create_parser():
     script_name = os.path.basename(sys.argv[0])
 
     parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
-    parser.add_argument(
-        "--version", action="version", version=f"research-cli {get_version()}"
-    )
+    parser.add_argument("--version", action=VersionAction)
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
