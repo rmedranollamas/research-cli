@@ -5,7 +5,7 @@ description = "Stateless CLI for Gemini Deep Research"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "google-genai>=1.73.1",
+    "google-genai>=1.74.0",
     "python-dotenv>=1.2.1",
     "rich>=15.0.0",
 ]
