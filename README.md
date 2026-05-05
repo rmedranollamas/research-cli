@@ -70,7 +70,7 @@ uv run research run "How does quantum entanglement work?"
 The CLI can be configured via environment variables:
 
 - `RESEARCH_GEMINI_API_KEY`: (Required) Your Google Gemini API key.
-- `RESEARCH_MODEL`: Gemini model for research (default: `deep-research-pro-preview-12-2025`).
+- `RESEARCH_MODEL`: Gemini model for research (default: `deep-research-preview-04-2026`).
 - `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
 - `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`).
 - `RESEARCH_MCP_SERVERS`: Comma-separated list of MCP server URLs for extended tool use.

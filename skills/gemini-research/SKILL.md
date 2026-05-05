@@ -20,7 +20,7 @@ Perform deep research on complex topics using the Gemini Interactions API. This 
 Start a new deep research task.
 
 - **`query`**: (Required) The topic or question to research in depth.
-- **`model`**: (Optional) The model ID to use for research (default: `deep-research-pro-preview-12-2025`).
+- **`model`**: (Optional) The model ID to use for research (default: `deep-research-preview-04-2026`).
 
 **Example:**
 ```bash

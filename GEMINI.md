@@ -6,7 +6,7 @@
 
 ### Agents & APIs
 
-- **Deep Research**: Uses the `deep-research-pro-preview-12-2025` model via the **Gemini v1alpha Interactions API**. This allows for long-running research tasks with multi-step reasoning and tool use.
+- **Deep Research**: Uses the `deep-research-preview-04-2026` model via the **Gemini v1alpha Interactions API**. This allows for long-running research tasks with multi-step reasoning and tool use.
 - **Multimodal Support**: Supports `IMAGE`, `TEXT`, and `PDF` (via `Files API`) modalities.
 - **Stateful Continuity**: Supports server-side state via `previous_interaction_id`, enabling multi-turn conversations without re-sending full history.
 

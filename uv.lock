@@ -730,7 +730,7 @@ wheels = [
 
 [[package]]
 name = "research-cli"
-version = "0.1.56.1"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "google-genai" },

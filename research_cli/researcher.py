@@ -63,7 +63,8 @@ class ResearchAgent:
         if timeout is not None:
             http_options["timeout"] = timeout
         if self.base_url:
-            if not self.base_url.startswith("https://"):
+            is_localhost = "localhost" in self.base_url or "127.0.0.1" in self.base_url
+            if not self.base_url.startswith("https://") and not is_localhost:
                 raise ResearchError(
                     "Insecure base_url: custom base_url must use HTTPS to prevent API key exposure."
                 )
@@ -96,7 +97,9 @@ class ResearchAgent:
         if bg_tasks:
             # Gather remaining background tasks if any
             await asyncio.gather(*bg_tasks, return_exceptions=True)
-        await async_update_task(task_id, "ERROR", sanitized_msg, interaction_id=inter_id)
+        await async_update_task(
+            task_id, "ERROR", sanitized_msg, interaction_id=inter_id
+        )
 
     async def _poll_interaction(
         self, client: genai.Client, interaction_id: str, report_parts: List[str]
@@ -227,7 +230,9 @@ class ResearchAgent:
             info_text.append(f"{', '.join(urls)}\n", style="white")
         if files:
             info_text.append("Files: ", style="bold blue")
-            info_text.append(f"{', '.join(sanitize_path(f) for f in files)}\n", style="white")
+            info_text.append(
+                f"{', '.join(sanitize_path(f) for f in files)}\n", style="white"
+            )
 
         self.console.print(
             Panel(
@@ -440,7 +445,9 @@ class ResearchAgent:
                                 Text(thought_summary, style="italic grey")
                             )
 
-                        desc_text = thought_summary if thought_summary else "Thinking..."
+                        desc_text = (
+                            thought_summary if thought_summary else "Thinking..."
+                        )
                         progress.update(
                             progress_task,
                             description=f"[italic grey]{desc_text}[/italic grey]",
@@ -632,7 +639,9 @@ class ResearchAgent:
     ):
         """Generates an image from a prompt and saves it."""
 
-        output_path = await asyncio.to_thread(self._prepare_output_path, output_path, force)
+        output_path = await asyncio.to_thread(
+            self._prepare_output_path, output_path, force
+        )
 
         client = await self._get_client_async()
 
@@ -652,7 +661,9 @@ class ResearchAgent:
                     if get_val(output, "type") == "image":
                         data = get_val(output, "data")
                         if data:
-                            decoded_data = await asyncio.to_thread(base64.b64decode, data)
+                            decoded_data = await asyncio.to_thread(
+                                base64.b64decode, data
+                            )
                             saved = await async_save_binary_to_file(
                                 decoded_data,
                                 output_path,
@@ -660,7 +671,9 @@ class ResearchAgent:
                                 success_prefix="Image saved to",
                             )
                             if not saved:
-                                raise ResearchError(f"Failed to save image to {sanitize_path(output_path)}")
+                                raise ResearchError(
+                                    f"Failed to save image to {sanitize_path(output_path)}"
+                                )
                             return
 
                 raise ResearchError("No image was generated.")

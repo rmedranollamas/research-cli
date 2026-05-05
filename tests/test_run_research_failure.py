@@ -8,7 +8,7 @@ from research_cli.db import get_db
 async def test_run_research_stream_failure(temp_db, capsys):
     """Test run_research when the stream generation fails during iteration."""
     query = "test failure query"
-    model = "deep-research-pro-preview-12-2025"
+    model = "deep-research-preview-04-2026"
 
     # Mock dependencies
     with (
@@ -54,7 +54,7 @@ async def test_run_research_stream_failure(temp_db, capsys):
 async def test_run_research_stream_failure_after_interaction(temp_db, capsys):
     """Test run_research when the stream fails after an interaction ID has been received."""
     query = "test failure after interaction"
-    model = "deep-research-pro-preview-12-2025"
+    model = "deep-research-preview-04-2026"
     interaction_id = "test-inter-id-123"
 
     # Mock dependencies

@@ -20,7 +20,7 @@ ______________________________________________________________________
 
 - **API Access**: You must have a Gemini API key with access to the `v1alpha` Interactions API.
 - **Models**:
-  - Deep Research: `deep-research-pro-preview-12-2025`
+  - Deep Research: `deep-research-preview-04-2026`
   - Fast Search: `gemini-2.0-flash` (or newer)
   - Image Gen: `gemini-3-pro-image-preview`
 - **Python**: Version 3.11 or higher (if running from source).
@@ -63,7 +63,7 @@ ______________________________________________________________________
 The CLI is configured primarily through environment variables:
 
 - `RESEARCH_GEMINI_API_KEY`: (Required) Your Google Gemini API key.
-- `RESEARCH_MODEL`: Default model for `run` (default: `deep-research-pro-preview-12-2025`).
+- `RESEARCH_MODEL`: Default model for `run` (default: `deep-research-preview-04-2026`).
 - `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
 - `RESEARCH_POLL_INTERVAL`: Max interval in seconds for polling (default: `10`).
 - `RESEARCH_MCP_SERVERS`: Comma-separated list of MCP server URLs (e.g., `http://localhost:8080/mcp`).
