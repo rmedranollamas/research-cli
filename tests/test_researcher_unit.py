@@ -46,9 +46,12 @@ def test_generate_image_client_init_failure():
         "get_client",
         side_effect=ResearchError("Client initialization failed"),
     ):
-        with patch("asyncio.to_thread", side_effect=["out.png", ResearchError("Client initialization failed")]):
-            with pytest.raises(ResearchError, match="Client initialization failed"):
-                asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
+        # We need to mock self._prepare_output_path since it's no longer in to_thread
+        with patch.object(agent, "_prepare_output_path", return_value="out.png"):
+            # asyncio.to_thread is still called for self.get_client in _get_client_async
+            with patch("asyncio.to_thread", side_effect=[ResearchError("Client initialization failed")]):
+                with pytest.raises(ResearchError, match="Client initialization failed"):
+                    asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
 
 def test_run_research_client_init_failure():
@@ -85,12 +88,15 @@ def test_generate_image_error_handling():
     mock_client = MagicMock()
 
     error_msg = "Test API Error"
-    mock_client.aio.interactions.create.side_effect = Exception(error_msg)
+    # Make sure we use a mock for the client that has the structure used in the code
+    mock_client.aio.interactions.create = AsyncMock(side_effect=Exception(error_msg))
 
     with patch.object(ResearchAgent, "get_client", return_value=mock_client):
-        with patch("asyncio.to_thread", side_effect=["out.png", mock_client]):
-            with pytest.raises(ResearchError, match=f"Error generating image: {error_msg}"):
-                asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
+        with patch.object(agent, "_prepare_output_path", return_value="out.png"):
+            # The only to_thread call before failure is self.get_client
+            with patch("asyncio.to_thread", return_value=mock_client):
+                with pytest.raises(ResearchError, match=f"Error generating image: {error_msg}"):
+                    asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
 
 
 def test_upload_files_error_handling():
@@ -99,8 +105,12 @@ def test_upload_files_error_handling():
     mock_client = MagicMock()
     error_msg = "Test Upload Error"
 
-    with patch("asyncio.to_thread", side_effect=["test_file.txt", True, Exception(error_msg)]):
-        result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
+    # Now validate_path and os.path.exists are called directly
+    with patch("research_cli.researcher.validate_path", return_value="test_file.txt"):
+        with patch("os.path.exists", return_value=True):
+            # client.files.upload is still in to_thread
+            with patch("asyncio.to_thread", side_effect=[Exception(error_msg)]):
+                result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
 
     assert result == []
     error_printed = False
@@ -310,34 +320,31 @@ def test_generate_image_success():
     mock_client.aio.interactions.create.return_value = mock_interaction
 
     # The calls to asyncio.to_thread in order:
-    # 1. self._prepare_output_path
-    # 2. self.get_client
-    # 3. base64.b64decode
-    to_thread_returns = ["/abs/out.png", mock_client, b"fake data"]
+    # 1. self.get_client (via _get_client_async)
+    # 2. base64.b64decode
+    to_thread_returns = [mock_client, b"fake data"]
 
-    with patch("asyncio.to_thread", side_effect=to_thread_returns) as mock_to_thread:
-        with patch("research_cli.researcher.async_save_binary_to_file", AsyncMock()) as mock_save:
-            asyncio.run(agent.generate_image("prompt", "out.png", "model", True))
+    with patch.object(agent, "_prepare_output_path", return_value="/abs/out.png") as mock_prepare:
+        with patch("asyncio.to_thread", side_effect=to_thread_returns) as mock_to_thread:
+            with patch("research_cli.researcher.async_save_binary_to_file", AsyncMock()) as mock_save:
+                asyncio.run(agent.generate_image("prompt", "out.png", "model", True))
 
-            assert mock_to_thread.call_count == 3
-            # Check first call
-            args, _ = mock_to_thread.call_args_list[0]
-            assert args[0] == agent._prepare_output_path
-            assert args[1] == "out.png"
-            assert args[2] is True
+                mock_prepare.assert_called_once_with("out.png", True)
 
-            # Check second call
-            args, _ = mock_to_thread.call_args_list[1]
-            assert args[0] == agent.get_client
+                assert mock_to_thread.call_count == 2
 
-            # Check third call
-            args, _ = mock_to_thread.call_args_list[2]
-            assert args[0] == base64.b64decode
-            assert args[1] == "ZmFrZSBkYXRh"
+                # Check first call (get_client)
+                args, _ = mock_to_thread.call_args_list[0]
+                assert args[0] == agent.get_client
 
-            mock_save.assert_called_once_with(
-                b"fake data",
-                "/abs/out.png",
-                True,
-                success_prefix="Image saved to"
-            )
+                # Check second call (b64decode)
+                args, _ = mock_to_thread.call_args_list[1]
+                assert args[0] == base64.b64decode
+                assert args[1] == "ZmFrZSBkYXRh"
+
+                mock_save.assert_called_once_with(
+                    b"fake data",
+                    "/abs/out.png",
+                    True,
+                    success_prefix="Image saved to"
+                )

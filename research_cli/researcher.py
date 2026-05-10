@@ -268,12 +268,12 @@ class ResearchAgent:
         from rich.text import Text
 
         try:
-            path = await asyncio.to_thread(validate_path, path)
+            path = validate_path(path)
         except ResearchError as e:
             self.console.print(Text(sanitize_error(str(e), path), style="red"))
             return None
 
-        if not await asyncio.to_thread(os.path.exists, path):
+        if not os.path.exists(path):
             self.console.print(
                 Text.assemble(
                     ("Error: File ", "red"),
@@ -639,9 +639,7 @@ class ResearchAgent:
     ):
         """Generates an image from a prompt and saves it."""
 
-        output_path = await asyncio.to_thread(
-            self._prepare_output_path, output_path, force
-        )
+        output_path = self._prepare_output_path(output_path, force)
 
         client = await self._get_client_async()
 
