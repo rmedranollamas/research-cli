@@ -87,25 +87,17 @@ class VersionAction(argparse.Action):
         parser.exit()
 
 
-def create_parser():
-    script_name = os.path.basename(sys.argv[0])
+def _add_common_args(p):
+    p.add_argument("query", nargs="?", help="The query to process")
+    p.add_argument("--output", "-o", help="Save the result to a file")
+    p.add_argument(
+        "--force", "-f", action="store_true", help="Overwrite existing output file"
+    )
 
-    parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
-    parser.add_argument("--version", action=VersionAction)
 
-    subparsers = parser.add_subparsers(dest="command", help="Commands")
-
-    # Common arguments
-    def add_common_args(p):
-        p.add_argument("query", nargs="?", help="The query to process")
-        p.add_argument("--output", "-o", help="Save the result to a file")
-        p.add_argument(
-            "--force", "-f", action="store_true", help="Overwrite existing output file"
-        )
-
-    # Run command
+def _add_run_parser(subparsers):
     run_parser = subparsers.add_parser("run", help="Start deep research")
-    add_common_args(run_parser)
+    _add_common_args(run_parser)
     run_parser.add_argument("--model", default=DEFAULT_MODEL, help="Model ID")
     run_parser.add_argument("--parent", help="Previous interaction ID")
     run_parser.add_argument(
@@ -147,16 +139,18 @@ def create_parser():
     )
     run_parser.set_defaults(use_search=True)
 
-    # Search command (Fast grounding)
+
+def _add_search_parser(subparsers):
     search_parser = subparsers.add_parser("search", help="Fast grounding search")
-    add_common_args(search_parser)
+    _add_common_args(search_parser)
     search_parser.add_argument("--model", default="gemini-2.0-flash", help="Model ID")
     search_parser.add_argument("--parent", help="Previous interaction ID")
     search_parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show reasoning thoughts"
     )
 
-    # Status command
+
+def _add_status_parser(subparsers):
     status_parser = subparsers.add_parser(
         "status", help="Check status of a research task by Interaction ID"
     )
@@ -168,7 +162,8 @@ def create_parser():
         "--force", "-f", action="store_true", help="Overwrite existing file"
     )
 
-    # Image generation command
+
+def _add_image_parser(subparsers):
     image_parser = subparsers.add_parser(
         "generate-image", help="Generate an image from a prompt"
     )
@@ -183,16 +178,34 @@ def create_parser():
         "--model", default="gemini-3-pro-image-preview", help="Model ID"
     )
 
-    # List command
+
+def _add_list_parser(subparsers):
     subparsers.add_parser("list", help="List recent research tasks")
 
-    # Show command
+
+def _add_show_parser(subparsers):
     show_parser = subparsers.add_parser("show", help="Show details of a research task")
     show_parser.add_argument("id", type=int, help="Task ID")
     show_parser.add_argument("--output", "-o", help="Save report to file")
     show_parser.add_argument(
         "--force", "-f", action="store_true", help="Overwrite existing file"
     )
+
+
+def create_parser():
+    script_name = os.path.basename(sys.argv[0])
+
+    parser = argparse.ArgumentParser(description="Gemini Deep Research CLI")
+    parser.add_argument("--version", action=VersionAction)
+
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    _add_run_parser(subparsers)
+    _add_search_parser(subparsers)
+    _add_status_parser(subparsers)
+    _add_image_parser(subparsers)
+    _add_list_parser(subparsers)
+    _add_show_parser(subparsers)
 
     return parser, script_name
 
