@@ -43,6 +43,11 @@ func GetDB() (*sql.DB, error) {
 			return
 		}
 
+		// Ping to ensure the file is created if it doesn't exist
+		if err = db.Ping(); err != nil {
+			return
+		}
+
 		// Set restrictive permissions on the DB file
 		_ = os.Chmod(dbPath, 0600)
 

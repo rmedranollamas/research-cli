@@ -249,53 +249,16 @@ func (a *ResearchAgent) streamInteraction(ctx context.Context, taskID int64, bod
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
+				// Handle the last line if it doesn't end with a newline
+				if line != "" {
+					processSSELine(line, &interactionID, &reportParts, taskID, verbose)
+				}
 				break
 			}
 			return "", err
 		}
 
-		line = strings.TrimSpace(line)
-		if line == "" || !strings.HasPrefix(line, "data: ") {
-			continue
-		}
-
-		data := strings.TrimPrefix(line, "data: ")
-		var event InteractionResponse
-		if err := json.Unmarshal([]byte(data), &event); err != nil {
-			continue
-		}
-
-		if event.Interaction.ID != "" && interactionID == "" {
-			interactionID = event.Interaction.ID
-			_ = db.UpdateTask(taskID, "IN_PROGRESS", nil, &interactionID)
-			fmt.Printf("Interaction ID: %s\n", interactionID)
-		}
-
-		thought := event.Thought.Summary
-		if thought == "" {
-			thought = event.Thought.Text
-		}
-		if thought != "" {
-			if verbose {
-				fmt.Printf("> %s\n", thought)
-			}
-		}
-
-		for _, part := range event.Content.Parts {
-			if part.Text != "" {
-				reportParts = append(reportParts, part.Text)
-				if !verbose {
-					fmt.Print(part.Text)
-				}
-			}
-		}
-
-		if event.Delta.Type == "text" && event.Delta.Text != "" {
-			reportParts = append(reportParts, event.Delta.Text)
-			if !verbose {
-				fmt.Print(event.Delta.Text)
-			}
-		}
+		processSSELine(line, &interactionID, &reportParts, taskID, verbose)
 	}
 
 	if !verbose {
@@ -342,7 +305,11 @@ func (a *ResearchAgent) pollInteraction(ctx context.Context, interactionID strin
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
 			if resp.StatusCode >= 500 {
-				time.Sleep(time.Duration(interval) * time.Second)
+				select {
+				case <-ctx.Done():
+					return "", ctx.Err()
+				case <-time.After(time.Duration(interval) * time.Second):
+				}
 				interval = min(interval*1.5, maxInterval)
 				continue
 			}
@@ -390,9 +357,47 @@ func (a *ResearchAgent) pollInteraction(ctx context.Context, interactionID strin
 	}
 }
 
-func min(a, b float64) float64 {
-	if a < b {
-		return a
+func processSSELine(line string, interactionID *string, reportParts *[]string, taskID int64, verbose bool) {
+	line = strings.TrimSpace(line)
+	if line == "" || !strings.HasPrefix(line, "data: ") {
+		return
 	}
-	return b
+
+	data := strings.TrimPrefix(line, "data: ")
+	var event InteractionResponse
+	if err := json.Unmarshal([]byte(data), &event); err != nil {
+		return
+	}
+
+	if event.Interaction.ID != "" && *interactionID == "" {
+		*interactionID = event.Interaction.ID
+		_ = db.UpdateTask(taskID, "IN_PROGRESS", nil, interactionID)
+		fmt.Printf("Interaction ID: %s\n", *interactionID)
+	}
+
+	thought := event.Thought.Summary
+	if thought == "" {
+		thought = event.Thought.Text
+	}
+	if thought != "" {
+		if verbose {
+			fmt.Printf("> %s\n", thought)
+		}
+	}
+
+	for _, part := range event.Content.Parts {
+		if part.Text != "" {
+			*reportParts = append(*reportParts, part.Text)
+			if !verbose {
+				fmt.Print(part.Text)
+			}
+		}
+	}
+
+	if event.Delta.Type == "text" && event.Delta.Text != "" {
+		*reportParts = append(*reportParts, event.Delta.Text)
+		if !verbose {
+			fmt.Print(event.Delta.Text)
+		}
+	}
 }

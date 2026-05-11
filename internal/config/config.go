@@ -21,7 +21,11 @@ var (
 )
 
 func Load() {
-	defaultConfigDir := filepath.Join(os.Getenv("HOME"), ".research-cli")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = os.Getenv("HOME") // Fallback
+	}
+	defaultConfigDir := filepath.Join(home, ".research-cli")
 	ConfigDir = getEnv("RESEARCH_CONFIG_DIR", defaultConfigDir)
 
 	dotenvPath := filepath.Join(ConfigDir, ".env")
