@@ -80,17 +80,7 @@ func SaveToFile(data []byte, outputPath string, force bool) error {
 		return err
 	}
 
-	flags := os.O_WRONLY | os.O_CREATE
-	if force {
-		flags |= os.O_TRUNC
-		// Note: O_NOFOLLOW is not universally supported in the same way in Go's os package
-		// across all platforms, but we can attempt to use it on Unix.
-	} else {
-		flags |= os.O_EXCL
-	}
-
-	// We'll use a lower-level open to be as close to the Python implementation as possible
-	f, err := os.OpenFile(validatedPath, flags, 0644)
+	f, err := openOutputFile(validatedPath, force)
 	if err != nil {
 		if os.IsExist(err) {
 			return fmt.Errorf("output file %s already exists. Use --force to overwrite", SanitizePath(validatedPath))

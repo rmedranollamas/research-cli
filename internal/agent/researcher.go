@@ -148,7 +148,7 @@ func (a *ResearchAgent) GenerateImage(ctx context.Context, prompt string, output
 		return err
 	}
 
-	url := "https://generativelanguage.googleapis.com/v1alpha/interactions"
+	url := a.apiURL("/v1alpha/interactions")
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return err
@@ -217,10 +217,7 @@ func (a *ResearchAgent) streamInteraction(ctx context.Context, taskID int64, bod
 		return "", err
 	}
 
-	url := "https://generativelanguage.googleapis.com/v1alpha/interactions?alt=sse"
-	if a.baseURL != "" {
-		url = strings.Replace(url, "https://generativelanguage.googleapis.com", strings.TrimSuffix(a.baseURL, "/"), 1)
-	}
+	url := a.apiURL("/v1alpha/interactions?alt=sse")
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
@@ -290,7 +287,7 @@ func (a *ResearchAgent) pollInteraction(ctx context.Context, interactionID strin
 	maxInterval := config.PollIntervalDefault
 
 	for {
-		url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1alpha/interactions/%s", interactionID)
+		url := a.apiURL(fmt.Sprintf("/v1alpha/interactions/%s", interactionID))
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return "", err
@@ -355,6 +352,14 @@ func (a *ResearchAgent) pollInteraction(ctx context.Context, interactionID strin
 			interval = min(interval*1.5, maxInterval)
 		}
 	}
+}
+
+func (a *ResearchAgent) apiURL(path string) string {
+	base := "https://generativelanguage.googleapis.com"
+	if a.baseURL != "" {
+		base = strings.TrimSuffix(a.baseURL, "/")
+	}
+	return base + path
 }
 
 func processSSELine(line string, interactionID *string, reportParts *[]string, taskID int64, verbose bool) {
