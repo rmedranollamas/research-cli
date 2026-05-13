@@ -2,6 +2,7 @@ import os
 from unittest.mock import patch
 from research_cli.utils import sanitize_path, sanitize_error
 
+
 def test_sanitize_path_inside_workspace(tmp_path):
     """Test sanitize_path with a path inside the workspace."""
     workspace = tmp_path / "workspace"
@@ -18,6 +19,7 @@ def test_sanitize_path_inside_workspace(tmp_path):
         result = sanitize_path(real_file_path)
         assert result == os.path.join("subdir", "test.txt")
 
+
 def test_sanitize_path_outside_workspace(tmp_path):
     """Test sanitize_path with a path outside the workspace."""
     workspace = tmp_path / "workspace"
@@ -32,10 +34,12 @@ def test_sanitize_path_outside_workspace(tmp_path):
         result = sanitize_path(real_outside_file)
         assert result == "outside.txt"
 
+
 def test_sanitize_path_empty():
     """Test sanitize_path with empty input."""
     assert sanitize_path("") == ""
     assert sanitize_path(None) == ""
+
 
 def test_sanitize_path_exactly_workspace(tmp_path):
     """Test sanitize_path with a path that is exactly the workspace."""
@@ -46,6 +50,7 @@ def test_sanitize_path_exactly_workspace(tmp_path):
     with patch("research_cli.utils.WORKSPACE_DIR", real_workspace):
         result = sanitize_path(real_workspace)
         assert result == "."
+
 
 def test_sanitize_path_relpath_value_error(tmp_path):
     """Test sanitize_path when os.path.relpath raises ValueError."""
@@ -59,6 +64,7 @@ def test_sanitize_path_relpath_value_error(tmp_path):
             result = sanitize_path(file_path)
             assert result == "test.txt"
 
+
 def test_sanitize_path_relpath_os_error(tmp_path):
     """Test sanitize_path when os.path.relpath raises OSError."""
     workspace = tmp_path / "workspace"
@@ -70,6 +76,7 @@ def test_sanitize_path_relpath_os_error(tmp_path):
         with patch("os.path.relpath", side_effect=OSError("Generic error")):
             result = sanitize_path(file_path)
             assert result == "test.txt"
+
 
 def test_sanitize_path_with_symlinks(tmp_path):
     """Test sanitize_path with symlinks."""
@@ -102,6 +109,7 @@ def test_sanitize_path_with_symlinks(tmp_path):
         # because its realpath is outside workspace
         assert sanitize_path(str(link_outside)) == "link_outside.txt"
 
+
 def test_sanitize_path_with_traversal(tmp_path):
     """Test sanitize_path with path traversal components."""
     workspace = tmp_path / "workspace"
@@ -118,6 +126,7 @@ def test_sanitize_path_with_traversal(tmp_path):
         # and since it is outside workspace, it should return basename
         assert sanitize_path(traversal_path) == "outside.txt"
 
+
 def test_sanitize_error_basic(tmp_path):
     """Test sanitize_error replaces the original path with the sanitized version."""
     workspace = tmp_path / "workspace"
@@ -130,6 +139,7 @@ def test_sanitize_error_basic(tmp_path):
         # sanitize_path(original_path) will return "test.txt"
         result = sanitize_error(error_msg, original_path)
         assert result == "Error at test.txt"
+
 
 def test_sanitize_error_with_realpath(tmp_path):
     """Test sanitize_error replaces the realpath of original_path."""
@@ -146,6 +156,7 @@ def test_sanitize_error_with_realpath(tmp_path):
         result = sanitize_error(error_msg, original_path)
         assert result == "Error at test.txt"
 
+
 def test_sanitize_error_workspace_dir(tmp_path):
     """Test sanitize_error replaces the workspace directory with '.'."""
     workspace = tmp_path / "workspace"
@@ -158,10 +169,12 @@ def test_sanitize_error_workspace_dir(tmp_path):
         result = sanitize_error(error_msg, original_path)
         assert result == "Internal error in ./system"
 
+
 def test_sanitize_error_empty():
     """Test sanitize_error with empty error message."""
     assert sanitize_error("", "/some/path") == ""
     assert sanitize_error(None, "/some/path") == ""
+
 
 def test_sanitize_error_multiple_occurrences(tmp_path):
     """Test sanitize_error with multiple occurrences of the path."""

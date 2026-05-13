@@ -19,6 +19,7 @@ from .config import (
     RESEARCH_MCP_SERVERS,
     DB_PATH,
     WORKSPACE_DIR,
+    HEARTBEAT_TIMEOUT,
 )
 from .exceptions import ResearchError
 
@@ -27,6 +28,46 @@ _MCP_TOOLS: tuple[dict[str, Any], ...] = tuple(
     {"type": "mcp_server", "name": f"mcp_server_{i}", "url": mcp_url}
     for i, mcp_url in enumerate(RESEARCH_MCP_SERVERS)
 )
+
+
+def _is_transient_error(e: Exception) -> bool:
+    """Checks if an exception represents a transient API error (500, 503) or timeout."""
+    if isinstance(e, asyncio.TimeoutError):
+        return True
+    error_str = str(e)
+    # Check for common HTTP status codes in the exception object or string
+    code = getattr(e, "code", getattr(e, "status_code", None))
+    return code in (500, 503) or "500" in error_str or "503" in error_str
+
+
+async def _api_call_with_retry(coro_func, *args, console=None, **kwargs):
+    """
+    Unified middleware layer to manage external API communications with consistent retry behavior.
+    Specifically handles 500 and 503 HTTP errors with exponential backoff up to a global maximum of 5 retries.
+    """
+    max_retries = 5
+    retries = 0
+    while True:
+        try:
+            return await coro_func(*args, **kwargs)
+        except Exception as e:
+            if _is_transient_error(e):
+                if retries >= max_retries:
+                    raise
+                retries += 1
+                delay = 1.5**retries
+                if console:
+                    from rich.text import Text
+
+                    console.print(
+                        Text(
+                            f"Transient API error, retrying in {delay:.1f}s...",
+                            style="dim",
+                        )
+                    )
+                await asyncio.sleep(delay)
+            else:
+                raise
 
 
 class ResearchAgent:
@@ -126,22 +167,9 @@ class ResearchAgent:
         current_interval = 1.0
 
         while True:
-            try:
-                final_inter = await client.aio.interactions.get(id=interaction_id)
-            except Exception as e:
-                # Handle transient server errors (500, 503) during polling
-                err_str = str(e)
-                if "500" in err_str or "503" in err_str:
-                    self.console.print(
-                        Text(
-                            f"Transient API error, retrying in {current_interval:.1f}s...",
-                            style="dim",
-                        )
-                    )
-                    await asyncio.sleep(current_interval)
-                    current_interval = min(current_interval * 1.5, max_poll_interval)
-                    continue
-                raise e
+            final_inter = await _api_call_with_retry(
+                client.aio.interactions.get, id=interaction_id, console=self.console
+            )
 
             status = get_val(final_inter, "status", "UNKNOWN").upper()
             if status != last_status:
@@ -399,79 +427,114 @@ class ResearchAgent:
         try:
             # Create the interaction stream
             # The interactions.create returns an async iterator
-            stream = await cast(Any, client.aio.interactions.create)(
-                **interaction_params
+            stream = await _api_call_with_retry(
+                cast(Any, client.aio.interactions.create),
+                console=self.console,
+                **interaction_params,
             )
 
             with self._get_progress() as progress:
                 progress_task = progress.add_task("Initializing...", total=None)
-                async for event in stream:
-                    # Update interaction ID and DB status
-                    inter = get_val(event, "interaction")
-                    if inter and not interaction_id:
-                        interaction_id = get_val(inter, "id")
-                        if interaction_id:
-                            job = asyncio.create_task(
-                                async_update_task(
-                                    task_id,
-                                    "IN_PROGRESS",
-                                    interaction_id=interaction_id,
-                                )
+
+                try:
+                    while True:
+                        try:
+                            event = await asyncio.wait_for(
+                                anext(stream), timeout=HEARTBEAT_TIMEOUT
                             )
-                            background_tasks.add(job)
-                            job.add_done_callback(background_tasks.discard)
+                        except StopAsyncIteration:
+                            break
+
+                        # Update interaction ID and DB status
+                        inter = get_val(event, "interaction")
+                        if inter and not interaction_id:
+                            interaction_id = get_val(inter, "id")
+                            if interaction_id:
+                                job = asyncio.create_task(
+                                    async_update_task(
+                                        task_id,
+                                        "IN_PROGRESS",
+                                        interaction_id=interaction_id,
+                                    )
+                                )
+                                background_tasks.add(job)
+                                job.add_done_callback(background_tasks.discard)
+                                progress.update(
+                                    progress_task,
+                                    description=f"Processing (ID: {interaction_id})...",
+                                )
+
+                        # Handle thought blocks (Legacy and New)
+                        thought = get_val(event, "thought")
+                        delta = get_val(event, "delta")
+
+                        thought_summary = None
+                        if thought:
+                            thought_summary = get_val(thought, "summary") or get_val(
+                                thought, "text"
+                            )
+                        elif delta and get_val(delta, "type") == "thought_summary":
+                            thought_content = get_val(delta, "content")
+                            thought_summary = get_val(thought_content, "text")
+
+                        if thought_summary:
+                            if verbose:
+                                self.console.print("> ", end="")
+                                self.console.print(
+                                    Text(thought_summary, style="italic grey")
+                                )
+
+                            desc_text = (
+                                thought_summary if thought_summary else "Thinking..."
+                            )
                             progress.update(
                                 progress_task,
-                                description=f"Processing (ID: {interaction_id})...",
+                                description=f"[italic grey]{desc_text}[/italic grey]",
                             )
 
-                    # Handle thought blocks (Legacy and New)
-                    thought = get_val(event, "thought")
-                    delta = get_val(event, "delta")
+                        # Handle content blocks (Legacy and New)
+                        content = get_val(event, "content")
+                        if content:
+                            parts = get_val(content, "parts", [])
+                            for part in parts:
+                                text = get_val(part, "text")
+                                if text:
+                                    report_parts.append(text)
 
-                    thought_summary = None
-                    if thought:
-                        thought_summary = get_val(thought, "summary") or get_val(
-                            thought, "text"
-                        )
-                    elif delta and get_val(delta, "type") == "thought_summary":
-                        thought_content = get_val(delta, "content")
-                        thought_summary = get_val(thought_content, "text")
-
-                    if thought_summary:
-                        if verbose:
-                            self.console.print("> ", end="")
-                            self.console.print(
-                                Text(thought_summary, style="italic grey")
-                            )
-
-                        desc_text = (
-                            thought_summary if thought_summary else "Thinking..."
+                        if delta:
+                            delta_type = get_val(delta, "type")
+                            if delta_type == "text":
+                                text = get_val(delta, "text")
+                                if text:
+                                    report_parts.append(text)
+                            elif delta_type == "image":
+                                image_data = get_val(delta, "data")
+                                if image_data:
+                                    await self._handle_inline_image(image_data, task_id)
+                except (asyncio.TimeoutError, Exception) as e:
+                    if _is_transient_error(e) and interaction_id:
+                        self.console.print(
+                            "\n[yellow]Recovery in Progress: Stream stalled or encountered server error. Falling back to polling...[/yellow]"
                         )
                         progress.update(
                             progress_task,
-                            description=f"[italic grey]{desc_text}[/italic grey]",
+                            description="[yellow]Recovery in Progress...[/yellow]",
+                            completed=False,
                         )
+                        job = asyncio.create_task(
+                            async_update_task(
+                                task_id,
+                                "Recovery in Progress",
+                                interaction_id=interaction_id,
+                            )
+                        )
+                        background_tasks.add(job)
+                        job.add_done_callback(background_tasks.discard)
 
-                    # Handle content blocks (Legacy and New)
-                    content = get_val(event, "content")
-                    if content:
-                        parts = get_val(content, "parts", [])
-                        for part in parts:
-                            text = get_val(part, "text")
-                            if text:
-                                report_parts.append(text)
-
-                    if delta:
-                        delta_type = get_val(delta, "type")
-                        if delta_type == "text":
-                            text = get_val(delta, "text")
-                            if text:
-                                report_parts.append(text)
-                        elif delta_type == "image":
-                            image_data = get_val(delta, "data")
-                            if image_data:
-                                await self._handle_inline_image(image_data, task_id)
+                        # Clear report parts to avoid duplication, as polling will return the full report
+                        report_parts.clear()
+                    else:
+                        raise
 
                 progress.update(
                     progress_task, description="Stream finished.", completed=True

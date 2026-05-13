@@ -4,11 +4,13 @@ import importlib
 from unittest.mock import patch, MagicMock
 import research_cli.utils
 
+
 @pytest.fixture
 def reload_utils():
     """Fixture to ensure research_cli.utils is reloaded after a test that might change its state."""
     yield
     importlib.reload(research_cli.utils)
+
 
 def test_escape_markup_fallback(reload_utils):
     """Verify that escape_markup returns text as-is when rich is missing at import time."""
@@ -21,6 +23,7 @@ def test_escape_markup_fallback(reload_utils):
         text = "[bold]hello[/bold]"
         # It should return the original text
         assert research_cli.utils.escape_markup(text) == text
+
 
 def test_escape_markup_with_rich(reload_utils):
     """Verify that escape_markup uses rich.markup.escape when rich is present."""
@@ -38,6 +41,7 @@ def test_escape_markup_with_rich(reload_utils):
         text = "[bold]hello[/bold]"
         assert research_cli.utils.escape_markup(text) == "escaped_[bold]hello[/bold]"
         mock_escape.assert_called_once_with(text)
+
 
 def test_escape_markup_runtime_patch():
     """Verify that escape_markup respects runtime changes to _rich_escape (simple unit test)."""

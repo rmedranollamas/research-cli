@@ -84,6 +84,7 @@ def test_get_gemini_client_success():
 def test_run_research_no_api_key(temp_db, capsys):
     """Test run_research when API key is missing."""
     import asyncio
+
     with patch.dict(os.environ):
         if RESEARCH_API_KEY_VAR in os.environ:
             del os.environ[RESEARCH_API_KEY_VAR]

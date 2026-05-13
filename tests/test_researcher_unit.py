@@ -23,7 +23,10 @@ def test_get_client_success():
 
 def test_get_client_failure():
     agent = ResearchAgent(api_key="fake-key")
-    with patch("research_cli.researcher.genai.Client", side_effect=Exception("Connection failed")):
+    with patch(
+        "research_cli.researcher.genai.Client",
+        side_effect=Exception("Connection failed"),
+    ):
         with pytest.raises(ResearchError, match="Client initialization failed"):
             agent.get_client()
 
@@ -49,9 +52,14 @@ def test_generate_image_client_init_failure():
         # We need to mock self._prepare_output_path since it's no longer in to_thread
         with patch.object(agent, "_prepare_output_path", return_value="out.png"):
             # asyncio.to_thread is still called for self.get_client in _get_client_async
-            with patch("asyncio.to_thread", side_effect=[ResearchError("Client initialization failed")]):
+            with patch(
+                "asyncio.to_thread",
+                side_effect=[ResearchError("Client initialization failed")],
+            ):
                 with pytest.raises(ResearchError, match="Client initialization failed"):
-                    asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
+                    asyncio.run(
+                        agent.generate_image("prompt", "out.png", "model", False)
+                    )
 
 
 def test_run_research_client_init_failure():
@@ -95,8 +103,12 @@ def test_generate_image_error_handling():
         with patch.object(agent, "_prepare_output_path", return_value="out.png"):
             # The only to_thread call before failure is self.get_client
             with patch("asyncio.to_thread", return_value=mock_client):
-                with pytest.raises(ResearchError, match=f"Error generating image: {error_msg}"):
-                    asyncio.run(agent.generate_image("prompt", "out.png", "model", False))
+                with pytest.raises(
+                    ResearchError, match=f"Error generating image: {error_msg}"
+                ):
+                    asyncio.run(
+                        agent.generate_image("prompt", "out.png", "model", False)
+                    )
 
 
 def test_upload_files_error_handling():
@@ -110,7 +122,9 @@ def test_upload_files_error_handling():
         with patch("os.path.exists", return_value=True):
             # client.files.upload is still in to_thread
             with patch("asyncio.to_thread", side_effect=[Exception(error_msg)]):
-                result = asyncio.run(agent._upload_files(mock_client, ["test_file.txt"]))
+                result = asyncio.run(
+                    agent._upload_files(mock_client, ["test_file.txt"])
+                )
 
     assert result == []
     error_printed = False
@@ -136,9 +150,9 @@ def test_poll_interaction_completed_outputs():
     mock_client.aio.interactions.get.return_value = mock_inter
 
     with patch("asyncio.sleep", return_value=None):
-        result = asyncio.run(agent._poll_interaction(
-            mock_client, interaction_id, report_parts
-        ))
+        result = asyncio.run(
+            agent._poll_interaction(mock_client, interaction_id, report_parts)
+        )
 
     assert result == "Part 1Part 2Part 3"
 
@@ -157,9 +171,9 @@ def test_poll_interaction_completed_response():
     mock_client.aio.interactions.get.return_value = mock_inter
 
     with patch("asyncio.sleep", return_value=None):
-        result = asyncio.run(agent._poll_interaction(
-            mock_client, interaction_id, report_parts
-        ))
+        result = asyncio.run(
+            agent._poll_interaction(mock_client, interaction_id, report_parts)
+        )
 
     assert result == "Full Report"
 
@@ -315,7 +329,7 @@ def test_generate_image_success():
     # Mock interaction response
     mock_interaction = MagicMock()
     mock_interaction.outputs = [
-        {"type": "image", "data": "ZmFrZSBkYXRh"} # "fake data" in base64
+        {"type": "image", "data": "ZmFrZSBkYXRh"}  # "fake data" in base64
     ]
     mock_client.aio.interactions.create.return_value = mock_interaction
 
@@ -324,9 +338,15 @@ def test_generate_image_success():
     # 2. base64.b64decode
     to_thread_returns = [mock_client, b"fake data"]
 
-    with patch.object(agent, "_prepare_output_path", return_value="/abs/out.png") as mock_prepare:
-        with patch("asyncio.to_thread", side_effect=to_thread_returns) as mock_to_thread:
-            with patch("research_cli.researcher.async_save_binary_to_file", AsyncMock()) as mock_save:
+    with patch.object(
+        agent, "_prepare_output_path", return_value="/abs/out.png"
+    ) as mock_prepare:
+        with patch(
+            "asyncio.to_thread", side_effect=to_thread_returns
+        ) as mock_to_thread:
+            with patch(
+                "research_cli.researcher.async_save_binary_to_file", AsyncMock()
+            ) as mock_save:
                 asyncio.run(agent.generate_image("prompt", "out.png", "model", True))
 
                 mock_prepare.assert_called_once_with("out.png", True)
@@ -343,8 +363,5 @@ def test_generate_image_success():
                 assert args[1] == "ZmFrZSBkYXRh"
 
                 mock_save.assert_called_once_with(
-                    b"fake data",
-                    "/abs/out.png",
-                    True,
-                    success_prefix="Image saved to"
+                    b"fake data", "/abs/out.png", True, success_prefix="Image saved to"
                 )

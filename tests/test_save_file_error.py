@@ -1,6 +1,7 @@
 from unittest.mock import patch
 from research_cli.utils import save_report_to_file, save_binary_to_file
 
+
 def test_save_report_to_file_exception(tmp_path, capsys):
     """Test that save_report_to_file handles exceptions during file writing."""
     report = "Test report content"
@@ -16,6 +17,7 @@ def test_save_report_to_file_exception(tmp_path, capsys):
             captured = capsys.readouterr()
             assert "Error saving to file" in captured.out
             assert "Permission denied" in captured.out
+
 
 def test_save_binary_to_file_exception(tmp_path, capsys):
     """Test that save_binary_to_file handles exceptions during file writing."""

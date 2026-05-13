@@ -8,9 +8,12 @@ from research_cli.db import get_db
 def test_run_research_client_init_error(temp_db, capsys):
     """Test run_research when get_gemini_client fails."""
     import asyncio
+
     with (
         patch("research_cli.get_api_key", return_value="fake-key"),
-        patch("research_cli.researcher.genai.Client", side_effect=Exception("Init failed")),
+        patch(
+            "research_cli.researcher.genai.Client", side_effect=Exception("Init failed")
+        ),
     ):
         # run_research now catches the ResearchError from get_client, handles it, and returns None
         result = asyncio.run(run_research("query", "model"))
@@ -31,17 +34,16 @@ def test_run_research_client_init_error(temp_db, capsys):
         assert row is not None
         assert row[0] == "ERROR"
         # Updated message format
-        assert (
-            "Client initialization failed: Init failed"
-            in row[1]
-        )
+        assert "Client initialization failed: Init failed" in row[1]
 
 
 def test_cli_run_client_init_error(temp_db, capsys):
     """Test CLI 'run' command when client initialization fails."""
     with (
         patch("research_cli.get_api_key", return_value="fake-key"),
-        patch("research_cli.researcher.genai.Client", side_effect=Exception("Init failed")),
+        patch(
+            "research_cli.researcher.genai.Client", side_effect=Exception("Init failed")
+        ),
         patch.object(sys, "argv", ["research", "run", "test query"]),
     ):
         with pytest.raises(SystemExit) as excinfo:
@@ -61,7 +63,4 @@ def test_cli_run_client_init_error(temp_db, capsys):
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "ERROR"
-        assert (
-            "Client initialization failed: Init failed"
-            in row[1]
-        )
+        assert "Client initialization failed: Init failed" in row[1]

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 from research_cli.cli import handle_generate_image
 from research_cli.exceptions import ResearchError
 
+
 def test_handle_generate_image_success():
     # Setup
     agent = MagicMock()
@@ -13,7 +14,7 @@ def test_handle_generate_image_success():
         prompt="a cute robot",
         output="robot.png",
         model="gemini-3-pro-image-preview",
-        force=False
+        force=False,
     )
 
     # Execute
@@ -24,15 +25,18 @@ def test_handle_generate_image_success():
         "a cute robot", "robot.png", "gemini-3-pro-image-preview", False
     )
 
+
 def test_handle_generate_image_research_error():
     # Setup
     agent = MagicMock()
-    agent.generate_image = AsyncMock(side_effect=ResearchError("Client initialization failed"))
+    agent.generate_image = AsyncMock(
+        side_effect=ResearchError("Client initialization failed")
+    )
     args = argparse.Namespace(
         prompt="a cute robot",
         output="robot.png",
         model="gemini-3-pro-image-preview",
-        force=False
+        force=False,
     )
 
     # Execute and Verify

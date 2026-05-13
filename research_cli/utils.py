@@ -211,7 +211,9 @@ def _save_to_file(
     try:
         output_file = validate_path(output_file)
     except ResearchError as e:
-        console.print(f"[red]{escape_markup(sanitize_error(str(e), output_file))}[/red]")
+        console.print(
+            f"[red]{escape_markup(sanitize_error(str(e), output_file))}[/red]"
+        )
         return False
 
     flags = os.O_WRONLY | os.O_CREAT
@@ -227,7 +229,9 @@ def _save_to_file(
 
     try:
         fd = os.open(output_file, flags)
-        with os.fdopen(fd, "wb" if binary else "w", encoding=None if binary else "utf-8") as f:
+        with os.fdopen(
+            fd, "wb" if binary else "w", encoding=None if binary else "utf-8"
+        ) as f:
             f.write(data)
     except FileExistsError:
         console.print(
@@ -236,6 +240,7 @@ def _save_to_file(
         return False
     except OSError as e:
         import errno
+
         if hasattr(errno, "ELOOP") and e.errno == errno.ELOOP:
             console.print(
                 f"[red]Error: {escape_markup(sanitize_path(output_file))} is a symlink. Overwriting symlinks is disallowed for security.[/red]"
