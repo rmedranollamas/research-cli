@@ -149,7 +149,7 @@ class ResearchAgent:
 
         while True:
             final_inter = await _api_call_with_retry(
-                client.aio.interactions.get, id=interaction_id
+                client.aio.interactions.get, id=interaction_id, console=self.console
             )
 
             status = get_val(final_inter, "status", "UNKNOWN").upper()
