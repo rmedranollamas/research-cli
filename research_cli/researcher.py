@@ -19,6 +19,7 @@ from .config import (
     RESEARCH_MCP_SERVERS,
     DB_PATH,
     WORKSPACE_DIR,
+    HEARTBEAT_TIMEOUT,
 )
 from .exceptions import ResearchError
 
@@ -29,7 +30,17 @@ _MCP_TOOLS: tuple[dict[str, Any], ...] = tuple(
 )
 
 
-async def _api_call_with_retry(coro_func, *args, **kwargs):
+def _is_transient_error(e: Exception) -> bool:
+    """Checks if an exception represents a transient API error (500, 503) or timeout."""
+    if isinstance(e, asyncio.TimeoutError):
+        return True
+    error_str = str(e)
+    # Check for common HTTP status codes in the exception object or string
+    code = getattr(e, "code", getattr(e, "status_code", None))
+    return code in (500, 503) or "500" in error_str or "503" in error_str
+
+
+async def _api_call_with_retry(coro_func, *args, console=None, **kwargs):
     """
     Unified middleware layer to manage external API communications with consistent retry behavior.
     Specifically handles 500 and 503 HTTP errors with exponential backoff up to a global maximum of 5 retries.
@@ -40,12 +51,20 @@ async def _api_call_with_retry(coro_func, *args, **kwargs):
         try:
             return await coro_func(*args, **kwargs)
         except Exception as e:
-            error_str = str(e)
-            if "500" in error_str or "503" in error_str:
+            if _is_transient_error(e):
                 if retries >= max_retries:
                     raise
                 retries += 1
-                delay = 1.5**retries  # Exponential backoff
+                delay = 1.5**retries
+                if console:
+                    from rich.text import Text
+
+                    console.print(
+                        Text(
+                            f"Transient API error, retrying in {delay:.1f}s...",
+                            style="dim",
+                        )
+                    )
                 await asyncio.sleep(delay)
             else:
                 raise
@@ -409,12 +428,13 @@ class ResearchAgent:
             # Create the interaction stream
             # The interactions.create returns an async iterator
             stream = await _api_call_with_retry(
-                cast(Any, client.aio.interactions.create), **interaction_params
+                cast(Any, client.aio.interactions.create),
+                console=self.console,
+                **interaction_params,
             )
 
             with self._get_progress() as progress:
                 progress_task = progress.add_task("Initializing...", total=None)
-                HEARTBEAT_TIMEOUT = 45.0  # seconds
 
                 try:
                     while True:
@@ -493,8 +513,6 @@ class ResearchAgent:
                                     await self._handle_inline_image(image_data, task_id)
                 except (asyncio.TimeoutError, Exception) as e:
                     if _is_transient_error(e) and interaction_id:
-
-                    if is_transient and interaction_id:
                         self.console.print(
                             "\n[yellow]Recovery in Progress: Stream stalled or encountered server error. Falling back to polling...[/yellow]"
                         )
