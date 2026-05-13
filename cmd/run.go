@@ -25,7 +25,7 @@ var runCmd = &cobra.Command{
 			return err
 		}
 
-		a, err := agent.NewResearchAgent(apiKey, "")
+		a, err := agent.NewResearchAgent(apiKey, config.GeminiApiBaseUrl)
 		if err != nil {
 			return err
 		}
@@ -56,6 +56,15 @@ var runCmd = &cobra.Command{
 		}
 
 		ui.PrintReport(report)
+
+		output, _ := cmd.Flags().GetString("output")
+		force, _ := cmd.Flags().GetBool("force")
+		if output != "" && report != "" {
+			if err := utils.SaveToFile([]byte(report), output, force); err != nil {
+				return err
+			}
+			ui.PrintPanel("Success", "Report saved to "+utils.SanitizePath(output), "")
+		}
 		return nil
 	},
 }
@@ -68,4 +77,6 @@ func init() {
 	runCmd.Flags().Bool("plan", false, "Enable collaborative planning")
 	runCmd.Flags().Bool("no-search", false, "Disable Google Search grounding")
 	runCmd.Flags().BoolP("verbose", "v", false, "Show detailed reasoning thoughts")
+	runCmd.Flags().StringP("output", "o", "", "Output file to save the report")
+	runCmd.Flags().Bool("force", false, "Force overwrite output file")
 }

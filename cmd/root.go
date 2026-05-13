@@ -16,6 +16,14 @@ and multimodal interactions, supporting streaming, polling, and local state mana
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		config.Load()
 	},
+	Run: func(cmd *cobra.Command, args []string) {
+		version, _ := cmd.Flags().GetBool("version")
+		if version {
+			fmt.Println("research-cli unknown")
+			os.Exit(0)
+		}
+		cmd.Help()
+	},
 }
 
 func Execute() {
@@ -26,5 +34,5 @@ func Execute() {
 }
 
 func init() {
-	// Global flags can be added here
+	rootCmd.Flags().BoolP("version", "v", false, "Print the version number")
 }
