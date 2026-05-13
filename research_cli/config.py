@@ -3,8 +3,10 @@ import os
 try:
     from dotenv import load_dotenv
 except ImportError:
+
     def load_dotenv(*args, **kwargs):
         pass
+
 
 _DEFAULT_CONFIG_DIR = os.path.expanduser("~/.research-cli")
 CONFIG_DIR = os.getenv("RESEARCH_CONFIG_DIR", _DEFAULT_CONFIG_DIR)

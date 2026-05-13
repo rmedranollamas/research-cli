@@ -12,7 +12,10 @@ def test_get_api_key_not_set():
     set_console(mock_console)
     try:
         with patch("os.getenv", return_value=None):
-            with pytest.raises(ResearchError, match=f"{RESEARCH_API_KEY_VAR} environment variable not set."):
+            with pytest.raises(
+                ResearchError,
+                match=f"{RESEARCH_API_KEY_VAR} environment variable not set.",
+            ):
                 get_api_key()
 
         mock_console.print.assert_called_with(
@@ -28,7 +31,10 @@ def test_get_api_key_empty():
     set_console(mock_console)
     try:
         with patch("os.getenv", return_value=""):
-            with pytest.raises(ResearchError, match=f"{RESEARCH_API_KEY_VAR} environment variable not set."):
+            with pytest.raises(
+                ResearchError,
+                match=f"{RESEARCH_API_KEY_VAR} environment variable not set.",
+            ):
                 get_api_key()
 
         mock_console.print.assert_called_with(

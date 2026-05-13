@@ -6,6 +6,7 @@ from research_cli.utils import save_report_to_file
 
 def test_generate_image_path_traversal_vulnerability():
     import asyncio
+
     # Setup
     agent = ResearchAgent("fake-key")
     mock_client = MagicMock()
@@ -30,9 +31,9 @@ def test_generate_image_path_traversal_vulnerability():
         from research_cli.exceptions import ResearchError
 
         with pytest.raises(ResearchError, match="Path traversal detected"):
-            asyncio.run(agent.generate_image(
-                "a prompt", traversal_path, "model-id", force=True
-            ))
+            asyncio.run(
+                agent.generate_image("a prompt", traversal_path, "model-id", force=True)
+            )
 
 
 def test_save_report_path_traversal_vulnerability():
@@ -51,6 +52,7 @@ def test_save_report_path_traversal_vulnerability():
 
 def test_upload_files_path_traversal_vulnerability():
     import asyncio
+
     agent = ResearchAgent("fake-key")
     mock_client = MagicMock()
 

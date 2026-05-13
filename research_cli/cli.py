@@ -281,7 +281,9 @@ async def handle_status(args, agent: ResearchAgent):
     if report is None:
         raise ResearchError("Status check failed")
 
-    await _save_report_if_requested(report, args, "Failed to save research status report")
+    await _save_report_if_requested(
+        report, args, "Failed to save research status report"
+    )
 
 
 async def handle_generate_image(args, agent: ResearchAgent):

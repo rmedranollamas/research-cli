@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from research_cli.cli import handle_run
 from research_cli.exceptions import ResearchError
 
+
 def test_handle_run_no_query():
     # Setup
     agent = MagicMock()
@@ -25,6 +26,7 @@ def test_handle_run_no_query():
     mock_run_parser.print_help.assert_called_once()
     agent.run_research.assert_not_called()
 
+
 def test_handle_run_success():
     # Setup
     agent = MagicMock()
@@ -41,7 +43,7 @@ def test_handle_run_success():
         plan=False,
         visualization=False,
         output=None,
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
@@ -59,8 +61,9 @@ def test_handle_run_success():
         thinking_level="medium",
         verbose=True,
         collaborative_planning=False,
-        visualization=False
+        visualization=False,
     )
+
 
 def test_handle_run_with_output():
     # Setup
@@ -78,11 +81,13 @@ def test_handle_run_with_output():
         plan=False,
         visualization=False,
         output="output.md",
-        force=True
+        force=True,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         mock_save.return_value = True
         # Execute
         asyncio.run(handle_run(args, agent, parser))
@@ -90,6 +95,7 @@ def test_handle_run_with_output():
         # Verify
         agent.run_research.assert_called_once()
         mock_save.assert_called_once_with("Report content", "output.md", True)
+
 
 def test_handle_run_with_output_failure():
     # Setup
@@ -107,11 +113,13 @@ def test_handle_run_with_output_failure():
         plan=False,
         visualization=False,
         output="output.md",
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         mock_save.return_value = False
         # Execute and Verify
         with pytest.raises(ResearchError, match="Failed to save research report"):
@@ -119,6 +127,7 @@ def test_handle_run_with_output_failure():
 
         agent.run_research.assert_called_once()
         mock_save.assert_called_once_with("Report content", "output.md", False)
+
 
 def test_handle_run_failure():
     # Setup
@@ -136,7 +145,7 @@ def test_handle_run_failure():
         plan=False,
         visualization=False,
         output=None,
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
@@ -145,6 +154,7 @@ def test_handle_run_failure():
         asyncio.run(handle_run(args, agent, parser))
 
     agent.run_research.assert_called_once()
+
 
 def test_handle_run_failure_no_save():
     # Setup
@@ -162,17 +172,20 @@ def test_handle_run_failure_no_save():
         plan=False,
         visualization=False,
         output="output.md",
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         # Execute and Verify
         with pytest.raises(ResearchError, match="Research failed"):
             asyncio.run(handle_run(args, agent, parser))
 
         agent.run_research.assert_called_once()
         mock_save.assert_not_called()
+
 
 def test_handle_run_exception():
     # Setup
@@ -190,7 +203,7 @@ def test_handle_run_exception():
         plan=False,
         visualization=False,
         output=None,
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
@@ -199,6 +212,7 @@ def test_handle_run_exception():
         asyncio.run(handle_run(args, agent, parser))
 
     agent.run_research.assert_called_once()
+
 
 def test_handle_run_empty_report():
     # Setup
@@ -216,11 +230,13 @@ def test_handle_run_empty_report():
         plan=False,
         visualization=False,
         output="output.md",
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         # Execute
         asyncio.run(handle_run(args, agent, parser))
 

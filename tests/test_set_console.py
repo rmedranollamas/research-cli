@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from research_cli.utils import get_console, set_console
 import research_cli.utils
 
+
 def test_set_console():
     """Test that set_console correctly sets the console singleton."""
     # Save original console
@@ -22,6 +23,7 @@ def test_set_console():
     finally:
         # Restore original console
         research_cli.utils._console = original_console
+
 
 def test_set_console_direct():
     """Trivial test as requested: call it with a mock and verify _console is set."""

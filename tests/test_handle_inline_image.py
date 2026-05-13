@@ -1,4 +1,3 @@
-import pytest
 import asyncio
 import base64
 import os
@@ -6,11 +5,12 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from research_cli.researcher import ResearchAgent
 from research_cli.config import WORKSPACE_DIR
 
+
 def test_handle_inline_image_success():
     agent = ResearchAgent(api_key="fake-key")
     agent.console = MagicMock()
 
-    base64_data = "ZmFrZSBkYXRh" # "fake data"
+    base64_data = "ZmFrZSBkYXRh"  # "fake data"
     task_id = 1
     decoded_bytes = b"fake data"
 
@@ -19,10 +19,16 @@ def test_handle_inline_image_success():
     # 2. time.time()
     # 3. async_save_binary_to_file
 
-    with patch("asyncio.to_thread", AsyncMock(return_value=decoded_bytes)) as mock_to_thread, \
-         patch("time.time", return_value=1234567.89), \
-         patch("research_cli.researcher.async_save_binary_to_file", AsyncMock(return_value=True)) as mock_save:
-
+    with (
+        patch(
+            "asyncio.to_thread", AsyncMock(return_value=decoded_bytes)
+        ) as mock_to_thread,
+        patch("time.time", return_value=1234567.89),
+        patch(
+            "research_cli.researcher.async_save_binary_to_file",
+            AsyncMock(return_value=True),
+        ) as mock_save,
+    ):
         asyncio.run(agent._handle_inline_image(base64_data, task_id))
 
         # Verify asyncio.to_thread was called for decoding
@@ -37,8 +43,9 @@ def test_handle_inline_image_success():
             decoded_bytes,
             expected_path,
             force=True,
-            success_prefix="Visualization saved to"
+            success_prefix="Visualization saved to",
         )
+
 
 def test_handle_inline_image_failure():
     agent = ResearchAgent(api_key="fake-key")

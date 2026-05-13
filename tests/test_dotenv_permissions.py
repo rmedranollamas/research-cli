@@ -2,6 +2,7 @@ import os
 import importlib
 from unittest.mock import patch
 
+
 def test_dotenv_permissions_enforced(tmp_path):
     """
     Test that the .env file permissions are enforced to 0600.
@@ -22,6 +23,7 @@ def test_dotenv_permissions_enforced(tmp_path):
     with patch.dict(os.environ, {"RESEARCH_CONFIG_DIR": str(config_dir)}):
         # Reload the research module to trigger the permission enforcement
         import research_cli.config
+
         importlib.reload(research_cli.config)
 
         # Check permissions

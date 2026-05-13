@@ -3,6 +3,7 @@ import unittest.mock as mock
 import sqlite3
 from research_cli.db import _init_db
 
+
 def test_init_db_dir_chmod_oserror(tmp_path):
     """Test that _init_db handles OSError when chmod-ing the database directory."""
     test_db_path = tmp_path / "dir_error" / "test.db"
@@ -45,6 +46,7 @@ def test_init_db_dir_chmod_oserror(tmp_path):
             "SELECT name FROM sqlite_master WHERE type='table' AND name='research_tasks'"
         )
         assert cursor.fetchone() is not None
+
 
 def test_init_db_file_chmod_oserror(tmp_path):
     """Test that _init_db handles OSError when chmod-ing the database file."""

@@ -5,6 +5,7 @@ import os
 from unittest.mock import MagicMock, AsyncMock, patch
 from research_cli.researcher import ResearchAgent
 
+
 async def monitor_loop():
     latencies = []
     monitor_loop.running = True
@@ -13,6 +14,7 @@ async def monitor_loop():
         await asyncio.sleep(0.001)
         latencies.append(time.perf_counter() - start - 0.001)
     return latencies
+
 
 async def run_benchmark():
     # Set up environment
@@ -26,15 +28,16 @@ async def run_benchmark():
     large_data_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     mock_interaction = MagicMock()
-    mock_interaction.outputs = [
-        {"type": "image", "data": large_data_b64}
-    ]
+    mock_interaction.outputs = [{"type": "image", "data": large_data_b64}]
 
     # We want to measure the impact of base64.b64decode in the event loop
     # So we patch the actual save call but keep the decode call
-    with patch("research_cli.researcher.async_save_binary_to_file", AsyncMock()) as mock_save, \
-         patch("research_cli.researcher.genai.Client") as mock_genai_client:
-
+    with (
+        patch(
+            "research_cli.researcher.async_save_binary_to_file", AsyncMock()
+        ) as mock_save,
+        patch("research_cli.researcher.genai.Client") as mock_genai_client,
+    ):
         mock_client = mock_genai_client.return_value
         mock_client.aio.interactions.create = AsyncMock(return_value=mock_interaction)
 
@@ -48,6 +51,7 @@ async def run_benchmark():
         except Exception as e:
             print(f"Error during generate_image: {e}")
             import traceback
+
             traceback.print_exc()
         end_time = time.perf_counter()
 
@@ -56,7 +60,7 @@ async def run_benchmark():
 
         max_latency = max(latencies) * 1000
         avg_latency = (sum(latencies) / len(latencies)) * 1000
-        print(f"Total time: {(end_time - start_time)*1000:.2f}ms")
+        print(f"Total time: {(end_time - start_time) * 1000:.2f}ms")
         print(f"Max loop latency: {max_latency:.2f}ms")
         print(f"Avg loop latency: {avg_latency:.2f}ms")
 
@@ -66,10 +70,12 @@ async def run_benchmark():
         else:
             print("Warning: async_save_binary_to_file was not called!")
 
+
 if __name__ == "__main__":
     try:
         asyncio.run(run_benchmark())
     except Exception as e:
         print(f"Benchmark failed: {e}")
         import traceback
+
         traceback.print_exc()

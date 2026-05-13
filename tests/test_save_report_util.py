@@ -64,11 +64,14 @@ def test_save_report_to_file_custom_prefix(tmp_path, capsys):
 def test_async_save_report_to_file(tmp_path):
     """Test that async_save_report_to_file correctly wraps the synchronous function."""
     import asyncio
+
     report = "Async test report content"
     output_file = tmp_path / "report.md"
 
     with patch("research_cli.utils.WORKSPACE_DIR", str(tmp_path)):
-        result = asyncio.run(async_save_report_to_file(report, str(output_file), force=False))
+        result = asyncio.run(
+            async_save_report_to_file(report, str(output_file), force=False)
+        )
         assert result is True
         assert output_file.exists()
         assert output_file.read_text() == report

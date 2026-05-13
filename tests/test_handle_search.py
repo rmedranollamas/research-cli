@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from research_cli.cli import handle_search
 from research_cli.exceptions import ResearchError
 
+
 def test_handle_search_no_query():
     # Setup
     agent = MagicMock()
@@ -25,6 +26,7 @@ def test_handle_search_no_query():
     mock_search_parser.print_help.assert_called_once()
     agent.run_search.assert_not_called()
 
+
 def test_handle_search_success():
     # Setup
     agent = MagicMock()
@@ -35,7 +37,7 @@ def test_handle_search_success():
         parent="parent-id",
         verbose=True,
         output=None,
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
@@ -44,11 +46,9 @@ def test_handle_search_success():
 
     # Verify
     agent.run_search.assert_called_once_with(
-        "test query",
-        "test-model",
-        parent_id="parent-id",
-        verbose=True
+        "test query", "test-model", parent_id="parent-id", verbose=True
     )
+
 
 def test_handle_search_with_output():
     # Setup
@@ -60,23 +60,23 @@ def test_handle_search_with_output():
         parent="parent-id",
         verbose=False,
         output="search_output.md",
-        force=True
+        force=True,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         mock_save.return_value = True
         # Execute
         asyncio.run(handle_search(args, agent, parser))
 
         # Verify
         agent.run_search.assert_called_once_with(
-            "test query",
-            "test-model",
-            parent_id="parent-id",
-            verbose=False
+            "test query", "test-model", parent_id="parent-id", verbose=False
         )
         mock_save.assert_called_once_with("Search content", "search_output.md", True)
+
 
 def test_handle_search_with_output_failure():
     # Setup
@@ -88,11 +88,13 @@ def test_handle_search_with_output_failure():
         parent=None,
         verbose=False,
         output="search_output.md",
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         mock_save.return_value = False
         # Execute and Verify
         with pytest.raises(ResearchError, match="Failed to save search report"):
@@ -100,6 +102,7 @@ def test_handle_search_with_output_failure():
 
         agent.run_search.assert_called_once()
         mock_save.assert_called_once_with("Search content", "search_output.md", False)
+
 
 def test_handle_search_failure():
     # Setup
@@ -111,22 +114,22 @@ def test_handle_search_failure():
         parent=None,
         verbose=False,
         output="wont_save.md",
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         # Execute and Verify
         with pytest.raises(ResearchError, match="Search failed"):
             asyncio.run(handle_search(args, agent, parser))
 
         agent.run_search.assert_called_once_with(
-            "test query",
-            "test-model",
-            parent_id=None,
-            verbose=False
+            "test query", "test-model", parent_id=None, verbose=False
         )
         mock_save.assert_not_called()
+
 
 def test_handle_search_exception():
     # Setup
@@ -138,7 +141,7 @@ def test_handle_search_exception():
         parent=None,
         verbose=False,
         output=None,
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
@@ -147,11 +150,9 @@ def test_handle_search_exception():
         asyncio.run(handle_search(args, agent, parser))
 
     agent.run_search.assert_called_once_with(
-        "test query",
-        "test-model",
-        parent_id=None,
-        verbose=False
+        "test query", "test-model", parent_id=None, verbose=False
     )
+
 
 def test_handle_search_success_no_save():
     # Setup
@@ -163,19 +164,18 @@ def test_handle_search_success_no_save():
         parent=None,
         verbose=False,
         output=None,
-        force=False
+        force=False,
     )
     parser = MagicMock()
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         # Execute
         asyncio.run(handle_search(args, agent, parser))
 
         # Verify
         agent.run_search.assert_called_once_with(
-            "test query",
-            "test-model",
-            parent_id=None,
-            verbose=False
+            "test query", "test-model", parent_id=None, verbose=False
         )
         mock_save.assert_not_called()

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from research_cli.cli import handle_status
 from research_cli.exceptions import ResearchError
 
+
 def test_handle_status_success():
     # Setup
     agent = MagicMock()
@@ -17,13 +18,16 @@ def test_handle_status_success():
     # Verify
     agent.get_status.assert_called_once_with("test-id")
 
+
 def test_handle_status_success_with_output():
     # Setup
     agent = MagicMock()
     agent.get_status = AsyncMock(return_value="Report content")
     args = argparse.Namespace(interaction_id="test-id", output="output.md", force=True)
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         mock_save.return_value = True
         # Execute
         asyncio.run(handle_status(args, agent))
@@ -32,20 +36,26 @@ def test_handle_status_success_with_output():
         agent.get_status.assert_called_once_with("test-id")
         mock_save.assert_called_once_with("Report content", "output.md", True)
 
+
 def test_handle_status_with_output_failure():
     # Setup
     agent = MagicMock()
     agent.get_status = AsyncMock(return_value="Report content")
     args = argparse.Namespace(interaction_id="test-id", output="output.md", force=False)
 
-    with patch("research_cli.cli.async_save_report_to_file", new_callable=AsyncMock) as mock_save:
+    with patch(
+        "research_cli.cli.async_save_report_to_file", new_callable=AsyncMock
+    ) as mock_save:
         mock_save.return_value = False
         # Execute and Verify
-        with pytest.raises(ResearchError, match="Failed to save research status report"):
+        with pytest.raises(
+            ResearchError, match="Failed to save research status report"
+        ):
             asyncio.run(handle_status(args, agent))
 
         agent.get_status.assert_called_once()
         mock_save.assert_called_once_with("Report content", "output.md", False)
+
 
 def test_handle_status_failure():
     # Setup
@@ -58,6 +68,7 @@ def test_handle_status_failure():
         asyncio.run(handle_status(args, agent))
 
     agent.get_status.assert_called_once_with("test-id")
+
 
 def test_handle_status_exception():
     # Setup

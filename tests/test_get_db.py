@@ -5,6 +5,7 @@ from research_cli.db import get_db
 import research_cli.db as db_module
 from research_cli import config
 
+
 @pytest.fixture(autouse=True)
 def reset_db_state():
     """Reset the global _last_db_path and thread-local state before each test."""
@@ -48,6 +49,7 @@ def test_get_db_yields_connection_and_reuses():
         # Verify close was NOT called
         mock_conn.close.assert_not_called()
 
+
 def test_get_db_initializes_on_first_call():
     """Test that _init_db is called on the first call to get_db."""
     with mock.patch("research_cli.db._init_db") as mock_init:
@@ -56,6 +58,7 @@ def test_get_db_initializes_on_first_call():
                 pass
             mock_init.assert_called_once_with(config.DB_PATH)
             assert db_module._last_db_path == config.DB_PATH
+
 
 def test_get_db_does_not_reinitialize_same_path():
     """Test that _init_db is not called if the path hasn't changed."""
@@ -66,6 +69,7 @@ def test_get_db_does_not_reinitialize_same_path():
             with get_db():
                 pass
             mock_init.assert_not_called()
+
 
 def test_get_db_reinitializes_when_path_changes():
     """Test that _init_db is called again if config.DB_PATH changes."""
@@ -79,6 +83,7 @@ def test_get_db_reinitializes_when_path_changes():
                     pass
                 mock_init.assert_called_once_with(new_path)
                 assert db_module._last_db_path == new_path
+
 
 def test_get_db_lock_usage():
     """Test that the database lock is used during initialization."""
@@ -94,14 +99,15 @@ def test_get_db_lock_usage():
                 mock_lock.__enter__.assert_called_once()
                 mock_lock.__exit__.assert_called_once()
 
+
 def test_get_db_initializes_before_connect():
     """Test that _init_db is called before sqlite3.connect."""
     with mock.patch("research_cli.db._init_db") as mock_init:
         with mock.patch("sqlite3.connect") as mock_connect:
             # Use a manager to track call order
             manager = mock.Mock()
-            manager.attach_mock(mock_init, 'init')
-            manager.attach_mock(mock_connect, 'connect')
+            manager.attach_mock(mock_init, "init")
+            manager.attach_mock(mock_connect, "connect")
 
             # First call should initialize and connect
             with get_db():
@@ -110,6 +116,6 @@ def test_get_db_initializes_before_connect():
             # Check that init was called before connect
             expected_calls = [
                 mock.call.init(config.DB_PATH),
-                mock.call.connect(config.DB_PATH)
+                mock.call.connect(config.DB_PATH),
             ]
             manager.assert_has_calls(expected_calls)
