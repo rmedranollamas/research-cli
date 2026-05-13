@@ -13,6 +13,7 @@ var (
 	DbPath                string
 	DefaultModel          string
 	GeminiApiKeyVar       = "RESEARCH_GEMINI_API_KEY"
+	GeminiApiBaseUrl      string
 	McpServers            []string
 	QueryTruncationLength = 50
 	RecentTasksLimit      = 20
@@ -37,6 +38,7 @@ func Load() {
 
 	DbPath = getEnv("RESEARCH_DB_PATH", filepath.Join(ConfigDir, "history.db"))
 	DefaultModel = getEnv("RESEARCH_MODEL", "deep-research-preview-04-2026")
+	GeminiApiBaseUrl = getEnv("GEMINI_API_BASE_URL", "")
 
 	mcpServersRaw := getEnv("RESEARCH_MCP_SERVERS", "")
 	if mcpServersRaw != "" {

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ type InteractionResponse struct {
 	Delta struct {
 		Type    string `json:"type"`
 		Text    string `json:"text"`
+		Data    string `json:"data"`
 		Content struct {
 			Text string `json:"text"`
 		} `json:"content"`
@@ -398,6 +400,18 @@ func processSSELine(line string, interactionID *string, reportParts *[]string, t
 		*reportParts = append(*reportParts, event.Delta.Text)
 		if !verbose {
 			fmt.Print(event.Delta.Text)
+		}
+	} else if event.Delta.Type == "image" && event.Delta.Data != "" {
+		decoded, err := base64.StdEncoding.DecodeString(event.Delta.Data)
+		if err == nil {
+			timestamp := time.Now().UnixMilli()
+			filename := fmt.Sprintf("research_task_%d_%d.png", taskID, timestamp)
+			outputPath := filepath.Join(config.WorkspaceDir, filename)
+			if err := utils.SaveToFile(decoded, outputPath, true); err == nil {
+				if verbose {
+					fmt.Printf("\n[Visualization saved to %s]\n", utils.SanitizePath(outputPath))
+				}
+			}
 		}
 	}
 }

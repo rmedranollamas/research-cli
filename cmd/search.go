@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/research-cli/internal/agent"
+	"github.com/google/research-cli/internal/config"
 	"github.com/google/research-cli/internal/ui"
 	"github.com/google/research-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ var searchCmd = &cobra.Command{
 			return err
 		}
 
-		a, err := agent.NewResearchAgent(apiKey, "")
+		a, err := agent.NewResearchAgent(apiKey, config.GeminiApiBaseUrl)
 		if err != nil {
 			return err
 		}
@@ -36,6 +37,15 @@ var searchCmd = &cobra.Command{
 		}
 
 		ui.PrintReport(report)
+
+		output, _ := cmd.Flags().GetString("output")
+		force, _ := cmd.Flags().GetBool("force")
+		if output != "" && report != "" {
+			if err := utils.SaveToFile([]byte(report), output, force); err != nil {
+				return err
+			}
+			ui.PrintPanel("Success", "Report saved to "+utils.SanitizePath(output), "")
+		}
 		return nil
 	},
 }
@@ -43,4 +53,6 @@ var searchCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().StringP("model", "m", "gemini-2.0-flash", "Model to use for fast search")
+	searchCmd.Flags().StringP("output", "o", "", "Output file to save the report")
+	searchCmd.Flags().Bool("force", false, "Force overwrite output file")
 }

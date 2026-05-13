@@ -35,6 +35,13 @@ func GetDB() (*sql.DB, error) {
 		if dbDir != "" {
 			if _, err := os.Stat(dbDir); os.IsNotExist(err) {
 				_ = os.MkdirAll(dbDir, 0700)
+			} else {
+				// Secure TOCTOU fallback using os package
+				f, err := os.Open(dbDir)
+				if err == nil {
+					_ = f.Chmod(0700)
+					f.Close()
+				}
 			}
 		}
 
@@ -43,12 +50,10 @@ func GetDB() (*sql.DB, error) {
 			return
 		}
 
-		// Ping to ensure the file is created if it doesn't exist
 		if err = db.Ping(); err != nil {
 			return
 		}
 
-		// Set restrictive permissions on the DB file
 		_ = os.Chmod(dbPath, 0600)
 
 		if err = initSchema(db); err != nil {
