@@ -492,10 +492,7 @@ class ResearchAgent:
                                 if image_data:
                                     await self._handle_inline_image(image_data, task_id)
                 except (asyncio.TimeoutError, Exception) as e:
-                    error_str = str(e)
-                    is_transient = isinstance(e, asyncio.TimeoutError) or (
-                        "500" in error_str or "503" in error_str
-                    )
+                    if _is_transient_error(e) and interaction_id:
 
                     if is_transient and interaction_id:
                         self.console.print(
