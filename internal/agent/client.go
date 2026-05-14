@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"google.golang.org/genai"
 )
@@ -22,9 +21,7 @@ type ResearchAgent struct {
 func NewResearchAgent(apiKey string, baseURL string) (*ResearchAgent, error) {
 	ctx := context.Background()
 
-	httpClient := &http.Client{
-		Timeout: 300 * time.Second, // Long timeout for research
-	}
+	httpClient := &http.Client{}
 
 	if baseURL != "" {
 		if !isSecureOrLoopbackBaseURL(baseURL) {

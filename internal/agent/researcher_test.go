@@ -37,8 +37,17 @@ func TestBackoffDurationPreservesFractionalSeconds(t *testing.T) {
 }
 
 func TestSanitizeTerminalTextRemovesControlCharacters(t *testing.T) {
-	got := sanitizeTerminalText("ok\x1b[31m red\x00\nnext\t")
-	want := "ok[31m red\nnext\t"
+	got := sanitizeTerminalText("ok\x1b[31m red\x1b[0m\x00\nnext\t")
+	want := "ok red\nnext\t"
+
+	if got != want {
+		t.Fatalf("sanitizeTerminalText() = %q, want %q", got, want)
+	}
+}
+
+func TestSanitizeTerminalTextRemovesANSIControlSequences(t *testing.T) {
+	got := sanitizeTerminalText("\x1b]0;title\ahello\x1b[2Jworld")
+	want := "helloworld"
 
 	if got != want {
 		t.Fatalf("sanitizeTerminalText() = %q, want %q", got, want)

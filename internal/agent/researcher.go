@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -53,6 +54,8 @@ type InteractionResponse struct {
 		} `json:"parts"`
 	} `json:"content"`
 }
+
+var ansiEscapeRE = regexp.MustCompile(`\x1b\][^\x07]*(?:\x07|\x1b\\)|\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])`)
 
 func (a *ResearchAgent) RunResearch(ctx context.Context, query string, modelID string, parentID string, urls []string, fileURIs []string, useSearch bool, thinkingLevel string, collaborativePlanning bool, visualization bool, verbose bool) (string, error) {
 	// Save task to DB
@@ -421,6 +424,7 @@ func processSSELine(line string, interactionID *string, reportParts *[]string, t
 }
 
 func sanitizeTerminalText(text string) string {
+	text = ansiEscapeRE.ReplaceAllString(text, "")
 	return strings.Map(func(r rune) rune {
 		if r == '\n' || r == '\r' || r == '\t' {
 			return r

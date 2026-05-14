@@ -3,13 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/google/research-cli/internal/config"
 	"github.com/google/research-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
+
+var version = "0.2.0"
 
 var rootCmd = &cobra.Command{
 	Use:   "research",
@@ -23,7 +23,7 @@ and multimodal interactions, supporting streaming, polling, and local state mana
 	RunE: func(cmd *cobra.Command, args []string) error {
 		version, _ := cmd.Flags().GetBool("version")
 		if version {
-			fmt.Printf("research-cli %s\n", getVersion())
+			fmt.Printf("research-cli %s\n", getVersionString())
 			return nil
 		}
 		if len(args) > 0 {
@@ -60,19 +60,9 @@ func runDefaultQuery(cmd *cobra.Command, query string) error {
 	return nil
 }
 
-func getVersion() string {
-	data, err := os.ReadFile(filepath.Join(".", "pyproject.toml"))
-	if err != nil {
+func getVersionString() string {
+	if version == "" {
 		return "unknown"
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "version") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				return strings.Trim(strings.TrimSpace(parts[1]), "\"'")
-			}
-		}
-	}
-	return "unknown"
+	return version
 }
