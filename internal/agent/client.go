@@ -31,11 +31,14 @@ func NewResearchAgent(apiKey string, baseURL string) (*ResearchAgent, error) {
 		}
 	}
 
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+	clientConfig := &genai.ClientConfig{
 		APIKey: apiKey,
-		// Currently the Go SDK might not support custom base URL as easily as Python
-		// if we need to target v1alpha.
-	})
+	}
+	if baseURL != "" {
+		clientConfig.HTTPOptions.BaseURL = strings.TrimSuffix(baseURL, "/")
+	}
+
+	client, err := genai.NewClient(ctx, clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}

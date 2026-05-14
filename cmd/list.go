@@ -27,10 +27,7 @@ var listCmd = &cobra.Command{
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "ID\tQUERY\tSTATUS\tCREATED AT\tINTERACTION ID")
 		for _, t := range tasks {
-			query := t.Query
-			if len(query) > 50 {
-				query = query[:47] + "..."
-			}
+			query := truncateRunes(t.Query, 50)
 			fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n", t.ID, query, t.Status, t.CreatedAt, t.InteractionID.String)
 		}
 		w.Flush()
@@ -41,4 +38,15 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().IntP("limit", "n", 20, "Number of tasks to list")
+}
+
+func truncateRunes(s string, limit int) string {
+	runes := []rune(s)
+	if len(runes) <= limit {
+		return s
+	}
+	if limit <= 3 {
+		return string(runes[:limit])
+	}
+	return string(runes[:limit-3]) + "..."
 }

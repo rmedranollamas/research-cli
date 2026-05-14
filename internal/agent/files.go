@@ -45,6 +45,12 @@ func (a *ResearchAgent) uploadFile(ctx context.Context, path string) (string, er
 	}
 
 	fmt.Printf("Processing %s...\n", filename)
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	defer timer.Stop()
+
 	for {
 		f, err := a.client.Files.Get(ctx, file.Name, nil)
 		if err != nil {
@@ -58,10 +64,14 @@ func (a *ResearchAgent) uploadFile(ctx context.Context, path string) (string, er
 			return "", fmt.Errorf("file processing failed with state: %v", f.State)
 		}
 
+		timer.Reset(2 * time.Second)
 		select {
 		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
 			return "", ctx.Err()
-		case <-time.After(2 * time.Second):
+		case <-timer.C:
 		}
 	}
 }
