@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	DefaultModelFallback  = "deep-research-preview-04-2026"
 	ConfigDir             string
 	DbPath                string
 	DefaultModel          string
@@ -37,7 +38,7 @@ func Load() {
 	}
 
 	DbPath = getEnv("RESEARCH_DB_PATH", filepath.Join(ConfigDir, "history.db"))
-	DefaultModel = getEnv("RESEARCH_MODEL", "deep-research-preview-04-2026")
+	DefaultModel = getEnv("RESEARCH_MODEL", DefaultModelFallback)
 	GeminiApiBaseUrl = getEnv("GEMINI_API_BASE_URL", "")
 
 	mcpServersRaw := getEnv("RESEARCH_MCP_SERVERS", "")

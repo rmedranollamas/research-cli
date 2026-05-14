@@ -34,6 +34,11 @@ var showCmd = &cobra.Command{
 
 		if task.Report.Valid && task.Report.String != "" {
 			ui.PrintReport(task.Report.String)
+			output, _ := cmd.Flags().GetString("output")
+			force, _ := cmd.Flags().GetBool("force")
+			if err := saveReportIfRequested(task.Report.String, output, force); err != nil {
+				return err
+			}
 		} else {
 			fmt.Println("\nNo report available for this task.")
 		}
@@ -44,4 +49,6 @@ var showCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(showCmd)
+	showCmd.Flags().StringP("output", "o", "", "Output file to save the report")
+	showCmd.Flags().BoolP("force", "f", false, "Force overwrite output file")
 }

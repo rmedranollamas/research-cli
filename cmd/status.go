@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"github.com/google/research-cli/internal/agent"
-	"github.com/google/research-cli/internal/config"
 	"github.com/google/research-cli/internal/ui"
-	"github.com/google/research-cli/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -15,12 +12,7 @@ var statusCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
 
-		apiKey, err := utils.GetApiKey()
-		if err != nil {
-			return err
-		}
-
-		a, err := agent.NewResearchAgent(apiKey, config.GeminiApiBaseUrl)
+		a, err := newAgentFromConfig()
 		if err != nil {
 			return err
 		}
@@ -32,10 +24,15 @@ var statusCmd = &cobra.Command{
 		}
 
 		ui.PrintReport(report)
-		return nil
+
+		output, _ := cmd.Flags().GetString("output")
+		force, _ := cmd.Flags().GetBool("force")
+		return saveReportIfRequested(report, output, force)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(statusCmd)
+	statusCmd.Flags().StringP("output", "o", "", "Output file to save the report")
+	statusCmd.Flags().BoolP("force", "f", false, "Force overwrite output file")
 }

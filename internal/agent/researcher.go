@@ -54,7 +54,7 @@ type InteractionResponse struct {
 	} `json:"content"`
 }
 
-func (a *ResearchAgent) RunResearch(ctx context.Context, query string, modelID string, parentID string, urls []string, fileURIs []string, useSearch bool, thinkingLevel string, collaborativePlanning bool, verbose bool) (string, error) {
+func (a *ResearchAgent) RunResearch(ctx context.Context, query string, modelID string, parentID string, urls []string, fileURIs []string, useSearch bool, thinkingLevel string, collaborativePlanning bool, visualization bool, verbose bool) (string, error) {
 	// Save task to DB
 	var pID *string
 	if parentID != "" {
@@ -74,6 +74,9 @@ func (a *ResearchAgent) RunResearch(ctx context.Context, query string, modelID s
 	}
 	if thinkingLevel != "" {
 		agentConfig["thinking_level"] = thinkingLevel
+	}
+	if visualization {
+		agentConfig["visualization"] = "auto"
 	}
 
 	content := []map[string]interface{}{

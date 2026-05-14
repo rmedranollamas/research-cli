@@ -33,6 +33,9 @@ func NewResearchAgent(apiKey string, baseURL string) (*ResearchAgent, error) {
 
 	clientConfig := &genai.ClientConfig{
 		APIKey: apiKey,
+		HTTPOptions: genai.HTTPOptions{
+			APIVersion: "v1alpha",
+		},
 	}
 	if baseURL != "" {
 		clientConfig.HTTPOptions.BaseURL = strings.TrimSuffix(baseURL, "/")

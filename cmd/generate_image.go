@@ -3,8 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/google/research-cli/internal/agent"
-	"github.com/google/research-cli/internal/config"
 	"github.com/google/research-cli/internal/ui"
 	"github.com/google/research-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -17,13 +15,10 @@ var generateImageCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		prompt := args[0]
 		outputPath, _ := cmd.Flags().GetString("output")
+		model, _ := cmd.Flags().GetString("model")
+		force, _ := cmd.Flags().GetBool("force")
 
-		apiKey, err := utils.GetApiKey()
-		if err != nil {
-			return err
-		}
-
-		a, err := agent.NewResearchAgent(apiKey, config.GeminiApiBaseUrl)
+		a, err := newAgentFromConfig()
 		if err != nil {
 			return err
 		}
@@ -31,7 +26,7 @@ var generateImageCmd = &cobra.Command{
 		ctx := cmd.Context()
 		fmt.Printf("Generating image for: %s\n", prompt)
 
-		err = a.GenerateImage(ctx, prompt, outputPath, config.DefaultModel, true)
+		err = a.GenerateImage(ctx, prompt, outputPath, model, force)
 		if err != nil {
 			return err
 		}
@@ -43,5 +38,7 @@ var generateImageCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(generateImageCmd)
-	generateImageCmd.Flags().StringP("output", "o", "output.png", "Output file path")
+	generateImageCmd.Flags().StringP("output", "o", "generated_image.png", "Output file path")
+	generateImageCmd.Flags().BoolP("force", "f", false, "Force overwrite output file")
+	generateImageCmd.Flags().String("model", "gemini-3-pro-image-preview", "Model ID")
 }

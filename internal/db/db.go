@@ -132,6 +132,9 @@ func GetTask(taskID int64) (*Task, error) {
 	var t Task
 	err = row.Scan(&t.Query, &t.Report, &t.Status)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	t.ID = int(taskID)
