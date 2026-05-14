@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -55,7 +54,7 @@ type InteractionResponse struct {
 	} `json:"content"`
 }
 
-func (a *ResearchAgent) RunResearch(ctx context.Context, query string, modelID string, parentID string, urls []string, fileURIs []string, useSearch bool, thinkingLevel string, collaborativePlanning bool) (string, error) {
+func (a *ResearchAgent) RunResearch(ctx context.Context, query string, modelID string, parentID string, urls []string, fileURIs []string, useSearch bool, thinkingLevel string, collaborativePlanning bool, verbose bool) (string, error) {
 	// Save task to DB
 	var pID *string
 	if parentID != "" {
@@ -106,10 +105,10 @@ func (a *ResearchAgent) RunResearch(ctx context.Context, query string, modelID s
 		reqBody.PreviousInteractionID = parentID
 	}
 
-	return a.streamInteraction(ctx, taskID, reqBody)
+	return a.streamInteraction(ctx, taskID, reqBody, verbose)
 }
 
-func (a *ResearchAgent) RunSearch(ctx context.Context, query string, modelID string, parentID string) (string, error) {
+func (a *ResearchAgent) RunSearch(ctx context.Context, query string, modelID string, parentID string, verbose bool) (string, error) {
 	var pID *string
 	if parentID != "" {
 		pID = &parentID
@@ -131,7 +130,7 @@ func (a *ResearchAgent) RunSearch(ctx context.Context, query string, modelID str
 		reqBody.PreviousInteractionID = parentID
 	}
 
-	return a.streamInteraction(ctx, taskID, reqBody)
+	return a.streamInteraction(ctx, taskID, reqBody, verbose)
 }
 
 func (a *ResearchAgent) GetStatus(ctx context.Context, interactionID string) (string, error) {
@@ -213,7 +212,7 @@ func (a *ResearchAgent) getTools(useSearch bool, useURLs bool) []interface{} {
 	return tools
 }
 
-func (a *ResearchAgent) streamInteraction(ctx context.Context, taskID int64, body InteractionRequest) (string, error) {
+func (a *ResearchAgent) streamInteraction(ctx context.Context, taskID int64, body InteractionRequest, verbose bool) (string, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return "", err
@@ -242,7 +241,6 @@ func (a *ResearchAgent) streamInteraction(ctx context.Context, taskID int64, bod
 	reader := bufio.NewReader(resp.Body)
 	var reportParts []string
 	var interactionID string
-	verbose := os.Getenv("RESEARCH_VERBOSE") == "1"
 
 	for {
 		line, err := reader.ReadString('\n')
@@ -260,9 +258,7 @@ func (a *ResearchAgent) streamInteraction(ctx context.Context, taskID int64, bod
 		processSSELine(line, &interactionID, &reportParts, taskID, verbose)
 	}
 
-	if !verbose {
-		fmt.Println()
-	}
+	fmt.Println()
 
 	report := strings.Join(reportParts, "")
 	if report == "" && interactionID != "" {
@@ -307,7 +303,7 @@ func (a *ResearchAgent) pollInteraction(ctx context.Context, interactionID strin
 				select {
 				case <-ctx.Done():
 					return "", ctx.Err()
-				case <-time.After(time.Duration(interval) * time.Second):
+				case <-time.After(backoffDuration(interval)):
 				}
 				interval = min(interval*1.5, maxInterval)
 				continue
@@ -350,10 +346,14 @@ func (a *ResearchAgent) pollInteraction(ctx context.Context, interactionID strin
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
-		case <-time.After(time.Duration(interval) * time.Second):
+		case <-time.After(backoffDuration(interval)):
 			interval = min(interval*1.5, maxInterval)
 		}
 	}
+}
+
+func backoffDuration(seconds float64) time.Duration {
+	return time.Duration(seconds * float64(time.Second))
 }
 
 func (a *ResearchAgent) apiURL(path string) string {
@@ -388,24 +388,20 @@ func processSSELine(line string, interactionID *string, reportParts *[]string, t
 	}
 	if thought != "" {
 		if verbose {
-			fmt.Printf("> %s\n", thought)
+			fmt.Printf("> %s\n", sanitizeTerminalText(thought))
 		}
 	}
 
 	for _, part := range event.Content.Parts {
 		if part.Text != "" {
 			*reportParts = append(*reportParts, part.Text)
-			if !verbose {
-				fmt.Print(part.Text)
-			}
+			fmt.Print(sanitizeTerminalText(part.Text))
 		}
 	}
 
 	if event.Delta.Type == "text" && event.Delta.Text != "" {
 		*reportParts = append(*reportParts, event.Delta.Text)
-		if !verbose {
-			fmt.Print(event.Delta.Text)
-		}
+		fmt.Print(sanitizeTerminalText(event.Delta.Text))
 	} else if event.Delta.Type == "image" && event.Delta.Data != "" {
 		decoded, err := base64.StdEncoding.DecodeString(event.Delta.Data)
 		if err == nil {
@@ -419,4 +415,16 @@ func processSSELine(line string, interactionID *string, reportParts *[]string, t
 			}
 		}
 	}
+}
+
+func sanitizeTerminalText(text string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\r' || r == '\t' {
+			return r
+		}
+		if r == 0x1b || r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, text)
 }

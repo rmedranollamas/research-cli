@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"context"
-
 	"github.com/google/research-cli/internal/agent"
 	"github.com/google/research-cli/internal/config"
 	"github.com/google/research-cli/internal/ui"
@@ -28,10 +26,10 @@ var searchCmd = &cobra.Command{
 			return err
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		ui.PrintPanel("Fast Search Starting", query, model)
 
-		report, err := a.RunSearch(ctx, query, model, "")
+		report, err := a.RunSearch(ctx, query, model, "", false)
 		if err != nil {
 			return err
 		}

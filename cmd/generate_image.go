@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/google/research-cli/internal/agent"
@@ -24,12 +23,12 @@ var generateImageCmd = &cobra.Command{
 			return err
 		}
 
-		a, err := agent.NewResearchAgent(apiKey, "")
+		a, err := agent.NewResearchAgent(apiKey, config.GeminiApiBaseUrl)
 		if err != nil {
 			return err
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		fmt.Printf("Generating image for: %s\n", prompt)
 
 		err = a.GenerateImage(ctx, prompt, outputPath, config.DefaultModel, true)

@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"context"
-
 	"github.com/google/research-cli/internal/agent"
+	"github.com/google/research-cli/internal/config"
 	"github.com/google/research-cli/internal/ui"
 	"github.com/google/research-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -21,12 +20,12 @@ var statusCmd = &cobra.Command{
 			return err
 		}
 
-		a, err := agent.NewResearchAgent(apiKey, "")
+		a, err := agent.NewResearchAgent(apiKey, config.GeminiApiBaseUrl)
 		if err != nil {
 			return err
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		report, err := a.GetStatus(ctx, id)
 		if err != nil {
 			return err
@@ -36,7 +35,6 @@ var statusCmd = &cobra.Command{
 		return nil
 	},
 }
-
 
 func init() {
 	rootCmd.AddCommand(statusCmd)

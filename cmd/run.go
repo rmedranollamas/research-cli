@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"context"
-	"os"
-
 	"github.com/google/research-cli/internal/agent"
 	"github.com/google/research-cli/internal/config"
 	"github.com/google/research-cli/internal/ui"
@@ -19,7 +16,7 @@ var runCmd = &cobra.Command{
 		query := args[0]
 		filePaths, _ := cmd.Flags().GetStringSlice("file")
 		urls, _ := cmd.Flags().GetStringSlice("url")
-		
+
 		apiKey, err := utils.GetApiKey()
 		if err != nil {
 			return err
@@ -30,7 +27,7 @@ var runCmd = &cobra.Command{
 			return err
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		var fileURIs []string
 		if len(filePaths) > 0 {
 			fileURIs, err = a.UploadFiles(ctx, filePaths)
@@ -40,17 +37,13 @@ var runCmd = &cobra.Command{
 		}
 
 		ui.PrintPanel("Deep Research Starting", query, config.DefaultModel)
-		
+
 		thinkingLevel, _ := cmd.Flags().GetString("thinking-level")
 		collaborativePlanning, _ := cmd.Flags().GetBool("plan")
 		noSearch, _ := cmd.Flags().GetBool("no-search")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
-		if verbose {
-			os.Setenv("RESEARCH_VERBOSE", "1")
-		}
-
-		report, err := a.RunResearch(ctx, query, config.DefaultModel, "", urls, fileURIs, !noSearch, thinkingLevel, collaborativePlanning)
+		report, err := a.RunResearch(ctx, query, config.DefaultModel, "", urls, fileURIs, !noSearch, thinkingLevel, collaborativePlanning, verbose)
 		if err != nil {
 			return err
 		}
