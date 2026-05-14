@@ -3,7 +3,9 @@ package agent
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -25,8 +27,7 @@ func NewResearchAgent(apiKey string, baseURL string) (*ResearchAgent, error) {
 	}
 
 	if baseURL != "" {
-		isLocal := strings.Contains(baseURL, "localhost") || strings.Contains(baseURL, "127.0.0.1")
-		if !strings.HasPrefix(baseURL, "https://") && !isLocal {
+		if !isSecureOrLoopbackBaseURL(baseURL) {
 			return nil, fmt.Errorf("insecure baseURL: custom baseURL must use HTTPS to prevent API key exposure")
 		}
 	}
@@ -56,4 +57,24 @@ func NewResearchAgent(apiKey string, baseURL string) (*ResearchAgent, error) {
 
 func (a *ResearchAgent) GetClient() *genai.Client {
 	return a.client
+}
+
+func isSecureOrLoopbackBaseURL(rawURL string) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	if parsed.Scheme == "https" {
+		return true
+	}
+	if parsed.Scheme != "http" {
+		return false
+	}
+
+	host := parsed.Hostname()
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

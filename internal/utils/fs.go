@@ -34,15 +34,12 @@ func ValidatePath(path string) (string, error) {
 	}
 	absPath = filepath.Clean(absPath)
 
-	// In Go, we can use strings.HasPrefix on Cleaned absolute paths
-	// after ensuring the workspace path has a trailing separator to avoid partial matches
-	// e.g., /home/pi/work and /home/pi/workspace
 	rel, err := filepath.Rel(absWorkspace, absPath)
 	if err != nil {
 		return "", fmt.Errorf("path traversal detected: %s is outside the workspace", path)
 	}
 
-	if strings.HasPrefix(rel, "..") {
+	if isParentTraversal(rel) {
 		return "", fmt.Errorf("path traversal detected: %s is outside the workspace", path)
 	}
 
@@ -66,7 +63,7 @@ func SanitizePath(path string) string {
 	}
 
 	rel, err := filepath.Rel(absWorkspace, absPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
+	if err != nil || isParentTraversal(rel) {
 		return filepath.Base(path)
 	}
 
@@ -99,4 +96,8 @@ func GetApiKey() (string, error) {
 		return "", fmt.Errorf("%s environment variable not set", config.GeminiApiKeyVar)
 	}
 	return apiKey, nil
+}
+
+func isParentTraversal(rel string) bool {
+	return rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }

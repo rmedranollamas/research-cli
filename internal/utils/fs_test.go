@@ -60,3 +60,34 @@ func TestSaveToFileRejectsExistingFileWithoutForce(t *testing.T) {
 		t.Fatalf("SaveToFile error = %v, want already exists", err)
 	}
 }
+
+func TestValidatePathAllowsDotDotPrefixedNamesInsideWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	oldWorkspace := config.WorkspaceDir
+	config.WorkspaceDir = workspace
+	t.Cleanup(func() {
+		config.WorkspaceDir = oldWorkspace
+	})
+
+	want := filepath.Join(workspace, "..cache", "out.txt")
+	got, err := ValidatePath(filepath.Join(".", "..cache", "out.txt"))
+	if err != nil {
+		t.Fatalf("ValidatePath returned error for valid workspace path: %v", err)
+	}
+	if got != want {
+		t.Fatalf("ValidatePath() = %q, want %q", got, want)
+	}
+}
+
+func TestValidatePathRejectsParentTraversal(t *testing.T) {
+	workspace := t.TempDir()
+	oldWorkspace := config.WorkspaceDir
+	config.WorkspaceDir = workspace
+	t.Cleanup(func() {
+		config.WorkspaceDir = oldWorkspace
+	})
+
+	if _, err := ValidatePath(filepath.Join("..", "outside.txt")); err == nil {
+		t.Fatal("ValidatePath accepted parent traversal")
+	}
+}
