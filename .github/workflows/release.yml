@@ -27,16 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          enable-cache: true
-          
-      - name: Set up Python
-        run: uv python install
-        
-      - name: Install dependencies
-        run: uv sync --all-extras --dev
+          go-version-file: go.mod
+          cache: true
         
       - name: Build binary
         id: build
@@ -55,12 +50,12 @@ jobs:
           esac
 
           EXE_NAME="research-${OS_NAME}-${ARCH_NAME}"
-          
-          # Use --collect-all research_cli to ensure all submodules are bundled
-          uv run python -m PyInstaller --onefile --name "$EXE_NAME" \
-            --hidden-import=rich._unicode_data.unicode17-0-0 \
-            --collect-all research_cli \
-            run.py
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+
+          GOOS="$OS_NAME" GOARCH="$ARCH_NAME" CGO_ENABLED=0 \
+            go build -trimpath -ldflags "-s -w -X github.com/google/research-cli/cmd.version=$VERSION" \
+            -o "dist/$EXE_NAME" .
 
           echo "exe_path=dist/$EXE_NAME" >> $GITHUB_OUTPUT
           echo "exe_name=$EXE_NAME" >> $GITHUB_OUTPUT
