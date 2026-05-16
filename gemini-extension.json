@@ -1,6 +1,6 @@
 {
   "name": "research-cli",
-  "version": "0.1.55.2",
+  "version": "0.2.1",
   "description": "Deep Research extension using Gemini v1alpha Interactions API",
   "settings": [
     {
@@ -10,7 +10,7 @@
     },
     {
       "name": "Research Model",
-      "description": "The Gemini model ID to use for deep research (default: deep-research-preview-04-2026)",
+      "description": "The Gemini Deep Research agent ID to use (default: deep-research-preview-04-2026; max: deep-research-max-preview-04-2026)",
       "envVar": "RESEARCH_MODEL"
     }
   ]

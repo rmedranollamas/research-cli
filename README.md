@@ -1,26 +1,21 @@
 # Research CLI
 
-Stateless CLI for Gemini Deep Research.
+Research CLI is a Go command-line tool for Gemini Deep Research, fast grounded search, image generation, and local research history.
 
-Refer to the [Instruction Manual](MANUAL.md) for detailed setup and usage guides.
+See [MANUAL.md](MANUAL.md) for the full usage guide.
 
 ## Installation
 
-### As a Gemini CLI Extension (Recommended)
-
-This is the fastest and most efficient way to install the tool. The Gemini CLI will automatically fetch the optimized, platform-specific binary from our latest release.
+### Gemini CLI Extension
 
 ```bash
 gemini extensions install rmedranollamas/research-cli
 ```
 
-### Quick Install (Stand-alone Binary)
-
-Alternatively, you can use the installation script to download and verify the stand-alone binary:
+### Standalone Binary
 
 ```bash
 curl -fsSL -o install.sh https://raw.githubusercontent.com/rmedranollamas/research-cli/main/install.sh
-# Review the script's contents
 less install.sh
 chmod +x install.sh
 ./install.sh
@@ -28,60 +23,56 @@ chmod +x install.sh
 
 ### From Source
 
-Ensure you have `uv` installed, then sync the project:
-
 ```bash
-uv sync
+git clone https://github.com/rmedranollamas/research-cli.git
+cd research-cli
+go build -o research .
+./research --help
 ```
 
 ## Usage
-
-Set your `RESEARCH_GEMINI_API_KEY` and run a research task:
 
 ```bash
 export RESEARCH_GEMINI_API_KEY="your-api-key"
 research run "How does quantum entanglement work?"
 ```
 
-If running from source:
+Key commands:
 
-```bash
-uv run research run "How does quantum entanglement work?"
-```
-
-### Key Commands
-
-- **Deep Research**: `research run "query"` - Multi-step, long-running research.
-- **Fast Search**: `research search "query"` - Quick, grounded answers using `gemini-2.0-flash`.
-- **Status**: `research status <interaction_id>` - Check progress of a background task.
-- **Image Generation**: `research generate-image "prompt" -o robot.png` - Generate AI images.
-- **List Tasks**: `research list` - View recent task history.
-- **Show Task**: `research show <ID>` - Display a specific report from history.
-
-### Context & Options
-
-- **Files**: `--file path/to/file.pdf` - Use local files as context.
-- **URLs**: `--url https://example.com` - Use web pages as context.
-- **Verbose**: `-v` or `--verbose` - See the agent's real-time "thoughts" and reasoning.
-- **Thinking**: `--thinking [minimal|low|medium|high]` - Control reasoning depth (on supported models).
+- `research run "query"`: long-running Deep Research using `deep-research-preview-04-2026`.
+- `research search "query"`: quick grounded answers using `gemini-3-flash-preview`.
+- `research status <interaction_id>`: poll an existing interaction.
+- `research generate-image "prompt" -o image.png`: generate an image using `gemini-3-pro-image-preview`.
+- `research list`: view recent local task history.
+- `research show <id>`: display a stored report.
 
 ## Configuration
 
-The CLI can be configured via environment variables:
+- `RESEARCH_GEMINI_API_KEY`: required Gemini API key.
+- `RESEARCH_MODEL`: default Deep Research agent for `run`.
+- `RESEARCH_DB_PATH`: SQLite history database path. Defaults to `~/.research-cli/history.db`.
+- `RESEARCH_WORKSPACE`: workspace for outputs. Defaults to the current directory.
+- `RESEARCH_POLL_INTERVAL`: maximum polling interval in seconds. Defaults to `10`.
+- `RESEARCH_MCP_SERVERS`: comma-separated remote MCP server URLs.
+- `GEMINI_API_BASE_URL`: optional Gemini API base URL. HTTP is allowed only for loopback hosts.
 
-- `RESEARCH_GEMINI_API_KEY`: (Required) Your Google Gemini API key.
-- `RESEARCH_MODEL`: Gemini model for research (default: `deep-research-preview-04-2026`).
-- `RESEARCH_DB_PATH`: Path to the SQLite history database (default: `~/.research-cli/history.db`).
-- `RESEARCH_POLL_INTERVAL`: Maximum interval in seconds for polling interaction status (default: `10`).
-- `RESEARCH_MCP_SERVERS`: Comma-separated list of MCP server URLs for extended tool use.
-- `GEMINI_API_BASE_URL`: Optional custom base URL for the Gemini API.
-
-## Agent Skill
-
-A [specification-compliant](https://agentskills.io/) agent skill is included in `skills/gemini-research/`. This allows AI agents to learn how to interact with this CLI autonomously.
+Use `RESEARCH_MODEL=deep-research-max-preview-04-2026` when you want the max Deep Research agent.
 
 ## Development
 
-- **Linting & Fixing**: `uv run ruff check . --fix`
-- **Formatting**: `uv run ruff format .`
-- **Testing**: `uv run pytest tests/`
+```bash
+go test ./...
+go vet ./...
+go build ./...
+```
+
+To inspect test coverage:
+
+```bash
+go test ./... -coverprofile=coverage.out
+go tool cover -func=coverage.out
+```
+
+## Agent Skill
+
+The Gemini extension packages `skills/gemini-research/` and `commands/research.toml`, with a platform-specific Go binary placed at `skills/gemini-research/scripts/research`.

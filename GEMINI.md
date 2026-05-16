@@ -1,61 +1,46 @@
-# Gemini Configuration & Technical Details
+# Gemini Configuration And Technical Details
 
-`research-cli`: A specialized, stateful CLI for Gemini Deep Research and multimodal interactions.
+`research-cli` is a Go CLI for Gemini Deep Research and multimodal interactions.
 
 ## Architecture
 
-### Agents & APIs
+- Deep Research uses `deep-research-preview-04-2026` through the Gemini v1alpha Interactions API.
+- Max Deep Research can be selected with `deep-research-max-preview-04-2026`.
+- Fast search uses `gemini-3-flash-preview`.
+- Image generation uses `gemini-3-pro-image-preview`.
+- Long-running interactions stream over SSE, then fall back to polling if the stream ends before a report is available.
+- Local task history is stored in SQLite at `~/.research-cli/history.db` by default.
 
-- **Deep Research**: Uses the `deep-research-preview-04-2026` model via the **Gemini v1alpha Interactions API**. This allows for long-running research tasks with multi-step reasoning and tool use.
-- **Multimodal Support**: Supports `IMAGE`, `TEXT`, and `PDF` (via `Files API`) modalities.
-- **Stateful Continuity**: Supports server-side state via `previous_interaction_id`, enabling multi-turn conversations without re-sending full history.
+## Gemini CLI Extension
 
-### Gemini CLI Extension
+- Manifest: `gemini-extension.json`
+- Slash command: `commands/research.toml`
+- Skill: `skills/gemini-research/SKILL.md`
+- Release archives place the platform binary at `skills/gemini-research/scripts/research`.
 
-The repository includes a `gemini-extension.json` manifest, allowing it to be used as an extension for the [Gemini CLI](https://geminicli.com/).
+## Security Notes
 
-- **Slash Commands**: Supports `/research` via `commands/research.toml`.
-- **Skills**: Exposes the `gemini-research` skill via `skills/gemini-research/SKILL.md`.
+- `RESEARCH_GEMINI_API_KEY` is passed only to Gemini API requests.
+- Custom remote API base URLs must use HTTPS. HTTP is accepted only for real loopback hosts.
+- Workspace path validation rejects parent traversal and symlink output overwrites.
+- Untrusted streamed model text is stripped of terminal control sequences before printing.
+- The SQLite history database is created with `0600` permissions.
 
-### Performance Optimizations
+## Development
 
-- **Lazy Loading**: Heavy dependencies such as `google-genai` and `rich` are lazily imported only when needed.
-- **Optimized Polling**: When the stream ends before completion, the CLI uses an exponential backoff strategy (starting at 1s, increasing by 1.5x up to `RESEARCH_POLL_INTERVAL`).
-- **Security**: Disables console markup (`markup=False`) when printing untrusted LLM content via `rich` to prevent injection.
+```bash
+go test ./...
+go vet ./...
+go build ./...
+```
 
-### Database Architecture
+Coverage:
 
-- **SQLite Backend**: Task history and reports are stored in a local SQLite database (default: `~/.research-cli/history.db`).
-- **Schema**:
-  - The `research_tasks` table stores query details, model information, interaction IDs, and final reports.
-  - An index `idx_research_tasks_created_at` optimizes the performance of listing recent tasks.
+```bash
+go test ./... -coverprofile=coverage.out
+go tool cover -func=coverage.out
+```
 
-## Key Features
+## Release
 
-- **Local File Context**: Support for uploading local files (PDF, TXT, images) to the Files API and using them as research context.
-- **Grounding & Search**: Integrated Google Search grounding for both deep research (`run`) and fast search (`search`) commands.
-- **MCP Integration**: Supports remote Model Context Protocol (MCP) servers via the `RESEARCH_MCP_SERVERS` environment variable.
-- **Image Generation**: Direct image generation via the `generate-image` command using the `IMAGE` modality.
-
-## Building and Running
-
-- **Setup**: `uv sync`
-- **Run Deep Research**: `uv run research run "query" [--file path] [--url url]`
-- **Fast Search**: `uv run research search "query" [--model gemini-2.0-flash]`
-- **Status Check**: `uv run research status <interaction_id>`
-- **Generate Image**: `uv run research generate-image "prompt" -o out.png`
-- **Test**: `uv run pytest tests/`
-- **Quality**: `uv run ruff check . --fix` and `uv run ruff format .`
-
-## Tooling
-
-- **Language**: Python 3.11+ (managed via `uv`)
-- **CLI Framework**: `argparse` with `rich` for formatting.
-- **SDK**: `google-genai` (Interactions API).
-
-## Installer & Security
-
-The `install.sh` script includes:
-
-- **Piping Protection**: Blocks direct piping to shell.
-- **Integrity Verification**: Verifies SHA256 hashes against `checksums.txt` from the official release.
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds Go binaries for Linux and macOS on amd64 and arm64, packages Gemini extension archives, and publishes checksums.

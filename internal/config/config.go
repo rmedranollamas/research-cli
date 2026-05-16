@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DefaultModelFallback  = "deep-research-pro-preview-12-2025"
+	DefaultModelFallback  = "deep-research-preview-04-2026"
 	ConfigDir             string
 	DbPath                string
 	DefaultModel          string
@@ -41,6 +41,7 @@ func Load() {
 	DefaultModel = getEnv("RESEARCH_MODEL", DefaultModelFallback)
 	GeminiApiBaseUrl = getEnv("GEMINI_API_BASE_URL", "")
 
+	McpServers = nil
 	mcpServersRaw := getEnv("RESEARCH_MCP_SERVERS", "")
 	if mcpServersRaw != "" {
 		parts := strings.Split(mcpServersRaw, ",")

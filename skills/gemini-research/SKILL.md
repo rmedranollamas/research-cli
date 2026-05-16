@@ -2,7 +2,7 @@
 name: gemini-research
 description: Perform deep research on complex topics using the Gemini Interactions API. Use when the user needs in-depth information, technical analysis, or comprehensive reports on a specific topic. This skill leverages the Gemini Interactions API for multi-step reasoning and tool use.
 metadata:
-  version: "0.1.49"
+  version: "0.2.1"
 ---
 
 # Gemini Deep Research Skill
@@ -20,7 +20,7 @@ Perform deep research on complex topics using the Gemini Interactions API. This 
 Start a new deep research task.
 
 - **`query`**: (Required) The topic or question to research in depth.
-- **`model`**: (Optional) The model ID to use for research (default: `deep-research-preview-04-2026`).
+- **`model`**: (Optional) The Deep Research agent ID to use (default: `deep-research-preview-04-2026`; max: `deep-research-max-preview-04-2026`).
 
 **Example:**
 ```bash
