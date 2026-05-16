@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DefaultModelFallback  = "deep-research-preview-04-2026"
+	DefaultModelFallback  = "deep-research-pro-preview-12-2025"
 	ConfigDir             string
 	DbPath                string
 	DefaultModel          string

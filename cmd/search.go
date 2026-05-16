@@ -38,7 +38,7 @@ var searchCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(searchCmd)
-	searchCmd.Flags().StringP("model", "m", "gemini-2.0-flash", "Model to use for fast search")
+	searchCmd.Flags().StringP("model", "m", "gemini-3-flash-preview", "Model to use for fast search")
 	searchCmd.Flags().String("parent", "", "Previous interaction ID")
 	searchCmd.Flags().BoolP("verbose", "v", false, "Show detailed reasoning thoughts")
 	searchCmd.Flags().StringP("output", "o", "", "Output file to save the report")
