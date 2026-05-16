@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -271,17 +272,17 @@ func (a *ResearchAgent) streamInteraction(ctx context.Context, taskID int64, bod
 		// Fallback to polling
 		report, err = a.pollInteraction(ctx, interactionID)
 		if err != nil {
-			_ = db.UpdateTask(taskID, "FAILED", nil, nil)
+			warnUpdateTask(taskID, "FAILED", nil, nil)
 			return "", err
 		}
 	}
 
 	if report != "" {
-		_ = db.UpdateTask(taskID, "COMPLETED", &report, &interactionID)
+		warnUpdateTask(taskID, "COMPLETED", &report, &interactionID)
 		return report, nil
 	}
 
-	_ = db.UpdateTask(taskID, "FAILED", nil, nil)
+	warnUpdateTask(taskID, "FAILED", nil, nil)
 	return "", fmt.Errorf("no content received")
 }
 
@@ -379,12 +380,13 @@ func processSSELine(line string, interactionID *string, reportParts *[]string, t
 	data := strings.TrimPrefix(line, "data: ")
 	var event InteractionResponse
 	if err := json.Unmarshal([]byte(data), &event); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to parse SSE data: %v\n", err)
 		return
 	}
 
 	if event.Interaction.ID != "" && *interactionID == "" {
 		*interactionID = event.Interaction.ID
-		_ = db.UpdateTask(taskID, "IN_PROGRESS", nil, interactionID)
+		warnUpdateTask(taskID, "IN_PROGRESS", nil, interactionID)
 		fmt.Printf("Interaction ID: %s\n", *interactionID)
 	}
 
@@ -434,4 +436,10 @@ func sanitizeTerminalText(text string) string {
 		}
 		return r
 	}, text)
+}
+
+func warnUpdateTask(taskID int64, status string, report, interactionID *string) {
+	if err := db.UpdateTask(taskID, status, report, interactionID); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to update task %d to %s: %v\n", taskID, status, err)
+	}
 }

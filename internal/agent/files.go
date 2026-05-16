@@ -16,8 +16,7 @@ func (a *ResearchAgent) UploadFiles(ctx context.Context, filePaths []string) ([]
 	for _, path := range filePaths {
 		uri, err := a.uploadFile(ctx, path)
 		if err != nil {
-			fmt.Printf("Error uploading %s: %v\n", path, err)
-			continue
+			return nil, fmt.Errorf("failed to upload %s: %w", path, err)
 		}
 		if uri != "" {
 			uris = append(uris, uri)

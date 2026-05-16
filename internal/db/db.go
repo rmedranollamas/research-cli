@@ -33,14 +33,30 @@ func GetDB() (*sql.DB, error) {
 		dbDir := filepath.Dir(dbPath)
 
 		if dbDir != "" {
-			if _, err := os.Stat(dbDir); os.IsNotExist(err) {
-				_ = os.MkdirAll(dbDir, 0700)
+			_, statErr := os.Stat(dbDir)
+			if os.IsNotExist(statErr) {
+				err = os.MkdirAll(dbDir, 0700)
+				if err != nil {
+					return
+				}
+			} else if statErr != nil {
+				err = statErr
+				return
 			} else {
 				// Secure TOCTOU fallback using os package
-				f, err := os.Open(dbDir)
-				if err == nil {
-					_ = f.Chmod(0700)
-					f.Close()
+				f, openErr := os.Open(dbDir)
+				if openErr != nil {
+					err = openErr
+					return
+				}
+				if chmodErr := f.Chmod(0700); chmodErr != nil {
+					_ = f.Close()
+					err = chmodErr
+					return
+				}
+				if closeErr := f.Close(); closeErr != nil {
+					err = closeErr
+					return
 				}
 			}
 		}
@@ -54,7 +70,9 @@ func GetDB() (*sql.DB, error) {
 			return
 		}
 
-		_ = os.Chmod(dbPath, 0600)
+		if err = os.Chmod(dbPath, 0600); err != nil {
+			return
+		}
 
 		if err = initSchema(db); err != nil {
 			return
