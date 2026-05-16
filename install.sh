@@ -53,17 +53,11 @@ if [[ ! -d $installDir ]]; then
   exit 1
 fi
 
-# Ensure python3 is available for JSON parsing
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "Error: python3 is required for the installation script."
-  exit 1
-fi
-
 echo "Detected OS: $OS_TYPE ($ARCH)."
 
 # Get latest release tag
 echo -n "Fetching latest release tag from GitHub ... "
-LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | python3 -c "import sys, json; data = json.load(sys.stdin); print(data.get('tag_name', ''))")
+LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
 
 if [ -z "$LATEST_TAG" ]; then
   echo "failed"
@@ -99,13 +93,15 @@ if [ -z "$EXPECTED_CHECKSUM" ]; then
   exit 1
 fi
 
-# Calculate actual checksum using python3 (already verified to be present)
-# Uses buffered reading to handle large files efficiently
-ACTUAL_CHECKSUM=$(python3 -c "import hashlib; import sys; h = hashlib.sha256();
-with open(sys.argv[1], 'rb') as f:
-    for chunk in iter(lambda: f.read(4096), b''):
-        h.update(chunk)
-print(h.hexdigest())" "$TMP_FILE")
+if command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL_CHECKSUM=$(sha256sum "$TMP_FILE" | awk '{print $1}')
+elif command -v shasum >/dev/null 2>&1; then
+  ACTUAL_CHECKSUM=$(shasum -a 256 "$TMP_FILE" | awk '{print $1}')
+else
+  echo "failed"
+  echo "Error: sha256sum or shasum is required for checksum verification."
+  exit 1
+fi
 
 if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
   echo "failed"

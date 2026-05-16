@@ -136,6 +136,9 @@ jobs:
           # Create a generic fallback (source-only, but with skill structure)
           tar -czf "release/research-cli.tar.gz" gemini-extension.json commands skills README.md MANUAL.md LICENSE
 
+          # Publish checksums for direct binary and extension archive verification.
+          sha256sum binaries/* release/* > release/checksums.txt
+
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
