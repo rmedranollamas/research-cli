@@ -1,4 +1,4 @@
-# Gemini Configuration And Technical Details
+# Agent Notes
 
 `research-cli` is a Go CLI for Gemini Deep Research and multimodal interactions.
 
@@ -34,6 +34,13 @@ go vet ./...
 go build ./...
 ```
 
+Prefer the native Go toolchain from `PATH`. Only override `GOPATH`, `GOCACHE`,
+or the `go` binary path when a constrained local environment requires it.
+
+The workspace has used Go `1.26.3`. Keep the `go` directive in `go.mod` aligned
+with the intended release toolchain; the release workflow uses
+`actions/setup-go` with `go-version-file: go.mod`.
+
 Coverage:
 
 ```bash
@@ -44,3 +51,14 @@ go tool cover -func=coverage.out
 ## Release
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds Go binaries for Linux and macOS on amd64 and arm64, packages Gemini extension archives, and publishes checksums.
+
+After a release, verify at least one archive by downloading it with
+`gh release download`, comparing its SHA-256 against `checksums.txt`, extracting
+`skills/gemini-research/scripts/research`, and checking `research --version`.
+
+## Dependency Updates
+
+Use the Go toolchain to update the module graph, then run `go mod tidy` and the
+normal test/vet/build checks. Do not blindly force every dependency to
+`@latest`: some valid resolved versions are pseudo-versions newer than the
+latest tagged release, and forcing `@latest` can downgrade or break the graph.
