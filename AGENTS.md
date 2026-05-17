@@ -34,9 +34,6 @@ go vet ./...
 go build ./...
 ```
 
-Prefer the native Go toolchain from `PATH`. Only override `GOPATH`, `GOCACHE`,
-or the `go` binary path when a constrained local environment requires it.
-
 The workspace has used Go `1.26.3`. Keep the `go` directive in `go.mod` aligned
 with the intended release toolchain; the release workflow uses
 `actions/setup-go` with `go-version-file: go.mod`.
