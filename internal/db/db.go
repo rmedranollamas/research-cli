@@ -2,6 +2,8 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -154,6 +156,9 @@ func GetTask(taskID int64) (*Task, error) {
 			return nil, nil
 		}
 		return nil, err
+	}
+	if taskID < int64(math.MinInt) || taskID > int64(math.MaxInt) {
+		return nil, fmt.Errorf("task ID out of range for int: %d", taskID)
 	}
 	t.ID = int(taskID)
 	return &t, nil
