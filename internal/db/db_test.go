@@ -61,7 +61,7 @@ func TestTaskLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tasks) != 1 || tasks[0].ID != int(taskID) || tasks[0].InteractionID.String != interactionID {
+	if len(tasks) != 1 || tasks[0].ID != taskID || tasks[0].InteractionID.String != interactionID {
 		t.Fatalf("GetRecentTasks() = %+v", tasks)
 	}
 }

@@ -16,7 +16,7 @@ var (
 )
 
 type Task struct {
-	ID            int
+	ID            int64
 	InteractionID sql.NullString
 	ParentID      sql.NullString
 	Query         string
@@ -155,7 +155,7 @@ func GetTask(taskID int64) (*Task, error) {
 		}
 		return nil, err
 	}
-	t.ID = int(taskID)
+	t.ID = taskID
 	return &t, nil
 }
 
