@@ -2,8 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,7 +16,7 @@ var (
 )
 
 type Task struct {
-	ID            int
+	ID            int64
 	InteractionID sql.NullString
 	ParentID      sql.NullString
 	Query         string
@@ -157,10 +155,7 @@ func GetTask(taskID int64) (*Task, error) {
 		}
 		return nil, err
 	}
-	if taskID < int64(math.MinInt) || taskID > int64(math.MaxInt) {
-		return nil, fmt.Errorf("task ID out of range for int: %d", taskID)
-	}
-	t.ID = int(taskID)
+	t.ID = taskID
 	return &t, nil
 }
 
