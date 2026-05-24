@@ -20,14 +20,21 @@ func captureOutput(f func()) string {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
+	defer func() {
+		os.Stdout = old
+	}()
+
+	outC := make(chan string)
+	// copy the output in a separate goroutine so printing can't block
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outC <- buf.String()
+	}()
+
 	f()
-
 	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String()
+	return <-outC
 }
 
 func TestPrintError(t *testing.T) {
