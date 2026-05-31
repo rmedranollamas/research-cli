@@ -41,12 +41,24 @@ func init() {
 }
 
 func truncateRunes(s string, limit int) string {
-	runes := []rune(s)
-	if len(runes) <= limit {
-		return s
+	if limit <= 0 {
+		return ""
 	}
-	if limit <= 3 {
-		return string(runes[:limit])
+
+	count := 0
+	ellipsisIdx := 0
+	for i := range s {
+		if count == limit-3 {
+			ellipsisIdx = i
+		}
+		if count == limit {
+			if limit <= 3 {
+				return s[:i]
+			}
+			return s[:ellipsisIdx] + "..."
+		}
+		count++
 	}
-	return string(runes[:limit-3]) + "..."
+
+	return s
 }
