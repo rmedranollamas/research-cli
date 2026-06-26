@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.10.2
-	google.golang.org/genai v1.61.0
+	google.golang.org/genai v1.62.0
 	modernc.org/sqlite v1.52.0
 )
 
