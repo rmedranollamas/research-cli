@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -67,6 +68,15 @@ func GetDB() (*sql.DB, error) {
 		}
 
 		if err = db.Ping(); err != nil {
+			return
+		}
+
+		var info os.FileInfo
+		if info, err = os.Lstat(dbPath); err != nil {
+			return
+		}
+		if !info.Mode().IsRegular() {
+			err = fmt.Errorf("database file %s is not a regular file", dbPath)
 			return
 		}
 
