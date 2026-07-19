@@ -3,6 +3,7 @@ package db
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -80,5 +81,28 @@ func TestGetDBCreatesPrivateDatabaseFile(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0600 {
 		t.Fatalf("database mode = %o, want 0600", got)
+	}
+}
+
+func TestGetDBRejectsSymlinks(t *testing.T) {
+	tmpDir := t.TempDir()
+	realDBPath := filepath.Join(tmpDir, "real.db")
+	symlinkPath := filepath.Join(tmpDir, "symlink.db")
+
+	// Create a symlink pointing to a location where the DB will be created
+	if err := os.Symlink(realDBPath, symlinkPath); err != nil {
+		t.Fatal(err)
+	}
+
+	resetTestDB(t, symlinkPath)
+
+	_, err := GetDB()
+	if err == nil {
+		t.Fatal("expected GetDB to fail when dbPath is a symlink")
+	}
+
+	expectedErrMsg := "is not a regular file"
+	if err.Error() == "" || !strings.Contains(err.Error(), expectedErrMsg) {
+		t.Fatalf("expected error containing %q, got: %v", expectedErrMsg, err)
 	}
 }
