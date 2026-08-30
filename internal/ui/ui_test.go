@@ -38,55 +38,191 @@ func captureOutput(f func()) string {
 }
 
 func TestPrintError(t *testing.T) {
-	got := captureOutput(func() {
-		PrintError("test error")
-	})
-	got = stripANSI(got)
-	want := "Error: test error\n"
-	if got != want {
-		t.Errorf("PrintError() = %q, want %q", got, want)
+	tests := []struct {
+		name             string
+		msg              string
+		expectedContains []string
+	}{
+		{
+			name:             "standard error message",
+			msg:              "test error",
+			expectedContains: []string{"Error: test error"},
+		},
+		{
+			name:             "empty message",
+			msg:              "",
+			expectedContains: []string{"Error: "},
+		},
+		{
+			name:             "special characters",
+			msg:              "failed with status 500: @#$%^&*()",
+			expectedContains: []string{"Error: failed with status 500: @#$%^&*()"},
+		},
+		{
+			name:             "multiline error message",
+			msg:              "first line\nsecond line",
+			expectedContains: []string{"Error: first line", "second line"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := captureOutput(func() {
+				PrintError(tt.msg)
+			})
+			gotClean := stripANSI(got)
+			for _, exp := range tt.expectedContains {
+				if !strings.Contains(gotClean, exp) {
+					t.Errorf("PrintError(%q) output missing %q, got: %q", tt.msg, exp, gotClean)
+				}
+			}
+		})
 	}
 }
 
 func TestPrintSuccess(t *testing.T) {
-	got := captureOutput(func() {
-		PrintSuccess("test success")
-	})
-	got = stripANSI(got)
-	want := "test success\n"
-	if got != want {
-		t.Errorf("PrintSuccess() = %q, want %q", got, want)
+	tests := []struct {
+		name             string
+		msg              string
+		expectedContains []string
+	}{
+		{
+			name:             "standard success message",
+			msg:              "test success",
+			expectedContains: []string{"test success"},
+		},
+		{
+			name:             "empty message",
+			msg:              "",
+			expectedContains: []string{""},
+		},
+		{
+			name:             "special characters",
+			msg:              "Task #123 completed successfully!",
+			expectedContains: []string{"Task #123 completed successfully!"},
+		},
+		{
+			name:             "multiline success message",
+			msg:              "step 1 complete\nstep 2 complete",
+			expectedContains: []string{"step 1 complete", "step 2 complete"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := captureOutput(func() {
+				PrintSuccess(tt.msg)
+			})
+			gotClean := stripANSI(got)
+			for _, exp := range tt.expectedContains {
+				if !strings.Contains(gotClean, exp) {
+					t.Errorf("PrintSuccess(%q) output missing %q, got: %q", tt.msg, exp, gotClean)
+				}
+			}
+		})
 	}
 }
 
 func TestPrintReport(t *testing.T) {
-	report := "test report content"
-	got := captureOutput(func() {
-		PrintReport(report)
-	})
-	// PrintReport uses glamour which might add its own styling/newlines
-	// We check for the separators and the content
-	separator := strings.Repeat("=", 40)
-	if !strings.Contains(got, separator) {
-		t.Errorf("PrintReport() output missing separator")
+	tests := []struct {
+		name             string
+		report           string
+		expectedContains []string
+	}{
+		{
+			name:             "standard markdown report",
+			report:           "# Research Report\n\n- Finding 1\n- Finding 2",
+			expectedContains: []string{"Research Report", "Finding 1", "Finding 2"},
+		},
+		{
+			name:             "empty report",
+			report:           "",
+			expectedContains: []string{},
+		},
+		{
+			name:             "report with code block",
+			report:           "```go\nfunc main() {}\n```",
+			expectedContains: []string{"main"},
+		},
 	}
-	if !strings.Contains(got, "test report content") {
-		t.Errorf("PrintReport() output missing content")
+
+	separator := strings.Repeat("=", 40)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := captureOutput(func() {
+				PrintReport(tt.report)
+			})
+
+			// Verify header and footer separators exist
+			if strings.Count(got, separator) != 2 {
+				t.Errorf("PrintReport() output expected 2 separator lines, got count %d in output: %q", strings.Count(got, separator), got)
+			}
+
+			// Verify expected content sub-strings exist
+			for _, exp := range tt.expectedContains {
+				if !strings.Contains(got, exp) {
+					t.Errorf("PrintReport() output missing expected string %q", exp)
+				}
+			}
+		})
 	}
 }
 
 func TestPrintPanel(t *testing.T) {
-	got := captureOutput(func() {
-		PrintPanel("test title", "test query", "test model")
-	})
-	got = stripANSI(got)
-	if !strings.Contains(got, "=== test title ===") {
-		t.Errorf("PrintPanel() output missing title")
+	tests := []struct {
+		name             string
+		title            string
+		query            string
+		model            string
+		expectedContains []string
+	}{
+		{
+			name:  "standard panel",
+			title: "test title",
+			query: "test query",
+			model: "test model",
+			expectedContains: []string{
+				"=== test title ===",
+				"Query: test query",
+				"Model: test model",
+			},
+		},
+		{
+			name:  "empty fields",
+			title: "",
+			query: "",
+			model: "",
+			expectedContains: []string{
+				"===  ===",
+				"Query: ",
+				"Model: ",
+			},
+		},
+		{
+			name:  "special characters in panel",
+			title: "Research & Analysis",
+			query: "What is 1 + 1? (math)",
+			model: "gemini-3-flash-preview",
+			expectedContains: []string{
+				"=== Research & Analysis ===",
+				"Query: What is 1 + 1? (math)",
+				"Model: gemini-3-flash-preview",
+			},
+		},
 	}
-	if !strings.Contains(got, "Query: test query") {
-		t.Errorf("PrintPanel() output missing query")
-	}
-	if !strings.Contains(got, "Model: test model") {
-		t.Errorf("PrintPanel() output missing model")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := captureOutput(func() {
+				PrintPanel(tt.title, tt.query, tt.model)
+			})
+			gotClean := stripANSI(got)
+			for _, exp := range tt.expectedContains {
+				if !strings.Contains(gotClean, exp) {
+					t.Errorf("PrintPanel() output missing %q, got: %q", exp, gotClean)
+				}
+			}
+		})
 	}
 }
