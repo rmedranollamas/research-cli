@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/google/research-cli/internal/config"
@@ -12,21 +11,11 @@ import (
 
 func resetTestDB(t *testing.T, path string) {
 	t.Helper()
-	if db != nil {
-		if err := db.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}
-	db = nil
-	dbOnce = sync.Once{}
+	ResetDBForTesting()
 	oldPath := config.DbPath
 	config.DbPath = path
 	t.Cleanup(func() {
-		if db != nil {
-			_ = db.Close()
-		}
-		db = nil
-		dbOnce = sync.Once{}
+		ResetDBForTesting()
 		config.DbPath = oldPath
 	})
 }
@@ -36,7 +25,8 @@ func TestTaskLifecycle(t *testing.T) {
 	resetTestDB(t, dbPath)
 
 	parentID := "parent-1"
-	taskID, err := SaveTask("query", "model", nil, &parentID)
+	interactionIDInit := "interaction-init"
+	taskID, err := SaveTask("query", "model", &interactionIDInit, &parentID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,6 +57,85 @@ func TestTaskLifecycle(t *testing.T) {
 	}
 }
 
+func TestUpdateTaskWithoutInteractionID(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "history.db")
+	resetTestDB(t, dbPath)
+
+	taskID, err := SaveTask("query without interaction", "model-b", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := "failed report"
+	if err := UpdateTask(taskID, "FAILED", &report, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	task, err := GetTask(taskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task == nil {
+		t.Fatal("GetTask returned nil")
+	}
+	if task.Status != "FAILED" || task.Report.String != report {
+		t.Fatalf("GetTask() = %+v", task)
+	}
+}
+
+func TestGetTaskNotFound(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "history.db")
+	resetTestDB(t, dbPath)
+
+	if _, err := GetDB(); err != nil {
+		t.Fatal(err)
+	}
+
+	task, err := GetTask(999999)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if task != nil {
+		t.Fatalf("expected nil for non-existent task, got %+v", task)
+	}
+}
+
+func TestGetRecentTasksLimitsAndOrder(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "history.db")
+	resetTestDB(t, dbPath)
+
+	for i := 1; i <= 5; i++ {
+		q := "query " + string(rune('0'+i))
+		if _, err := SaveTask(q, "model", nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tasks, err := GetRecentTasks(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 3 {
+		t.Fatalf("expected 3 tasks, got %d", len(tasks))
+	}
+
+	tasksAll, err := GetRecentTasks(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasksAll) != 5 {
+		t.Fatalf("expected 5 tasks, got %d", len(tasksAll))
+	}
+
+	tasksZero, err := GetRecentTasks(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasksZero) != 0 {
+		t.Fatalf("expected 0 tasks, got %d", len(tasksZero))
+	}
+}
+
 func TestGetDBCreatesPrivateDatabaseFile(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "nested", "history.db")
 	resetTestDB(t, dbPath)
@@ -84,12 +153,33 @@ func TestGetDBCreatesPrivateDatabaseFile(t *testing.T) {
 	}
 }
 
+func TestGetDBExistingDirectoryPermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbDir := filepath.Join(tmpDir, "existing_dir")
+	if err := os.Mkdir(dbDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(dbDir, "history.db")
+	resetTestDB(t, dbPath)
+
+	if _, err := GetDB(); err != nil {
+		t.Fatal(err)
+	}
+
+	dirInfo, err := os.Stat(dbDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := dirInfo.Mode().Perm(); got != 0700 {
+		t.Fatalf("dbDir mode = %o, want 0700", got)
+	}
+}
+
 func TestGetDBRejectsSymlinks(t *testing.T) {
 	tmpDir := t.TempDir()
 	realDBPath := filepath.Join(tmpDir, "real.db")
 	symlinkPath := filepath.Join(tmpDir, "symlink.db")
 
-	// Create a symlink pointing to a location where the DB will be created
 	if err := os.Symlink(realDBPath, symlinkPath); err != nil {
 		t.Fatal(err)
 	}
