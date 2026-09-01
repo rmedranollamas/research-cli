@@ -91,3 +91,34 @@ func TestValidatePathRejectsParentTraversal(t *testing.T) {
 		t.Fatal("ValidatePath accepted parent traversal")
 	}
 }
+
+func TestGetApiKey(t *testing.T) {
+	t.Run("returns API key when set", func(t *testing.T) {
+		expectedKey := "test-gemini-api-key-12345"
+		t.Setenv(config.GeminiApiKeyVar, expectedKey)
+
+		key, err := GetApiKey()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if key != expectedKey {
+			t.Errorf("GetApiKey() = %q, want %q", key, expectedKey)
+		}
+	})
+
+	t.Run("returns error when unset", func(t *testing.T) {
+		t.Setenv(config.GeminiApiKeyVar, "")
+
+		key, err := GetApiKey()
+		if err == nil {
+			t.Fatal("expected error when API key is unset, got nil")
+		}
+		if key != "" {
+			t.Errorf("GetApiKey() = %q, want empty string", key)
+		}
+		expectedErrSubstr := config.GeminiApiKeyVar + " environment variable not set"
+		if !strings.Contains(err.Error(), expectedErrSubstr) {
+			t.Errorf("error %q does not contain %q", err.Error(), expectedErrSubstr)
+		}
+	})
+}
