@@ -27,6 +27,14 @@ type Task struct {
 	CreatedAt     string
 }
 
+func ResetDBForTesting() {
+	if db != nil {
+		_ = db.Close()
+	}
+	db = nil
+	dbOnce = sync.Once{}
+}
+
 func GetDB() (*sql.DB, error) {
 	var err error
 	dbOnce.Do(func() {
