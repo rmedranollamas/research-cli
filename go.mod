@@ -8,7 +8,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/sync v0.22.0
-	google.golang.org/genai v1.69.0
+	google.golang.org/genai v1.71.0
 	modernc.org/sqlite v1.57.0
 )
 
