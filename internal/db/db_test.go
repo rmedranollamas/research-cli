@@ -196,3 +196,34 @@ func TestGetDBRejectsSymlinks(t *testing.T) {
 		t.Fatalf("expected error containing %q, got: %v", expectedErrMsg, err)
 	}
 }
+
+func BenchmarkGetRecentTasks(b *testing.B) {
+	dbPath := filepath.Join(b.TempDir(), "bench.db")
+	ResetDBForTesting()
+	oldPath := config.DbPath
+	config.DbPath = dbPath
+	defer func() {
+		ResetDBForTesting()
+		config.DbPath = oldPath
+	}()
+
+	for i := 0; i < 100; i++ {
+		interaction := "inter-" + string(rune('0'+i))
+		parent := "parent-123"
+		if _, err := SaveTask("query string for benchmark", "model-name", &interaction, &parent); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		tasks, err := GetRecentTasks(100)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(tasks) != 100 {
+			b.Fatalf("got %d tasks, want 100", len(tasks))
+		}
+	}
+}
