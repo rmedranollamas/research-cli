@@ -31,11 +31,7 @@ func Load() {
 	ConfigDir = getEnv("RESEARCH_CONFIG_DIR", defaultConfigDir)
 
 	dotenvPath := filepath.Join(ConfigDir, ".env")
-	if _, err := os.Stat(dotenvPath); err == nil {
-		// Attempt to set permissions to 0o600 if possible, ignoring errors
-		_ = os.Chmod(dotenvPath, 0600)
-		_ = godotenv.Load(dotenvPath)
-	}
+	loadDotenv(dotenvPath)
 
 	DbPath = getEnv("RESEARCH_DB_PATH", filepath.Join(ConfigDir, "history.db"))
 	DefaultModel = getEnv("RESEARCH_MODEL", DefaultModelFallback)
@@ -55,6 +51,38 @@ func Load() {
 
 	cwd, _ := os.Getwd()
 	WorkspaceDir = getEnv("RESEARCH_WORKSPACE", cwd)
+}
+
+func loadDotenv(dotenvPath string) {
+	lstatInfo, err := os.Lstat(dotenvPath)
+	if err != nil || !lstatInfo.Mode().IsRegular() {
+		return
+	}
+
+	f, err := os.Open(dotenvPath)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	fInfo, err := f.Stat()
+	if err != nil || !fInfo.Mode().IsRegular() || !os.SameFile(fInfo, lstatInfo) {
+		return
+	}
+
+	// Attempt to set permissions to 0600 directly on the file descriptor to avoid TOCTOU/symlink races
+	_ = f.Chmod(0600)
+
+	envMap, err := godotenv.Parse(f)
+	if err != nil {
+		return
+	}
+
+	for k, v := range envMap {
+		if _, exists := os.LookupEnv(k); !exists {
+			_ = os.Setenv(k, v)
+		}
+	}
 }
 
 func getEnv(key, fallback string) string {

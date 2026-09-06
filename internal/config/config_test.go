@@ -45,7 +45,8 @@ func TestLoadAppliesEnvironmentOverrides(t *testing.T) {
 
 func TestLoadReadsDotenv(t *testing.T) {
 	configDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(configDir, ".env"), []byte("RESEARCH_MODEL=dotenv-model\n"), 0644); err != nil {
+	dotenvFile := filepath.Join(configDir, ".env")
+	if err := os.WriteFile(dotenvFile, []byte("RESEARCH_MODEL=dotenv-model\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -62,5 +63,49 @@ func TestLoadReadsDotenv(t *testing.T) {
 
 	if DefaultModel != "dotenv-model" {
 		t.Fatalf("DefaultModel = %q, want dotenv-model", DefaultModel)
+	}
+
+	info, err := os.Stat(dotenvFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("dotenv perm = %o, want 0600", info.Mode().Perm())
+	}
+}
+
+func TestLoadRejectsSymlinkDotenv(t *testing.T) {
+	configDir := t.TempDir()
+	targetFile := filepath.Join(t.TempDir(), "target.env")
+	if err := os.WriteFile(targetFile, []byte("RESEARCH_MODEL=symlink-model\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	symlinkFile := filepath.Join(configDir, ".env")
+	if err := os.Symlink(targetFile, symlinkFile); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("RESEARCH_CONFIG_DIR", configDir)
+	t.Setenv("RESEARCH_DB_PATH", filepath.Join(t.TempDir(), "history.db"))
+	t.Setenv("RESEARCH_WORKSPACE", t.TempDir())
+	if err := os.Unsetenv("RESEARCH_MODEL"); err != nil {
+		t.Fatal(err)
+	}
+
+	McpServers = nil
+	Load()
+
+	if DefaultModel == "symlink-model" {
+		t.Fatalf("DefaultModel loaded value from symlinked .env file")
+	}
+
+	// Verify target file permissions were not changed to 0600
+	info, err := os.Stat(targetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() == 0600 {
+		t.Fatalf("target file permissions were changed via symlink")
 	}
 }
