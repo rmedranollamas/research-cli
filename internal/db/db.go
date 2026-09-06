@@ -192,7 +192,11 @@ func GetRecentTasks(limit int) ([]Task, error) {
 	}
 	defer rows.Close()
 
-	var tasks []Task
+	capacity := limit
+	if capacity < 0 {
+		capacity = 0
+	}
+	tasks := make([]Task, 0, capacity)
 	for rows.Next() {
 		var t Task
 		err := rows.Scan(&t.ID, &t.Query, &t.Status, &t.CreatedAt, &t.InteractionID)
