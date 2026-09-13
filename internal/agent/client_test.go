@@ -101,7 +101,16 @@ func TestIsSecureOrLoopbackBaseURL(t *testing.T) {
 		{name: "http ipv4 prefix", url: "http://127.0.0.1.evil.test", want: false},
 		{name: "http remote", url: "http://api.example.test", want: false},
 		{name: "unsupported scheme", url: "ftp://localhost", want: false},
+		{name: "unsupported ws scheme", url: "ws://localhost:8080", want: false},
+		{name: "unsupported wss scheme", url: "wss://api.example.test", want: false},
+		{name: "unsupported file scheme", url: "file:///etc/passwd", want: false},
+		{name: "unsupported gopher scheme", url: "gopher://example.test", want: false},
+		{name: "unsupported javascript scheme", url: "javascript:alert(1)", want: false},
+		{name: "no scheme relative url", url: "//example.com/api", want: false},
+		{name: "no scheme path url", url: "/v1/api", want: false},
+		{name: "empty url string", url: "", want: false},
 		{name: "invalid url", url: "http://[::1", want: false},
+		{name: "invalid control char url", url: "http://localhost:8080\x7f", want: false},
 	}
 
 	for _, tt := range tests {
