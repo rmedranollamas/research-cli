@@ -35,13 +35,15 @@ func uploadFilesConcurrent(ctx context.Context, filePaths []string, uploadFn upl
 		return nil, err
 	}
 
-	result := make([]string, 0, len(uris))
+	result := make([]string, len(uris))
+	count := 0
 	for _, uri := range uris {
 		if uri != "" {
-			result = append(result, uri)
+			result[count] = uri
+			count++
 		}
 	}
-	return result, nil
+	return result[:count], nil
 }
 
 func TestUploadFilesConcurrentPreservesOrder(t *testing.T) {
@@ -94,5 +96,57 @@ func BenchmarkUploadFiles_Concurrent(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func filterURIsBaseline(uris []string) []string {
+	result := make([]string, 0, len(uris))
+	for _, uri := range uris {
+		if uri != "" {
+			result = append(result, uri)
+		}
+	}
+	return result
+}
+
+func filterURIsOptimized(uris []string) []string {
+	result := make([]string, len(uris))
+	count := 0
+	for _, uri := range uris {
+		if uri != "" {
+			result[count] = uri
+			count++
+		}
+	}
+	return result[:count]
+}
+
+func BenchmarkFilterURIs_Baseline(b *testing.B) {
+	uris := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		if i%5 != 0 {
+			uris[i] = fmt.Sprintf("gs://bucket/file-%d.txt", i)
+		}
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = filterURIsBaseline(uris)
+	}
+}
+
+func BenchmarkFilterURIs_Optimized(b *testing.B) {
+	uris := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		if i%5 != 0 {
+			uris[i] = fmt.Sprintf("gs://bucket/file-%d.txt", i)
+		}
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = filterURIsOptimized(uris)
 	}
 }
