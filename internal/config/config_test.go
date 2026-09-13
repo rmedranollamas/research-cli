@@ -109,3 +109,30 @@ func TestLoadRejectsSymlinkDotenv(t *testing.T) {
 		t.Fatalf("target file permissions were changed via symlink")
 	}
 }
+
+func TestGetEnv(t *testing.T) {
+	t.Run("returns env var value when set", func(t *testing.T) {
+		t.Setenv("TEST_GETENV_VAR", "value123")
+		got := getEnv("TEST_GETENV_VAR", "fallback")
+		if got != "value123" {
+			t.Errorf("getEnv() = %q, want %q", got, "value123")
+		}
+	})
+
+	t.Run("returns fallback when key is not set", func(t *testing.T) {
+		key := "TEST_GETENV_UNSET_VAR_999"
+		os.Unsetenv(key)
+		got := getEnv(key, "default_fallback")
+		if got != "default_fallback" {
+			t.Errorf("getEnv() = %q, want %q", got, "default_fallback")
+		}
+	})
+
+	t.Run("returns empty string when key is set to empty string", func(t *testing.T) {
+		t.Setenv("TEST_GETENV_VAR_EMPTY", "")
+		got := getEnv("TEST_GETENV_VAR_EMPTY", "fallback")
+		if got != "" {
+			t.Errorf("getEnv() = %q, want %q", got, "")
+		}
+	})
+}
