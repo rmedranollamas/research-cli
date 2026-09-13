@@ -45,6 +45,24 @@ func truncateRunes(s string, limit int) string {
 		return ""
 	}
 
+	if len(s) <= limit {
+		return s
+	}
+
+	isASCII := true
+	for i := 0; i < limit; i++ {
+		if s[i] >= 0x80 {
+			isASCII = false
+			break
+		}
+	}
+	if isASCII {
+		if limit <= 3 {
+			return s[:limit]
+		}
+		return s[:limit-3] + "..."
+	}
+
 	count := 0
 	ellipsisIdx := 0
 	for i := range s {

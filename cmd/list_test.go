@@ -45,3 +45,27 @@ func TestTruncateRunesEdgeCases(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkTruncateRunes(b *testing.B) {
+	shortASCII := "Hello World"
+	longASCII := "This is a very long ASCII string that needs to be truncated when listed in the research tasks table output"
+	unicodeStr := "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究" + "研究"
+
+	b.Run("ShortASCII_NoTrunc", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = truncateRunes(shortASCII, 50)
+		}
+	})
+
+	b.Run("LongASCII_Trunc", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = truncateRunes(longASCII, 50)
+		}
+	})
+
+	b.Run("Unicode_Trunc", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = truncateRunes(unicodeStr, 10)
+		}
+	})
+}
