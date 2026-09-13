@@ -35,13 +35,15 @@ func (a *ResearchAgent) UploadFiles(ctx context.Context, filePaths []string) ([]
 		return nil, err
 	}
 
-	result := make([]string, 0, len(uris))
+	result := make([]string, len(uris))
+	count := 0
 	for _, uri := range uris {
 		if uri != "" {
-			result = append(result, uri)
+			result[count] = uri
+			count++
 		}
 	}
-	return result, nil
+	return result[:count], nil
 }
 
 func (a *ResearchAgent) uploadFile(ctx context.Context, path string) (string, error) {
