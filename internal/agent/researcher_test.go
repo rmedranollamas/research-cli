@@ -354,6 +354,28 @@ func TestGenerateImageNoOutput(t *testing.T) {
 	}
 }
 
+func BenchmarkSanitizeTerminalText(b *testing.B) {
+	benchmarks := []struct {
+		name string
+		input string
+	}{
+		{"CleanASCII", "The quick brown fox jumps over the lazy dog.\n"},
+		{"CleanMarkdown", "## Header\n- Item 1\tvalue 1\n- Item 2\tvalue 2\n\nSome longer paragraph text streaming from LLM research agent.\n"},
+		{"WithControlChars", "Hello\x00 world\x07!\nLine 2\x02 with control chars.\t"},
+		{"WithANSI", "\x1b[31mError:\x1b[0m failed to connect to \x1b[32mhttps://example.com\x1b[0m\n"},
+		{"WithANSIAndControl", "\x1b]0;title\ahello\x1b[2Jworld\x00\n"},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_ = sanitizeTerminalText(bm.input)
+			}
+		})
+	}
+}
+
 func TestStreamInteractionFallbackPolling(t *testing.T) {
 	resetDBForAgentTest(t)
 

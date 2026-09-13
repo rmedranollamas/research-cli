@@ -426,16 +426,54 @@ func processSSELine(line string, interactionID *string, reportParts *[]string, t
 }
 
 func sanitizeTerminalText(text string) string {
-	text = ansiEscapeRE.ReplaceAllString(text, "")
-	return strings.Map(func(r rune) rune {
+	hasInvalid := false
+	hasESC := false
+	for i := 0; i < len(text); i++ {
+		b := text[i]
+		if b == 0x1b {
+			hasESC = true
+			hasInvalid = true
+			break
+		}
+		if (b < 0x20 && b != '\n' && b != '\r' && b != '\t') || b == 0x7f {
+			hasInvalid = true
+		}
+	}
+
+	if !hasInvalid {
+		return text
+	}
+
+	if hasESC {
+		text = ansiEscapeRE.ReplaceAllString(text, "")
+	}
+
+	needsStrip := false
+	for i := 0; i < len(text); i++ {
+		b := text[i]
+		if (b < 0x20 && b != '\n' && b != '\r' && b != '\t') || b == 0x7f {
+			needsStrip = true
+			break
+		}
+	}
+
+	if !needsStrip {
+		return text
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(text))
+	for _, r := range text {
 		if r == '\n' || r == '\r' || r == '\t' {
-			return r
+			builder.WriteRune(r)
+			continue
 		}
 		if r == 0x1b || r < 0x20 || r == 0x7f {
-			return -1
+			continue
 		}
-		return r
-	}, text)
+		builder.WriteRune(r)
+	}
+	return builder.String()
 }
 
 func warnUpdateTask(taskID int64, status string, report, interactionID *string) {
