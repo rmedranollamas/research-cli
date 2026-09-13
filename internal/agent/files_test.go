@@ -12,20 +12,6 @@ import (
 
 type uploadFileFunc func(ctx context.Context, path string) (string, error)
 
-func uploadFilesSequential(ctx context.Context, filePaths []string, uploadFn uploadFileFunc) ([]string, error) {
-	var uris []string
-	for _, path := range filePaths {
-		uri, err := uploadFn(ctx, path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to upload %s: %w", path, err)
-		}
-		if uri != "" {
-			uris = append(uris, uri)
-		}
-	}
-	return uris, nil
-}
-
 func uploadFilesConcurrent(ctx context.Context, filePaths []string, uploadFn uploadFileFunc) ([]string, error) {
 	if len(filePaths) == 0 {
 		return nil, nil
@@ -92,22 +78,6 @@ func TestUploadFilesConcurrentErrorHandling(t *testing.T) {
 	_, err := uploadFilesConcurrent(t.Context(), paths, mockUpload)
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-}
-
-func BenchmarkUploadFiles_Sequential(b *testing.B) {
-	paths := []string{"file1.txt", "file2.txt", "file3.txt", "file4.txt", "file5.txt"}
-	mockUpload := func(ctx context.Context, path string) (string, error) {
-		time.Sleep(10 * time.Millisecond)
-		return "uri://" + path, nil
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := uploadFilesSequential(context.Background(), paths, mockUpload)
-		if err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
