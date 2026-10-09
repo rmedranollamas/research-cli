@@ -9,7 +9,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/sync v0.23.0
 	google.golang.org/genai v1.71.0
-	modernc.org/sqlite v1.60.0
+	modernc.org/sqlite v1.60.1
 )
 
 require (
