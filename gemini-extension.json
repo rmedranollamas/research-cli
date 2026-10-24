@@ -1,6 +1,6 @@
 {
   "name": "research-cli",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Deep Research extension using Gemini v1alpha Interactions API",
   "settings": [
     {

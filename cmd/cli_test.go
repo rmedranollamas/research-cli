@@ -28,6 +28,7 @@ func setupCmdTestEnv(t *testing.T) (*httptest.Server, string, string) {
 
 	config.WorkspaceDir = workspace
 	config.DbPath = dbPath
+	t.Setenv("RESEARCH_DB_PATH", dbPath)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/v1alpha/interactions") && r.Method == "POST" {

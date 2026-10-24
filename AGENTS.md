@@ -49,9 +49,61 @@ go tool cover -func=coverage.out
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds Go binaries for Linux and macOS on amd64 and arm64, packages Gemini extension archives, and publishes checksums.
 
-After a release, verify at least one archive by downloading it with
-`gh release download`, comparing its SHA-256 against `checksums.txt`, extracting
-`skills/gemini-research/scripts/research`, and checking `research --version`.
+### Release Checklist
+
+1. **Pre-flight checks**:
+   Ensure the working tree is clean, synced with upstream, properly formatted, and passing tests:
+
+   ```bash
+   git status
+   git pull
+   gofmt -l .
+   go vet ./...
+   go test ./...
+   ```
+
+1. **Version bump**:
+   Update the version string to `X.Y.Z` in:
+
+   - `cmd/root.go` (`var version = "X.Y.Z"`)
+   - `gemini-extension.json` (`"version": "X.Y.Z"`)
+
+1. **Commit & push**:
+   Stage changes, commit, and push to `main`:
+
+   ```bash
+   git add cmd/root.go gemini-extension.json AGENTS.md
+   git commit -m "bump version to X.Y.Z"
+   git push origin main
+   ```
+
+1. **Tag creation & push**:
+   Create an annotated tag and push it to trigger the release workflow:
+
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+1. **Monitor workflow**:
+   Watch the release workflow execution until completion:
+
+   ```bash
+   gh run watch
+   ```
+
+1. **Post-release verification protocol**:
+   Verify release assets, checksums, and extracted binary:
+
+   ```bash
+   gh release view vX.Y.Z
+   mkdir -p /tmp/test-release
+   gh release download vX.Y.Z -D /tmp/test-release
+   cd /tmp/test-release
+   sha256sum -c checksums.txt --ignore-missing
+   tar -xzf research-cli_vX.Y.Z_linux_amd64.tar.gz
+   ./skills/gemini-research/scripts/research --version
+   ```
 
 ## Dependency Updates
 

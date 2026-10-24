@@ -356,7 +356,7 @@ func TestGenerateImageNoOutput(t *testing.T) {
 
 func BenchmarkSanitizeTerminalText(b *testing.B) {
 	benchmarks := []struct {
-		name string
+		name  string
 		input string
 	}{
 		{"CleanASCII", "The quick brown fox jumps over the lazy dog.\n"},
