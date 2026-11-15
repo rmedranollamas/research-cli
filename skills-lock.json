@@ -1,28 +1,28 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "gemini-api-dev": {
       "source": "google-gemini/gemini-skills",
       "sourceType": "github",
       "skillPath": "skills/gemini-api-dev/SKILL.md",
-      "computedHash": "3dd98822c90c18be4f7c9484419aaa3aeb62fc729d63527880390cb370ce9907"
+      "computedHash": "38a616b2d5e40a6d32dff294ce043404af08121503bd7a86ba0cf177af68ac5f"
     },
     "gemini-interactions-api": {
       "source": "google-gemini/gemini-skills",
       "sourceType": "github",
-      "computedHash": "a7017c7e4219aed7e8b6b81c4a6f8906490801b0c6e9c8189cd9721a0c55c845"
+      "computedHash": "282e88a5417d7de9230b63dda2c59fc640f5f96cb47034dd54efd0930b87627a"
     },
     "gemini-live-api-dev": {
       "source": "google-gemini/gemini-skills",
       "sourceType": "github",
       "skillPath": "skills/gemini-live-api-dev/SKILL.md",
-      "computedHash": "bc33f3ef80fcfcecc6d3e41d85e443e55d8ab9eb7157d0d954c1cc22aee73e9a"
+      "computedHash": "d3a558b43681fd11798a25c63650368be6c2623d0aba6fabe7835483d092509b"
     },
     "gemini-omni-flash-api": {
       "source": "google-gemini/gemini-skills",
       "sourceType": "github",
       "skillPath": "skills/gemini-omni-flash-api/SKILL.md",
-      "computedHash": "32b987a10d1649aeb4d30353bb35a7ce87ac1e5e48dc06d08c61af681eab5bde"
+      "computedHash": "a975a1e145284a6e27bcc6a1759946271ac62fb0f671b342c3705eab9812a3dc"
     }
   }
 }
